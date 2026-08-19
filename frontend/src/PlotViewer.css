@@ -1,0 +1,78 @@
+.hbar {
+  display: flex;
+  height: 52px;
+  border-radius: 8px;
+  overflow: visible;
+  margin-bottom: 0.75rem;
+  gap: 2px;
+}
+
+.hbar-segment {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, canvastext 8%, canvas);
+  border: 1px solid #888;
+  border-radius: 4px;
+  cursor: pointer;
+  min-width: 2.5rem;
+}
+
+.hbar-segment:hover,
+.hbar-segment.active {
+  background: color-mix(in srgb, canvastext 18%, canvas);
+  border-color: canvastext;
+}
+
+.hbar-unassigned {
+  flex: 0 0 2.5rem;
+  border-style: dashed;
+}
+
+.hbar-label {
+  font-weight: 600;
+  font-size: 0.9em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 0.4rem;
+}
+
+.hbar-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: canvas;
+  color: canvastext;
+  border: 1px solid #888;
+  border-radius: 6px;
+  padding: 0.5rem 0.65rem;
+  min-width: 180px;
+  max-width: 260px;
+  text-align: left;
+  font-size: 0.85em;
+  font-weight: 400;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.1s ease;
+  z-index: 10;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.hbar-segment:hover .hbar-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.hbar-tooltip ul {
+  margin: 0.3rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.hbar-hint {
+  color: #888;
+  font-size: 0.9em;
+}

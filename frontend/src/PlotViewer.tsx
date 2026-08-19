@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import TopicCardGrid, { type Topic } from './TopicCardGrid'
 import './Notecards.css'
+import './PlotViewer.css'
 
 const ACTS = [
   { key: 'opening', label: 'Opening' },
@@ -9,6 +10,8 @@ const ACTS = [
 ] as const
 
 type ActKey = (typeof ACTS)[number]['key']
+
+const MIN_SEGMENT_PERCENT = 10
 
 interface Theme {
   id: number
@@ -21,43 +24,76 @@ interface Props {
   onThemeClick: (themeId: number) => void
 }
 
+function segmentWidths(counts: number[]): number[] {
+  const total = counts.reduce((sum, c) => sum + c, 0)
+  if (total === 0) return counts.map(() => 100 / counts.length)
+
+  const raw = counts.map((c) => Math.max((c / total) * 100, c > 0 ? MIN_SEGMENT_PERCENT : 0))
+  const rawTotal = raw.reduce((sum, w) => sum + w, 0)
+  return raw.map((w) => (w / rawTotal) * 100)
+}
+
 function PlotViewer({ topics, themes, onThemeClick }: Props) {
   const [selectedAct, setSelectedAct] = useState<ActKey | 'unassigned' | null>(null)
   const themeTitleById = Object.fromEntries(themes.map((t) => [t.id, t.title]))
+
+  const actTopics = ACTS.map((act) => topics.filter((t) => t.act === act.key))
   const unassignedTopics = topics.filter((t) => t.act === null)
+  const widths = segmentWidths(actTopics.map((t) => t.length))
 
-  if (selectedAct !== null) {
-    const isUnassigned = selectedAct === 'unassigned'
-    const shownTopics = isUnassigned ? unassignedTopics : topics.filter((t) => t.act === selectedAct)
-    const label = isUnassigned ? 'Unassigned' : ACTS.find((a) => a.key === selectedAct)!.label
-
-    return (
-      <div className="notecards">
-        <button className="back" onClick={() => setSelectedAct(null)}>
-          &larr; Acts
-        </button>
-        <h3>{label}</h3>
-        <TopicCardGrid topics={shownTopics} themeTitleById={themeTitleById} onThemeClick={onThemeClick} />
-      </div>
-    )
-  }
+  const shownTopics =
+    selectedAct === null
+      ? []
+      : selectedAct === 'unassigned'
+        ? unassignedTopics
+        : actTopics[ACTS.findIndex((a) => a.key === selectedAct)]
 
   return (
     <div className="notecards">
-      <div className="card-grid">
-        {ACTS.map((act) => (
-          <div className="card clickable" key={act.key} onClick={() => setSelectedAct(act.key)}>
-            <h4>{act.label}</h4>
-            <span className="tag">{topics.filter((t) => t.act === act.key).length} topics</span>
+      <div className="hbar">
+        {ACTS.map((act, i) => (
+          <div
+            key={act.key}
+            className={`hbar-segment${selectedAct === act.key ? ' active' : ''}`}
+            style={{ width: `${widths[i]}%` }}
+            onClick={() => setSelectedAct(act.key)}
+          >
+            <span className="hbar-label">{act.label}</span>
+            <div className="hbar-tooltip">
+              <strong>{act.label}</strong>
+              <ul>
+                {actTopics[i].slice(0, 5).map((t) => (
+                  <li key={t.id}>{t.title}</li>
+                ))}
+              </ul>
+              {actTopics[i].length === 0 && <span>No topics yet</span>}
+              {actTopics[i].length > 5 && <span>+{actTopics[i].length - 5} more</span>}
+            </div>
           </div>
         ))}
         {unassignedTopics.length > 0 && (
-          <div className="card clickable" onClick={() => setSelectedAct('unassigned')}>
-            <h4>Unassigned</h4>
-            <span className="tag">{unassignedTopics.length} topics</span>
+          <div
+            className={`hbar-segment hbar-unassigned${selectedAct === 'unassigned' ? ' active' : ''}`}
+            onClick={() => setSelectedAct('unassigned')}
+          >
+            <span className="hbar-label">?</span>
+            <div className="hbar-tooltip">
+              <strong>Unassigned</strong>
+              <ul>
+                {unassignedTopics.slice(0, 5).map((t) => (
+                  <li key={t.id}>{t.title}</li>
+                ))}
+              </ul>
+            </div>
           </div>
         )}
       </div>
+
+      {selectedAct === null ? (
+        <p className="hbar-hint">Click a section above to see its topics.</p>
+      ) : (
+        <TopicCardGrid topics={shownTopics} themeTitleById={themeTitleById} onThemeClick={onThemeClick} />
+      )}
     </div>
   )
 }
