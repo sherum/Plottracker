@@ -143,6 +143,20 @@ def list_all_topics(conn: sqlite3.Connection) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+def update_topic(conn: sqlite3.Connection, topic_id: int, *, title: str, summary: str) -> dict:
+    conn.execute("UPDATE topics SET title = ?, summary = ? WHERE id = ?", (title, summary, topic_id))
+    conn.commit()
+    row = conn.execute("SELECT * FROM topics WHERE id = ?", (topic_id,)).fetchone()
+    return dict(row)
+
+
+def update_theme(conn: sqlite3.Connection, theme_id: int, *, title: str, summary: str) -> dict:
+    conn.execute("UPDATE themes SET title = ?, summary = ? WHERE id = ?", (title, summary, theme_id))
+    conn.commit()
+    row = conn.execute("SELECT * FROM themes WHERE id = ?", (theme_id,)).fetchone()
+    return dict(row)
+
+
 def get_segments(conn: sqlite3.Connection, document_id: int) -> list[dict]:
     segment_rows = conn.execute(
         "SELECT * FROM segments WHERE document_id = ? ORDER BY sequence_index",

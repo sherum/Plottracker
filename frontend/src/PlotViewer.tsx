@@ -22,6 +22,7 @@ interface Props {
   topics: Topic[]
   themes: Theme[]
   onThemeClick: (themeId: number) => void
+  onUpdateTopic: (id: number, data: { title: string; summary: string }) => void
 }
 
 function segmentWidths(counts: number[]): number[] {
@@ -33,7 +34,7 @@ function segmentWidths(counts: number[]): number[] {
   return raw.map((w) => (w / rawTotal) * 100)
 }
 
-function PlotViewer({ topics, themes, onThemeClick }: Props) {
+function PlotViewer({ topics, themes, onThemeClick, onUpdateTopic }: Props) {
   const [selectedAct, setSelectedAct] = useState<ActKey | 'unassigned' | null>(null)
   const themeTitleById = Object.fromEntries(themes.map((t) => [t.id, t.title]))
 
@@ -92,7 +93,12 @@ function PlotViewer({ topics, themes, onThemeClick }: Props) {
       {selectedAct === null ? (
         <p className="hbar-hint">Click a section above to see its topics.</p>
       ) : (
-        <TopicCardGrid topics={shownTopics} themeTitleById={themeTitleById} onThemeClick={onThemeClick} />
+        <TopicCardGrid
+          topics={shownTopics}
+          themeTitleById={themeTitleById}
+          onThemeClick={onThemeClick}
+          onUpdateTopic={onUpdateTopic}
+        />
       )}
     </div>
   )

@@ -45,6 +45,26 @@ function App() {
     notecardsRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  async function updateTopic(id: number, data: { title: string; summary: string }) {
+    const response = await fetch(`/topics/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    const updated = await response.json()
+    setTopics((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
+  }
+
+  async function updateTheme(id: number, data: { title: string; summary: string }) {
+    const response = await fetch(`/themes/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    const updated = await response.json()
+    setThemes((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
+  }
+
   if (error) {
     return <p className="error">{error}</p>
   }
@@ -70,12 +90,19 @@ function App() {
 
       <section>
         <h2>Plot Viewer</h2>
-        <PlotViewer topics={topics} themes={themes} onThemeClick={navigateToTheme} />
+        <PlotViewer topics={topics} themes={themes} onThemeClick={navigateToTheme} onUpdateTopic={updateTopic} />
       </section>
 
       <section ref={notecardsRef}>
         <h2>Notecards</h2>
-        <Notecards themes={themes} topics={topics} selected={selectedTheme} onSelect={setSelectedTheme} />
+        <Notecards
+          themes={themes}
+          topics={topics}
+          selected={selectedTheme}
+          onSelect={setSelectedTheme}
+          onUpdateTopic={updateTopic}
+          onUpdateTheme={updateTheme}
+        />
       </section>
     </main>
   )

@@ -75,3 +75,19 @@ def test_analyze_document_creates_topics_and_themes(client, tmp_path, monkeypatc
     all_topics = client.get("/topics").json()
     assert all_topics[0]["title"] == "Departure"
     assert all_topics[0]["document_filename"] == "chapter1.txt"
+
+    topic_id = all_topics[0]["id"]
+    patch_topic_response = client.patch(
+        f"/topics/{topic_id}", json={"title": "Departure (revised)", "summary": "Updated summary."}
+    )
+    assert patch_topic_response.status_code == 200
+    assert patch_topic_response.json()["title"] == "Departure (revised)"
+    assert client.get(f"/documents/{document_id}/topics").json()[0]["summary"] == "Updated summary."
+
+    theme_id = themes[0]["id"]
+    patch_theme_response = client.patch(
+        f"/themes/{theme_id}", json={"title": "Journey (revised)", "summary": "Updated theme summary."}
+    )
+    assert patch_theme_response.status_code == 200
+    assert patch_theme_response.json()["title"] == "Journey (revised)"
+    assert client.get("/themes").json()[0]["summary"] == "Updated theme summary."
