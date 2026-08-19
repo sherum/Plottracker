@@ -42,3 +42,14 @@
   color: #666;
   margin-bottom: 1rem;
 }
+
+.card-tags {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.tag-link {
+  cursor: pointer;
+  text-decoration: underline;
+}

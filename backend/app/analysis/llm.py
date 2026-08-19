@@ -10,11 +10,13 @@ SYSTEM_PROMPT = """You are a story structure analyst reviewing a manuscript.
 
 Identify topics: passages that move the plot forward, in the order they occur.
 Identify themes: groups of topics that share a similar idea or thread.
+Assign each topic to one act of a three-act structure: "opening" (setup),
+"conflict" (rising action), or "climax" (resolution).
 
 Respond with strict JSON only, matching this shape:
 {
   "topics": [
-    {"segment_start_id": int, "segment_end_id": int, "title": str, "summary": str}
+    {"segment_start_id": int, "segment_end_id": int, "title": str, "summary": str, "act": "opening" | "conflict" | "climax"}
   ],
   "themes": [
     {"title": str, "summary": str, "topic_indices": [int]}

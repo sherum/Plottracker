@@ -82,11 +82,12 @@ def insert_topic(
     summary: str,
     segment_start_id: int,
     segment_end_id: int,
+    act: str | None = None,
 ) -> int:
     cursor = conn.execute(
         """
-        INSERT INTO topics (document_id, sequence_index, title, summary, segment_start_id, segment_end_id, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO topics (document_id, sequence_index, title, summary, segment_start_id, segment_end_id, act, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             document_id,
@@ -95,6 +96,7 @@ def insert_topic(
             summary,
             segment_start_id,
             segment_end_id,
+            act,
             datetime.now(timezone.utc).isoformat(),
         ),
     )

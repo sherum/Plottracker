@@ -20,6 +20,7 @@ def analyze_document(conn: sqlite3.Connection, document_id: int) -> dict:
             summary=topic.summary,
             segment_start_id=topic.segment_start_id,
             segment_end_id=topic.segment_end_id,
+            act=topic.act,
         )
         for index, topic in enumerate(result.topics)
     ]

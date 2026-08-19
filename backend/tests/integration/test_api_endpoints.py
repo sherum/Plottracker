@@ -55,6 +55,7 @@ def test_analyze_document_creates_topics_and_themes(client, tmp_path, monkeypatc
                 segment_end_id=segment_ids[0],
                 title="Departure",
                 summary="The hero leaves home.",
+                act="opening",
             )
         ],
         themes=[ThemeOut(title="Journey", summary="The hero's journey begins.", topic_indices=[0])],

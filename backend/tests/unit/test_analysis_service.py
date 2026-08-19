@@ -29,12 +29,14 @@ def test_analyze_document_stores_topics_and_themes(db_conn, monkeypatch):
                 segment_end_id=segment_ids[0],
                 title="Departure",
                 summary="The hero leaves home.",
+                act="opening",
             ),
             TopicOut(
                 segment_start_id=segment_ids[1],
                 segment_end_id=segment_ids[1],
                 title="New Ally",
                 summary="The hero finds an ally.",
+                act="opening",
             ),
         ],
         themes=[ThemeOut(title="Journey", summary="The hero's journey begins.", topic_indices=[0, 1])],
@@ -47,6 +49,7 @@ def test_analyze_document_stores_topics_and_themes(db_conn, monkeypatch):
 
     topics = repository.list_topics(db_conn, document_id)
     assert [t["title"] for t in topics] == ["Departure", "New Ally"]
+    assert all(t["act"] == "opening" for t in topics)
 
     themes = repository.list_themes(db_conn)
     assert len(themes) == 1

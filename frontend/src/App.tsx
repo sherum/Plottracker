@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react'
-import Notecards from './Notecards'
+import { useEffect, useRef, useState } from 'react'
+import Notecards, { type Selection } from './Notecards'
+import PlotViewer from './PlotViewer'
+import type { Topic } from './TopicCardGrid'
 import './App.css'
 
 interface Document {
@@ -10,16 +12,38 @@ interface Document {
   ingested_at: string
 }
 
+interface Theme {
+  id: number
+  title: string
+  summary: string
+}
+
 function App() {
   const [documents, setDocuments] = useState<Document[]>([])
+  const [themes, setThemes] = useState<Theme[]>([])
+  const [topics, setTopics] = useState<Topic[]>([])
+  const [selectedTheme, setSelectedTheme] = useState<Selection>(null)
   const [error, setError] = useState<string | null>(null)
+  const notecardsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetch('/documents')
-      .then((res) => res.json())
-      .then(setDocuments)
+    Promise.all([
+      fetch('/documents').then((res) => res.json()),
+      fetch('/themes').then((res) => res.json()),
+      fetch('/topics').then((res) => res.json()),
+    ])
+      .then(([documentsData, themesData, topicsData]) => {
+        setDocuments(documentsData)
+        setThemes(themesData)
+        setTopics(topicsData)
+      })
       .catch(() => setError('Could not reach the backend at http://localhost:8000'))
   }, [])
+
+  function navigateToTheme(themeId: number) {
+    setSelectedTheme(themeId)
+    notecardsRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
 
   if (error) {
     return <p className="error">{error}</p>
@@ -45,8 +69,13 @@ function App() {
       </section>
 
       <section>
+        <h2>Plot Viewer</h2>
+        <PlotViewer topics={topics} themes={themes} onThemeClick={navigateToTheme} />
+      </section>
+
+      <section ref={notecardsRef}>
         <h2>Notecards</h2>
-        <Notecards />
+        <Notecards themes={themes} topics={topics} selected={selectedTheme} onSelect={setSelectedTheme} />
       </section>
     </main>
   )

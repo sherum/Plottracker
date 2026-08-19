@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS topics (
     id INTEGER PRIMARY KEY,
     document_id INTEGER NOT NULL REFERENCES documents(id),
     theme_id INTEGER REFERENCES themes(id),
+    act TEXT CHECK (act IN ('opening', 'conflict', 'climax')),
     sequence_index INTEGER NOT NULL,
     title TEXT NOT NULL,
     summary TEXT NOT NULL,
