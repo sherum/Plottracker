@@ -1,0 +1,44 @@
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.card.clickable {
+  cursor: pointer;
+}
+
+.card.clickable:hover {
+  border-color: #888;
+}
+
+.card h4 {
+  margin: 0 0 0.4rem;
+}
+
+.card p {
+  margin: 0 0 0.5rem;
+  font-size: 0.9em;
+  color: #444;
+}
+
+.back {
+  background: none;
+  border: none;
+  color: #06c;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 0.75rem;
+  font-size: 0.9em;
+}
+
+.theme-summary {
+  color: #666;
+  margin-bottom: 1rem;
+}

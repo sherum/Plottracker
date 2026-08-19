@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import Notecards from './Notecards'
 import './App.css'
 
 interface Document {
@@ -9,26 +10,14 @@ interface Document {
   ingested_at: string
 }
 
-interface Theme {
-  id: number
-  title: string
-  summary: string
-}
-
 function App() {
   const [documents, setDocuments] = useState<Document[]>([])
-  const [themes, setThemes] = useState<Theme[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([
-      fetch('/documents').then((res) => res.json()),
-      fetch('/themes').then((res) => res.json()),
-    ])
-      .then(([documentsData, themesData]) => {
-        setDocuments(documentsData)
-        setThemes(themesData)
-      })
+    fetch('/documents')
+      .then((res) => res.json())
+      .then(setDocuments)
       .catch(() => setError('Could not reach the backend at http://localhost:8000'))
   }, [])
 
@@ -56,18 +45,8 @@ function App() {
       </section>
 
       <section>
-        <h2>Themes</h2>
-        {themes.length === 0 ? (
-          <p>No themes extracted yet.</p>
-        ) : (
-          <ul>
-            {themes.map((theme) => (
-              <li key={theme.id}>
-                <strong>{theme.title}</strong>: {theme.summary}
-              </li>
-            ))}
-          </ul>
-        )}
+        <h2>Notecards</h2>
+        <Notecards />
       </section>
     </main>
   )

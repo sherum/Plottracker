@@ -19,6 +19,11 @@ def get_topics(document_id: int, conn: sqlite3.Connection = Depends(get_db)) -> 
     return repository.list_topics(conn, document_id)
 
 
+@router.get("/topics")
+def get_all_topics(conn: sqlite3.Connection = Depends(get_db)) -> list[dict]:
+    return repository.list_all_topics(conn)
+
+
 @router.get("/themes")
 def get_themes(conn: sqlite3.Connection = Depends(get_db)) -> list[dict]:
     return repository.list_themes(conn)

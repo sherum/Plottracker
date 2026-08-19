@@ -70,3 +70,7 @@ def test_analyze_document_creates_topics_and_themes(client, tmp_path, monkeypatc
 
     themes = client.get("/themes").json()
     assert themes[0]["title"] == "Journey"
+
+    all_topics = client.get("/topics").json()
+    assert all_topics[0]["title"] == "Departure"
+    assert all_topics[0]["document_filename"] == "chapter1.txt"

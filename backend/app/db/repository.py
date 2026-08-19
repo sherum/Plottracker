@@ -129,6 +129,18 @@ def list_themes(conn: sqlite3.Connection) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+def list_all_topics(conn: sqlite3.Connection) -> list[dict]:
+    rows = conn.execute(
+        """
+        SELECT topics.*, documents.filename AS document_filename
+        FROM topics
+        JOIN documents ON documents.id = topics.document_id
+        ORDER BY topics.document_id, topics.sequence_index
+        """
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def get_segments(conn: sqlite3.Connection, document_id: int) -> list[dict]:
     segment_rows = conn.execute(
         "SELECT * FROM segments WHERE document_id = ? ORDER BY sequence_index",
