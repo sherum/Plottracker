@@ -73,6 +73,62 @@ def list_documents(conn: sqlite3.Connection) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+def insert_topic(
+    conn: sqlite3.Connection,
+    *,
+    document_id: int,
+    sequence_index: int,
+    title: str,
+    summary: str,
+    segment_start_id: int,
+    segment_end_id: int,
+) -> int:
+    cursor = conn.execute(
+        """
+        INSERT INTO topics (document_id, sequence_index, title, summary, segment_start_id, segment_end_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            document_id,
+            sequence_index,
+            title,
+            summary,
+            segment_start_id,
+            segment_end_id,
+            datetime.now(timezone.utc).isoformat(),
+        ),
+    )
+    conn.commit()
+    return cursor.lastrowid
+
+
+def insert_theme(conn: sqlite3.Connection, *, title: str, summary: str) -> int:
+    cursor = conn.execute(
+        "INSERT INTO themes (title, summary, created_at) VALUES (?, ?, ?)",
+        (title, summary, datetime.now(timezone.utc).isoformat()),
+    )
+    conn.commit()
+    return cursor.lastrowid
+
+
+def set_topic_theme(conn: sqlite3.Connection, topic_id: int, theme_id: int) -> None:
+    conn.execute("UPDATE topics SET theme_id = ? WHERE id = ?", (theme_id, topic_id))
+    conn.commit()
+
+
+def list_topics(conn: sqlite3.Connection, document_id: int) -> list[dict]:
+    rows = conn.execute(
+        "SELECT * FROM topics WHERE document_id = ? ORDER BY sequence_index",
+        (document_id,),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def list_themes(conn: sqlite3.Connection) -> list[dict]:
+    rows = conn.execute("SELECT * FROM themes ORDER BY id").fetchall()
+    return [dict(row) for row in rows]
+
+
 def get_segments(conn: sqlite3.Connection, document_id: int) -> list[dict]:
     segment_rows = conn.execute(
         "SELECT * FROM segments WHERE document_id = ? ORDER BY sequence_index",

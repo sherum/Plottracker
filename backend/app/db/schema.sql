@@ -34,3 +34,25 @@ CREATE TABLE IF NOT EXISTS segment_styles (
 
 CREATE INDEX IF NOT EXISTS idx_segment_styles_segment
     ON segment_styles(segment_id);
+
+CREATE TABLE IF NOT EXISTS themes (
+    id INTEGER PRIMARY KEY,
+    title TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS topics (
+    id INTEGER PRIMARY KEY,
+    document_id INTEGER NOT NULL REFERENCES documents(id),
+    theme_id INTEGER REFERENCES themes(id),
+    sequence_index INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    segment_start_id INTEGER REFERENCES segments(id),
+    segment_end_id INTEGER REFERENCES segments(id),
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_topics_document_sequence
+    ON topics(document_id, sequence_index);

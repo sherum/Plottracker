@@ -1,6 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from app.analysis import llm
+from app.analysis.models import AnalysisResult, ThemeOut, TopicOut
 from app.db.connection import get_db
 from app.main import app
 
@@ -38,3 +40,33 @@ def test_ingest_and_query_documents(client, tmp_path):
     assert segments_response.status_code == 200
     segments = segments_response.json()
     assert [s["text"] for s in segments] == ["First paragraph.", "Second paragraph."]
+
+
+def test_analyze_document_creates_topics_and_themes(client, tmp_path, monkeypatch):
+    (tmp_path / "chapter1.txt").write_text("The hero leaves home.\n\nThe hero finds an ally.")
+    client.post("/ingest", json={"folder_path": str(tmp_path), "role": "draft_script"})
+    document_id = client.get("/documents").json()[0]["id"]
+    segment_ids = [s["id"] for s in client.get(f"/documents/{document_id}/segments").json()]
+
+    fake_result = AnalysisResult(
+        topics=[
+            TopicOut(
+                segment_start_id=segment_ids[0],
+                segment_end_id=segment_ids[0],
+                title="Departure",
+                summary="The hero leaves home.",
+            )
+        ],
+        themes=[ThemeOut(title="Journey", summary="The hero's journey begins.", topic_indices=[0])],
+    )
+    monkeypatch.setattr(llm, "extract_topics_and_themes", lambda segments: fake_result)
+
+    analyze_response = client.post(f"/documents/{document_id}/analyze")
+    assert analyze_response.status_code == 200
+    assert analyze_response.json() == {"topics_created": 1, "themes_created": 1}
+
+    topics = client.get(f"/documents/{document_id}/topics").json()
+    assert topics[0]["title"] == "Departure"
+
+    themes = client.get("/themes").json()
+    assert themes[0]["title"] == "Journey"
