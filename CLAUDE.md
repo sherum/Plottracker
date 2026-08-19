@@ -48,7 +48,8 @@
 ## AI Sidekick
     - The AI can answer questions about the story
     - Rephrase dialog using the character's voice
-    - The AI uses Cerebras as the interface provider as described in SKILLS.md
+    - Current provider: Gemini 3.7 Flash via OpenRouter/LiteLLM (model `google/gemini-3.7-flash`), using OPENROUTER_API_KEY
+    - Future implementation: Cerebras as the inference provider, as described in .claude/skills/cerebras/SKILLS.md
 
 ## Technical design
     - Ignore the files in the 'oos' (out of scope) folder

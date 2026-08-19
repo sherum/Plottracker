@@ -9,3 +9,14 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Runtime data
+/data/
+.backend.pid
+.backend.log
+
+# Manuscript content (folders are tracked, contents are not)
+/draft_scripts/*
+!/draft_scripts/.gitkeep
+/story_notes/*
+!/story_notes/.gitkeep

@@ -1,0 +1,36 @@
+CREATE TABLE IF NOT EXISTS documents (
+    id INTEGER PRIMARY KEY,
+    role TEXT NOT NULL CHECK (role IN ('draft_script', 'story_note')),
+    source_path TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    source_type TEXT NOT NULL CHECK (source_type IN ('docx', 'pdf', 'txt', 'md')),
+    content_hash TEXT NOT NULL,
+    ingested_at TEXT NOT NULL,
+    page_count INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS segments (
+    id INTEGER PRIMARY KEY,
+    document_id INTEGER NOT NULL REFERENCES documents(id),
+    sequence_index INTEGER NOT NULL,
+    page_number INTEGER,
+    paragraph_index INTEGER,
+    text TEXT NOT NULL,
+    char_start INTEGER,
+    char_end INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_segments_document_sequence
+    ON segments(document_id, sequence_index);
+
+CREATE TABLE IF NOT EXISTS segment_styles (
+    id INTEGER PRIMARY KEY,
+    segment_id INTEGER NOT NULL REFERENCES segments(id),
+    style_kind TEXT NOT NULL CHECK (
+        style_kind IN ('bold', 'italic', 'underline', 'highlight', 'font_color', 'comment')
+    ),
+    style_value TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_segment_styles_segment
+    ON segment_styles(segment_id);
