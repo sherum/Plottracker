@@ -1,0 +1,17 @@
+main {
+  max-width: 640px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+  font-family: system-ui, sans-serif;
+}
+
+.tag {
+  color: #666;
+  font-size: 0.85em;
+}
+
+.error {
+  color: #b00020;
+  text-align: center;
+  margin-top: 2rem;
+}
