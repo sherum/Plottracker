@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import CardEditForm from './CardEditForm'
+import Sidekick from './Sidekick'
 import TopicCardGrid, { type Topic } from './TopicCardGrid'
 import './Notecards.css'
 
@@ -85,6 +86,7 @@ function Subplots({ subplots, allTopics, onUpdateTopic, onSubplotsChanged }: Pro
         </div>
 
         <TopicCardGrid topics={subplotTopics} onUpdateTopic={onUpdateTopic} onRemoveTopic={removeTopic} />
+        <Sidekick topics={subplotTopics} />
       </div>
     )
   }

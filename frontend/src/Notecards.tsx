@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import CardEditForm from './CardEditForm'
+import Sidekick from './Sidekick'
 import TopicCardGrid, { type Topic } from './TopicCardGrid'
 import './Notecards.css'
 
@@ -39,6 +40,7 @@ function Notecards({ themes, topics, selected, onSelect, onUpdateTopic, onUpdate
         <h3>{isUnassigned ? 'Unassigned Topics' : theme?.title}</h3>
         {!isUnassigned && <p className="theme-summary">{theme?.summary}</p>}
         <TopicCardGrid topics={shownTopics} onUpdateTopic={onUpdateTopic} />
+        <Sidekick topics={shownTopics} />
       </div>
     )
   }

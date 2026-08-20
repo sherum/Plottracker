@@ -143,6 +143,22 @@ def list_all_topics(conn: sqlite3.Connection) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+def get_topics_by_ids(conn: sqlite3.Connection, topic_ids: list[int]) -> list[dict]:
+    if not topic_ids:
+        return []
+    placeholders = ",".join("?" * len(topic_ids))
+    rows = conn.execute(f"SELECT * FROM topics WHERE id IN ({placeholders})", topic_ids).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_themes_by_ids(conn: sqlite3.Connection, theme_ids: list[int]) -> list[dict]:
+    if not theme_ids:
+        return []
+    placeholders = ",".join("?" * len(theme_ids))
+    rows = conn.execute(f"SELECT * FROM themes WHERE id IN ({placeholders})", theme_ids).fetchall()
+    return [dict(row) for row in rows]
+
+
 def update_topic(conn: sqlite3.Connection, topic_id: int, *, title: str, summary: str) -> dict:
     conn.execute("UPDATE topics SET title = ?, summary = ? WHERE id = ?", (title, summary, topic_id))
     conn.commit()

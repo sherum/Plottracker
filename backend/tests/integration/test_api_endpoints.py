@@ -5,6 +5,7 @@ from app.analysis import llm
 from app.analysis.models import AnalysisResult, ThemeOut, TopicOut
 from app.db.connection import get_db
 from app.main import app
+from app.sidekick import llm as sidekick_llm
 
 
 @pytest.fixture
@@ -112,3 +113,8 @@ def test_analyze_document_creates_topics_and_themes(client, tmp_path, monkeypatc
     remove_response = client.delete(f"/subplots/{manual_subplot['id']}/topics/{topic_id}")
     assert remove_response.status_code == 200
     assert remove_response.json()["topic_count"] == 0
+
+    monkeypatch.setattr(sidekick_llm, "answer_question", lambda question, topics, themes: "Because reasons.")
+    ask_response = client.post("/sidekick/ask", json={"question": "Why?", "topic_ids": [topic_id]})
+    assert ask_response.status_code == 200
+    assert ask_response.json() == {"answer": "Because reasons."}

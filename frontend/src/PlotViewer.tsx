@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Sidekick from './Sidekick'
 import TopicCardGrid, { type Topic } from './TopicCardGrid'
 import './Notecards.css'
 import './PlotViewer.css'
@@ -93,12 +94,15 @@ function PlotViewer({ topics, themes, onThemeClick, onUpdateTopic }: Props) {
       {selectedAct === null ? (
         <p className="hbar-hint">Click a section above to see its topics.</p>
       ) : (
-        <TopicCardGrid
-          topics={shownTopics}
-          themeTitleById={themeTitleById}
-          onThemeClick={onThemeClick}
-          onUpdateTopic={onUpdateTopic}
-        />
+        <>
+          <TopicCardGrid
+            topics={shownTopics}
+            themeTitleById={themeTitleById}
+            onThemeClick={onThemeClick}
+            onUpdateTopic={onUpdateTopic}
+          />
+          <Sidekick topics={shownTopics} />
+        </>
       )}
     </div>
   )
