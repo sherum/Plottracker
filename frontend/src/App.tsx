@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import EncodingRules, { type EncodingRule } from './EncodingRules'
+import IconButton from './IconButton'
 import IngestForm from './IngestForm'
 import Notecards, { type Selection } from './Notecards'
 import PlotViewer from './PlotViewer'
@@ -37,6 +38,8 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [analyzing, setAnalyzing] = useState<Record<number, string>>({})
   const [classifying, setClassifying] = useState<Record<number, string>>({})
+  const [loadedDocument, setLoadedDocument] = useState<Document | null>(null)
+  const [documentsCollapsed, setDocumentsCollapsed] = useState(false)
   const notecardsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -147,89 +150,106 @@ function App() {
   async function deleteDocument(id: number, filename: string) {
     if (!window.confirm(`Delete "${filename}" and all its segments, topics, and subplot memberships?`)) return
     await fetch(`/documents/${id}`, { method: 'DELETE' })
+    if (loadedDocument?.id === id) setLoadedDocument(null)
     refetchDocuments()
     refetchTopicsAndThemes()
     refetchSubplots()
+  }
+
+  function loadDocument(doc: Document) {
+    setLoadedDocument(doc)
+    setDocumentsCollapsed(true)
   }
 
   if (error) {
     return <p className="error">{error}</p>
   }
 
+  const loadedTopics = loadedDocument ? topics.filter((t) => t.document_filename === loadedDocument.filename) : []
+  const loadedThemeIds = new Set(loadedTopics.map((t) => t.theme_id).filter((id): id is number => id !== null))
+  const loadedThemes = loadedDocument ? themes.filter((t) => loadedThemeIds.has(t.id)) : []
+
   return (
     <main>
-      <h1>Genre Writer</h1>
+      <h1>{loadedDocument ? loadedDocument.filename : 'Genre Writer'}</h1>
 
-      <section>
-        <h2>Documents</h2>
-        <IngestForm onIngested={refetchDocuments} />
-        {documents.length === 0 ? (
-          <p>No documents ingested yet.</p>
-        ) : (
-          <ul>
-            {documents.map((doc) => (
-              <li key={doc.id}>
-                {doc.filename} <span className="tag">{doc.role}</span>{' '}
-                <button className="edit-btn" onClick={() => reanalyzeDocument(doc.id)}>
-                  Reanalyze
-                </button>{' '}
-                <button className="edit-btn" onClick={() => classifyDocument(doc.id)}>
-                  Classify Encoding
-                </button>{' '}
-                <button className="edit-btn" onClick={() => deleteDocument(doc.id, doc.filename)}>
-                  Delete
-                </button>
-                {analyzing[doc.id] && <span className="tag"> {analyzing[doc.id]}</span>}
-                {classifying[doc.id] && <span className="tag"> {classifying[doc.id]}</span>}
-              </li>
+      <div className="layout">
+        <div className="col col-documents">
+          <div className="section-header">
+            <h2>Documents</h2>
+            <button className="edit-btn" onClick={() => setDocumentsCollapsed((prev) => !prev)}>
+              {documentsCollapsed ? 'Show' : 'Hide'}
+            </button>
+          </div>
+          <IngestForm onIngested={refetchDocuments} />
+          {!documentsCollapsed &&
+            (documents.length === 0 ? (
+              <p>No documents ingested yet.</p>
+            ) : (
+              <ul className="documents-list">
+                {documents.map((doc) => (
+                  <li key={doc.id}>
+                    {doc.filename} <span className="tag">{doc.role}</span>
+                    <div className="doc-actions">
+                      <IconButton icon="load" label="Load" onClick={() => loadDocument(doc)} />
+                      <IconButton icon="reanalyze" label="Reanalyze" onClick={() => reanalyzeDocument(doc.id)} />
+                      <IconButton icon="classify" label="Classify Encoding" onClick={() => classifyDocument(doc.id)} />
+                      <IconButton icon="delete" label="Delete" onClick={() => deleteDocument(doc.id, doc.filename)} />
+                    </div>
+                    {analyzing[doc.id] && <span className="tag"> {analyzing[doc.id]}</span>}
+                    {classifying[doc.id] && <span className="tag"> {classifying[doc.id]}</span>}
+                  </li>
+                ))}
+              </ul>
             ))}
-          </ul>
-        )}
-      </section>
+        </div>
 
-      <section>
-        <h2>Plot Viewer</h2>
-        <PlotViewer
-          topics={topics}
-          themes={themes}
-          onThemeClick={navigateToTheme}
-          onUpdateTopic={updateTopic}
-          onToggleExcludeTopic={toggleExcludeTopic}
-        />
-      </section>
+        <div className="col col-center">
+          <section>
+            <h2>Plot Viewer</h2>
+            <PlotViewer
+              topics={loadedTopics}
+              themes={loadedThemes}
+              onThemeClick={navigateToTheme}
+              onUpdateTopic={updateTopic}
+              onToggleExcludeTopic={toggleExcludeTopic}
+            />
+          </section>
 
-      <section ref={notecardsRef}>
-        <h2>Notecards</h2>
-        <Notecards
-          themes={themes}
-          topics={topics}
-          selected={selectedTheme}
-          onSelect={setSelectedTheme}
-          onUpdateTopic={updateTopic}
-          onUpdateTheme={updateTheme}
-          onPromoteTheme={promoteTheme}
-          onToggleExcludeTopic={toggleExcludeTopic}
-          onToggleExcludeTheme={toggleExcludeTheme}
-        />
-      </section>
+          <section ref={notecardsRef}>
+            <h2>Notecards</h2>
+            <Notecards
+              themes={loadedThemes}
+              topics={loadedTopics}
+              selected={selectedTheme}
+              onSelect={setSelectedTheme}
+              onUpdateTopic={updateTopic}
+              onUpdateTheme={updateTheme}
+              onPromoteTheme={promoteTheme}
+              onToggleExcludeTopic={toggleExcludeTopic}
+              onToggleExcludeTheme={toggleExcludeTheme}
+            />
+          </section>
 
-      <section>
-        <h2>Subplots</h2>
-        <Subplots
-          subplots={subplots}
-          allTopics={topics}
-          themes={themes}
-          onThemeClick={navigateToTheme}
-          onUpdateTopic={updateTopic}
-          onSubplotsChanged={refetchSubplots}
-          onToggleExcludeTopic={toggleExcludeTopic}
-        />
-      </section>
+          <section>
+            <h2>Subplots</h2>
+            <Subplots
+              subplots={subplots}
+              allTopics={topics}
+              themes={themes}
+              onThemeClick={navigateToTheme}
+              onUpdateTopic={updateTopic}
+              onSubplotsChanged={refetchSubplots}
+              onToggleExcludeTopic={toggleExcludeTopic}
+            />
+          </section>
+        </div>
 
-      <section>
-        <h2>Encoding Rules</h2>
-        <EncodingRules rules={encodingRules} onRulesChanged={refetchEncodingRules} />
-      </section>
+        <div className="col col-encoding">
+          <h2>Encoding Rules</h2>
+          <EncodingRules rules={encodingRules} onRulesChanged={refetchEncodingRules} />
+        </div>
+      </div>
     </main>
   )
 }

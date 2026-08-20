@@ -1,5 +1,6 @@
 .hbar {
   display: flex;
+  max-width: 700px;
   height: 52px;
   border-radius: 8px;
   overflow: visible;
