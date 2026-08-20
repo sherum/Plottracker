@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import EncodingRules, { type EncodingRule } from './EncodingRules'
 import IngestForm from './IngestForm'
 import Notecards, { type Selection } from './Notecards'
 import PlotViewer from './PlotViewer'
@@ -31,9 +32,11 @@ function App() {
   const [themes, setThemes] = useState<Theme[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
   const [subplots, setSubplots] = useState<Subplot[]>([])
+  const [encodingRules, setEncodingRules] = useState<EncodingRule[]>([])
   const [selectedTheme, setSelectedTheme] = useState<Selection>(null)
   const [error, setError] = useState<string | null>(null)
   const [analyzing, setAnalyzing] = useState<Record<number, string>>({})
+  const [classifying, setClassifying] = useState<Record<number, string>>({})
   const notecardsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -42,12 +45,14 @@ function App() {
       fetch('/themes').then((res) => res.json()),
       fetch('/topics').then((res) => res.json()),
       fetch('/subplots').then((res) => res.json()),
+      fetch('/encoding-rules').then((res) => res.json()),
     ])
-      .then(([documentsData, themesData, topicsData, subplotsData]) => {
+      .then(([documentsData, themesData, topicsData, subplotsData, encodingRulesData]) => {
         setDocuments(documentsData)
         setThemes(themesData.map(normalizeExcluded))
         setTopics(topicsData.map(normalizeExcluded))
         setSubplots(subplotsData)
+        setEncodingRules(encodingRulesData)
       })
       .catch(() => setError('Could not reach the backend at http://localhost:8000'))
   }, [])
@@ -126,6 +131,19 @@ function App() {
     refetchTopicsAndThemes()
   }
 
+  function refetchEncodingRules() {
+    fetch('/encoding-rules')
+      .then((res) => res.json())
+      .then(setEncodingRules)
+  }
+
+  async function classifyDocument(id: number) {
+    setClassifying((prev) => ({ ...prev, [id]: 'Classifying…' }))
+    const response = await fetch(`/documents/${id}/classify-encoding`, { method: 'POST' })
+    const result = await response.json()
+    setClassifying((prev) => ({ ...prev, [id]: `Tagged ${result.tagged} segments` }))
+  }
+
   if (error) {
     return <p className="error">{error}</p>
   }
@@ -146,8 +164,12 @@ function App() {
                 {doc.filename} <span className="tag">{doc.role}</span>{' '}
                 <button className="edit-btn" onClick={() => reanalyzeDocument(doc.id)}>
                   Reanalyze
+                </button>{' '}
+                <button className="edit-btn" onClick={() => classifyDocument(doc.id)}>
+                  Classify Encoding
                 </button>
                 {analyzing[doc.id] && <span className="tag"> {analyzing[doc.id]}</span>}
+                {classifying[doc.id] && <span className="tag"> {classifying[doc.id]}</span>}
               </li>
             ))}
           </ul>
@@ -191,6 +213,11 @@ function App() {
           onSubplotsChanged={refetchSubplots}
           onToggleExcludeTopic={toggleExcludeTopic}
         />
+      </section>
+
+      <section>
+        <h2>Encoding Rules</h2>
+        <EncodingRules rules={encodingRules} onRulesChanged={refetchEncodingRules} />
       </section>
     </main>
   )

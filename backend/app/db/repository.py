@@ -280,6 +280,48 @@ def promote_theme_to_subplot(conn: sqlite3.Connection, theme_id: int) -> int:
     return subplot_id
 
 
+def insert_encoding_rule(
+    conn: sqlite3.Connection,
+    *,
+    style_kind: str,
+    block_length: str,
+    position: str,
+    label: str,
+    description: str = "",
+) -> int:
+    cursor = conn.execute(
+        """
+        INSERT INTO encoding_rules (style_kind, block_length, position, label, description, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (style_kind, block_length, position, label, description, datetime.now(timezone.utc).isoformat()),
+    )
+    conn.commit()
+    return cursor.lastrowid
+
+
+def list_encoding_rules(conn: sqlite3.Connection) -> list[dict]:
+    rows = conn.execute("SELECT * FROM encoding_rules ORDER BY id").fetchall()
+    return [dict(row) for row in rows]
+
+
+def delete_encoding_rule(conn: sqlite3.Connection, rule_id: int) -> None:
+    conn.execute("DELETE FROM encoding_rules WHERE id = ?", (rule_id,))
+    conn.commit()
+
+
+def clear_semantic_styles_for_document(conn: sqlite3.Connection, document_id: int) -> None:
+    conn.execute(
+        """
+        DELETE FROM segment_styles
+        WHERE style_kind = 'semantic'
+        AND segment_id IN (SELECT id FROM segments WHERE document_id = ?)
+        """,
+        (document_id,),
+    )
+    conn.commit()
+
+
 def get_segments(conn: sqlite3.Connection, document_id: int) -> list[dict]:
     segment_rows = conn.execute(
         "SELECT * FROM segments WHERE document_id = ? ORDER BY sequence_index",

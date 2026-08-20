@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS segment_styles (
     id INTEGER PRIMARY KEY,
     segment_id INTEGER NOT NULL REFERENCES segments(id),
     style_kind TEXT NOT NULL CHECK (
-        style_kind IN ('bold', 'italic', 'underline', 'highlight', 'font_color', 'comment')
+        style_kind IN ('bold', 'italic', 'underline', 'highlight', 'font_color', 'comment', 'heading', 'semantic')
     ),
     style_value TEXT
 );
@@ -72,4 +72,14 @@ CREATE TABLE IF NOT EXISTS subplot_topics (
     subplot_id INTEGER NOT NULL REFERENCES subplots(id),
     topic_id INTEGER NOT NULL REFERENCES topics(id),
     PRIMARY KEY (subplot_id, topic_id)
+);
+
+CREATE TABLE IF NOT EXISTS encoding_rules (
+    id INTEGER PRIMARY KEY,
+    style_kind TEXT NOT NULL,
+    block_length TEXT NOT NULL CHECK (block_length IN ('single', 'multi')),
+    position TEXT NOT NULL CHECK (position IN ('chapter_start', 'anywhere')),
+    label TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL
 );

@@ -51,3 +51,29 @@ def test_docx_extractor_sequence_index_increments(tmp_path):
     result = DocxExtractor().extract(fixture_path)
 
     assert [s.sequence_index for s in result.segments] == list(range(len(result.segments)))
+
+
+def test_docx_extractor_skips_whitespace_only_runs(tmp_path):
+    document = docx.Document()
+    document.add_paragraph().add_run("Real text.")
+    document.add_paragraph().add_run("          ")
+    document.save(tmp_path / "sample.docx")
+
+    result = DocxExtractor().extract(tmp_path / "sample.docx")
+
+    assert [s.text for s in result.segments] == ["Real text."]
+
+
+def test_docx_extractor_tags_heading_one_paragraphs(tmp_path):
+    document = docx.Document()
+    document.add_paragraph("Chapter One", style="Heading 1")
+    document.add_paragraph().add_run("Body text.")
+    document.save(tmp_path / "sample.docx")
+
+    result = DocxExtractor().extract(tmp_path / "sample.docx")
+
+    segments_by_text = {segment.text: segment for segment in result.segments}
+    heading_styles = {s.style_kind for s in segments_by_text["Chapter One"].styles}
+    body_styles = {s.style_kind for s in segments_by_text["Body text."].styles}
+    assert "heading" in heading_styles
+    assert "heading" not in body_styles

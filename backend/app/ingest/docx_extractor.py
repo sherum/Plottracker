@@ -22,6 +22,8 @@ class DocxExtractor:
         active_comment_ids: set[int] = set()
 
         for paragraph_index, paragraph in enumerate(document.paragraphs):
+            is_heading = paragraph.style is not None and paragraph.style.name == "Heading 1"
+
             for element in paragraph._p:
                 if element.tag == COMMENT_RANGE_START:
                     active_comment_ids.add(int(element.get(COMMENT_ID_ATTR)))
@@ -29,10 +31,12 @@ class DocxExtractor:
                     active_comment_ids.discard(int(element.get(COMMENT_ID_ATTR)))
                 elif element.tag == RUN_TAG:
                     run = Run(element, paragraph)
-                    if not run.text:
+                    if not run.text.strip():
                         continue
 
                     styles = self._run_styles(run, active_comment_ids, comments_by_id)
+                    if is_heading:
+                        styles.append(ExtractedStyle(style_kind="heading"))
 
                     segments.append(
                         ExtractedSegment(

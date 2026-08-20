@@ -30,7 +30,24 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if "excluded" not in theme_columns:
         conn.execute("ALTER TABLE themes ADD COLUMN excluded INTEGER NOT NULL DEFAULT 0")
 
+    _migrate_segment_styles_check(conn)
+
     conn.commit()
+
+
+def _migrate_segment_styles_check(conn: sqlite3.Connection) -> None:
+    row = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'segment_styles'"
+    ).fetchone()
+    if row is None or "'heading'" in row[0]:
+        return
+
+    # SQLite can't alter a CHECK constraint in place, so rebuild the table.
+    conn.execute("ALTER TABLE segment_styles RENAME TO segment_styles_old")
+    conn.execute("DROP INDEX IF EXISTS idx_segment_styles_segment")
+    conn.executescript(SCHEMA_PATH.read_text())
+    conn.execute("INSERT INTO segment_styles SELECT * FROM segment_styles_old")
+    conn.execute("DROP TABLE segment_styles_old")
 
 
 def get_db() -> Iterator[sqlite3.Connection]:

@@ -1,21 +1,6 @@
-import pytest
-from fastapi.testclient import TestClient
-
 from app.analysis import llm
 from app.analysis.models import AnalysisResult, ThemeOut, TopicOut
-from app.db.connection import get_db
-from app.main import app
 from app.sidekick import llm as sidekick_llm
-
-
-@pytest.fixture
-def client(db_conn):
-    def override_get_db():
-        yield db_conn
-
-    app.dependency_overrides[get_db] = override_get_db
-    yield TestClient(app)
-    app.dependency_overrides.clear()
 
 
 def test_health(client):
