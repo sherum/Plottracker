@@ -1,10 +1,9 @@
 .hbar {
   display: flex;
-  max-width: 700px;
   height: 52px;
   border-radius: 8px;
   overflow: visible;
-  margin: 0 auto 0.75rem;
+  margin-bottom: 0.75rem;
   gap: 2px;
 }
 

@@ -205,44 +205,46 @@ function App() {
         </div>
 
         <div className="col col-center">
-          <section>
-            <h2>Plot Viewer</h2>
-            <PlotViewer
-              topics={loadedTopics}
-              themes={loadedThemes}
-              onThemeClick={navigateToTheme}
-              onUpdateTopic={updateTopic}
-              onToggleExcludeTopic={toggleExcludeTopic}
-            />
-          </section>
+          <div className="col-center-inner">
+            <section>
+              <h2>Plot Viewer</h2>
+              <PlotViewer
+                topics={loadedTopics}
+                themes={loadedThemes}
+                onThemeClick={navigateToTheme}
+                onUpdateTopic={updateTopic}
+                onToggleExcludeTopic={toggleExcludeTopic}
+              />
+            </section>
 
-          <section ref={notecardsRef}>
-            <h2>Notecards</h2>
-            <Notecards
-              themes={loadedThemes}
-              topics={loadedTopics}
-              selected={selectedTheme}
-              onSelect={setSelectedTheme}
-              onUpdateTopic={updateTopic}
-              onUpdateTheme={updateTheme}
-              onPromoteTheme={promoteTheme}
-              onToggleExcludeTopic={toggleExcludeTopic}
-              onToggleExcludeTheme={toggleExcludeTheme}
-            />
-          </section>
+            <section ref={notecardsRef}>
+              <h2>Notecards</h2>
+              <Notecards
+                themes={loadedThemes}
+                topics={loadedTopics}
+                selected={selectedTheme}
+                onSelect={setSelectedTheme}
+                onUpdateTopic={updateTopic}
+                onUpdateTheme={updateTheme}
+                onPromoteTheme={promoteTheme}
+                onToggleExcludeTopic={toggleExcludeTopic}
+                onToggleExcludeTheme={toggleExcludeTheme}
+              />
+            </section>
 
-          <section>
-            <h2>Subplots</h2>
-            <Subplots
-              subplots={subplots}
-              allTopics={topics}
-              themes={themes}
-              onThemeClick={navigateToTheme}
-              onUpdateTopic={updateTopic}
-              onSubplotsChanged={refetchSubplots}
-              onToggleExcludeTopic={toggleExcludeTopic}
-            />
-          </section>
+            <section>
+              <h2>Subplots</h2>
+              <Subplots
+                subplots={subplots}
+                allTopics={topics}
+                themes={themes}
+                onThemeClick={navigateToTheme}
+                onUpdateTopic={updateTopic}
+                onSubplotsChanged={refetchSubplots}
+                onToggleExcludeTopic={toggleExcludeTopic}
+              />
+            </section>
+          </div>
         </div>
 
         <div className="col col-encoding">

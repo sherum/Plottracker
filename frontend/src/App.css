@@ -8,8 +8,13 @@ main {
 .layout {
   display: grid;
   grid-template-columns: 15% 70% 15%;
-  gap: 2.5rem;
+  gap: clamp(1rem, 4vw, 4rem);
   align-items: start;
+}
+
+.col-center-inner {
+  max-width: 700px;
+  margin: 0 auto;
 }
 
 .col-encoding {
