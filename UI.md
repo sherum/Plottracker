@@ -176,6 +176,49 @@ a mockup or a real back-and-forth to get right, not a best-guess
 implementation that risks shipping something confusing under the banner of
 "improving" it.
 
+**Iteration 8** — two things, deliberately chosen because the two
+remaining large TODOs (the carousel, and AI-managed encoding rules) both
+carry real risk if guessed wrong rather than just being time-consuming:
+
+1. A full regression pass across everything built in iterations 1-7 (never
+   done end-to-end in one sitting before). Console clean on load; loaded
+   document.docx and walked Plot Viewer act select/clear, Notecards
+   search + theme detail + back, Encoding Rules, and Sidekick with no
+   errors. Caught and fixed one real problem along the way — but it was in
+   my *test script*, not the app: an early ad-hoc regression check used
+   `document.querySelector('.act-select')` positionally instead of by
+   topic id, and when reassigning a topic's act moved it out of the
+   filtered view being tested, the "revert" step grabbed a *different*
+   topic's dropdown and silently left the real one changed. Found it by
+   noticing the Conflict-bucket count had shifted by exactly one (67 to
+   66) between checks, traced it to topic id 13 ("Meeting Erin
+   Michelson"), and reset it via the set-act endpoint directly. Data is
+   back to its original state (6/67/3 across Opening/Conflict/Climax),
+   confirmed by a fresh fetch. Noted here because the actual application
+   code was never at fault, but the incident is worth recording — direct
+   DOM manipulation for regression testing needs to track entities by id,
+   not by re-querying a selector after a mutation may have changed what
+   that selector matches.
+2. Pulled one genuinely safe, additive piece out of the carousel spec
+   without touching the rest of it: "the Hbar shows a vertical line where
+   the active topic lives in the story." Hovering any topic card now
+   draws a thin vertical marker on its Hbar at that topic's proportional
+   position among every topic in that bar's own scope (the whole document
+   for Plot Viewer, the subplot's own topics for Subplots' structure
+   bar), and the marker disappears on mouse-leave. No existing behavior
+   changed — click-to-select, the tooltip, search, and act reassignment
+   all work exactly as before; this is a pure hover-only addition.
+   Deliberately *not* attempted: the centered/prev/next carousel replacing
+   the current click-a-segment-see-a-grid interaction, and the
+   theme-linked visual grouping — both are still the multi-part
+   redesign flagged in iteration 7, unstarted for the same reason.
+
+Verified live: marker appears on hover (confirmed via `mouseover`/
+`mouseout` dispatch and a zoomed screenshot showing it at the
+Opening/Conflict boundary, matching the hovered topic's real sequence
+position), disappears on `mouseout`. All 39 backend tests pass
+(untouched — frontend-only change); frontend type-checks clean.
+
 ---
 
 ## Layout overview
@@ -237,7 +280,7 @@ column below.)
 - [x] use smaller progress bars for subplots — fixed alongside the above: `ActHbar` takes a `size` prop, Subplots passes `"small"` (28px, smaller label), giving real visual hierarchy between the main plot and a subplot's structure.
 - [x] Use colors to separate the three act structure, not text i.e "Conflict" — done (see Layout TODOs); applies to both the main Plot Viewer and each Subplot's own structure bar since they share `ActHbar`.
 - [x] onMouseOver displays the page or chapter as a tooltip — fixed in iteration 6: `list_all_topics` resolves each topic's nearest chapter heading or PDF page number; the Hbar's tooltip shows it per topic. Proven by a unit test; not yet confirmed against live analyzed data with real chapters (see iteration 6 log for why).
-- [ ] clicking the Hbar will select the nearest topic (carousel: centered topic + prev/next neighbors, vertical position marker, theme-linked visual grouping, topics nested under their theme the way they nest under the Hbar) — **not started.** This is a large new interaction pattern, not a tweak; needs its own design pass.
+- [~] clicking the Hbar will select the nearest topic (carousel: centered topic + prev/next neighbors, vertical position marker, theme-linked visual grouping, topics nested under their theme the way they nest under the Hbar) — **partial.** The vertical position marker is done (iteration 8): hovering a topic card draws a line on the Hbar at that topic's position. The centered/prev/next carousel itself, and theme-linked visual grouping, are still unstarted — replacing the current click-a-segment-see-a-grid interaction with a one-topic-at-a-time carousel is a large new interaction pattern, not a tweak, and needs its own design pass rather than a guess.
 - [x] Move the AI sidekick to the right column as a single chat interface for everything — fixed in iteration 7: one `<Sidekick>` at the top of the right column, scoped to every active topic in the loaded document (not to whatever is currently selected — "for everything" was read literally). Replaces the three per-section instances; asking a question scoped to just one act/theme/subplot is no longer possible, which is the tradeoff the request asked for.
 
 ### Right column — Sidekick, Encoding Rules (in that order)

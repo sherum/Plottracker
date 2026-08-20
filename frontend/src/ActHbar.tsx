@@ -50,6 +50,7 @@ function ActHbar({
   size = 'large',
 }: Props) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [hoveredTopicId, setHoveredTopicId] = useState<number | null>(null)
   const widths = segmentWidths(buckets.map((b) => b.activeTopics.length))
 
   const selected =
@@ -57,9 +58,19 @@ function ActHbar({
       ? null
       : (buckets.find((b) => b.key === selectedKey) ?? (extraBucket?.key === selectedKey ? extraBucket : null))
 
+  const allTopics = [...buckets.flatMap((b) => b.topics), ...(extraBucket?.topics ?? [])].sort(
+    (a, b) => a.sequence_index - b.sequence_index
+  )
+  const hoveredIndex = hoveredTopicId === null ? -1 : allTopics.findIndex((t) => t.id === hoveredTopicId)
+  const markerPercent =
+    hoveredIndex === -1 || allTopics.length < 2 ? null : (hoveredIndex / (allTopics.length - 1)) * 100
+
   return (
     <div className="notecards">
       <div className={`hbar${size === 'small' ? ' hbar-small' : ''}`}>
+        {markerPercent !== null && (
+          <div className="hbar-marker" style={{ left: `${markerPercent}%` }} title="Where this topic sits in the story" />
+        )}
         {buckets.map((bucket, i) => (
           <div
             key={bucket.key}
@@ -124,6 +135,7 @@ function ActHbar({
             onUpdateTopic={onUpdateTopic}
             onToggleExcludeTopic={onToggleExcludeTopic}
             onSetAct={onSetAct}
+            onHoverTopic={setHoveredTopicId}
           />
         </>
       )}

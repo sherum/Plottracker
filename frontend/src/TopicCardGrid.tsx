@@ -28,6 +28,7 @@ interface Props {
   removeLabel?: string
   onToggleExcludeTopic: (id: number, excluded: boolean) => void
   onSetAct?: (id: number, act: Act | null) => void
+  onHoverTopic?: (id: number | null) => void
 }
 
 function TopicCardGrid({
@@ -39,6 +40,7 @@ function TopicCardGrid({
   removeLabel = 'Remove',
   onToggleExcludeTopic,
   onSetAct,
+  onHoverTopic,
 }: Props) {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
@@ -83,7 +85,12 @@ function TopicCardGrid({
         const themeTitle = topic.theme_id !== null ? themeTitleById?.[topic.theme_id] : undefined
         const actClass = topic.act ? ` card-act-${topic.act}` : ''
         return (
-          <div className={`card${actClass}${topic.excluded ? ' excluded' : ''}`} key={topic.id}>
+          <div
+            className={`card${actClass}${topic.excluded ? ' excluded' : ''}`}
+            key={topic.id}
+            onMouseEnter={onHoverTopic ? () => onHoverTopic(topic.id) : undefined}
+            onMouseLeave={onHoverTopic ? () => onHoverTopic(null) : undefined}
+          >
             <div className="card-header">
               <h4>{topic.title}</h4>
               <div className="card-header-actions">
