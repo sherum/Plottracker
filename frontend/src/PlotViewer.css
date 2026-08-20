@@ -1,10 +1,20 @@
 .hbar {
   display: flex;
-  height: 52px;
+  height: 64px;
   border-radius: 8px;
   overflow: visible;
   margin-bottom: 0.75rem;
   gap: 2px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.hbar-small {
+  height: 28px;
+  box-shadow: none;
+}
+
+.hbar-small .hbar-label {
+  font-size: 0.75em;
 }
 
 .hbar-segment {
@@ -100,6 +110,11 @@
 .hbar-tooltip ul {
   margin: 0.3rem 0 0;
   padding-left: 1.1rem;
+}
+
+.hbar-tooltip-location {
+  color: #888;
+  font-style: italic;
 }
 
 .hbar-hint {

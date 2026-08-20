@@ -133,6 +133,7 @@ function Subplots({
           onThemeClick={onThemeClick}
           onUpdateTopic={onUpdateTopic}
           onToggleExcludeTopic={onToggleExcludeTopic}
+          size="small"
         />
 
         <h4>All Topics</h4>

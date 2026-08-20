@@ -106,6 +106,34 @@ pagination was added (lists still render in full, just filterable) and
 Documents/Subplots/Encoding Rules lists have no search, since none of them
 are anywhere near large enough yet to need it — revisit if that changes.
 
+**Iteration 6** — done: two more Center Column TODOs, chosen because they
+had concrete, checkable answers rather than open design questions.
+"onMouseOver displays the page or chapter as a tooltip": `list_all_topics`
+now resolves each topic's chapter (nearest preceding `Heading 1`-styled
+segment in the same document) and PDF page number via two correlated
+subqueries, exposed as `chapter_title`/`page_number` on `Topic`; the Hbar's
+existing per-segment tooltip now appends "— Chapter Name" (or "— page N"
+when there's no heading, i.e. PDF sources) after each topic title. Proven
+correct with a unit test (heading segment → chapter_title, `page_number` on
+the topic's segment → resolves both), but **not confirmed live**: no
+document in the current dev database has both analyzed topics and
+`Heading 1`-styled chapters at the same time (document.docx has topics but
+no headings in its source file; manuscript.docx has headings from earlier
+encoding-classifier work but was never analyzed into topics) — re-running
+Reanalyze on manuscript.docx would prove it live but costs a real LLM call,
+so this is flagged rather than forced. "Replace the Hbar with a larger
+progress bar for the main plot" / "use smaller progress bars for
+subplots": `ActHbar` takes a new `size` prop (`'large'` default, `'small'`
+for Subplots' structure bar) — main Hbar is now 64px with a subtle shadow,
+Subplots' is 28px with a smaller label. This is a deliberately conservative
+reading of "larger progress bar": it makes the existing bar more visually
+prominent and adds real size hierarchy between main-plot and subplot views,
+without inventing a new bar-chart-style component the request did not
+specify the shape of. Verified live: Plot Viewer's bar is visibly taller
+with a shadow; a subplot's Structure bar is visibly thinner with smaller
+text, right next to it in the same session for direct comparison. All 39
+backend tests pass (1 new); frontend type-checks clean.
+
 ---
 
 ## Layout overview
@@ -159,10 +187,10 @@ are anywhere near large enough yet to need it — revisit if that changes.
    or a selected subplot's back button + summary + its own recursive
    three-act Hbar + add-topic control + topic card grid + Sidekick
 ### Center Column TODOs
-- [ ] replace the Hbar with a larger progress bar for the main plot — **not started.** This is a visual redesign of the core navigation widget with real interaction-design decisions to make (what does "larger" mean for a proportionally-segmented bar? does click-to-select still work the same way?) — deserves its own focused iteration rather than a rushed reshape.
-- [ ] use smaller progress bars for subplots — blocked on the above (Subplots reuses the same `ActHbar` component; redesigning one redesigns both).
+- [x] replace the Hbar with a larger progress bar for the main plot — fixed conservatively in iteration 6: the existing Hbar is now taller (64px) with a subtle shadow rather than being replaced by a new component, since "larger" didn't specify a new shape and the existing proportional-segment interaction (click-to-select) is worth keeping.
+- [x] use smaller progress bars for subplots — fixed alongside the above: `ActHbar` takes a `size` prop, Subplots passes `"small"` (28px, smaller label), giving real visual hierarchy between the main plot and a subplot's structure.
 - [x] Use colors to separate the three act structure, not text i.e "Conflict" — done (see Layout TODOs); applies to both the main Plot Viewer and each Subplot's own structure bar since they share `ActHbar`.
-- [ ] onMouseOver displays the page or chapter as a tooltip — **not started.** `Topic` doesn't currently carry a page/chapter number to the frontend (segments have `page_number`/`paragraph_index` server-side, but topics aren't joined to that today) — needs a data-model check before it's a UI change.
+- [x] onMouseOver displays the page or chapter as a tooltip — fixed in iteration 6: `list_all_topics` resolves each topic's nearest chapter heading or PDF page number; the Hbar's tooltip shows it per topic. Proven by a unit test; not yet confirmed against live analyzed data with real chapters (see iteration 6 log for why).
 - [ ] clicking the Hbar will select the nearest topic (carousel: centered topic + prev/next neighbors, vertical position marker, theme-linked visual grouping, topics nested under their theme the way they nest under the Hbar) — **not started.** This is a large new interaction pattern, not a tweak; needs its own design pass.
 - [ ] Move the AI sidekick to the right column as a single chat interface for everything — **not started.** Today `Sidekick` is instantiated three separate times (Plot Viewer act, Notecards theme, Subplot detail), each scoped to whatever topics are currently selected. Moving to one global instance means deciding what "everything" means when nothing is selected, and threading the currently-selected topics up to wherever it lives. Worth doing deliberately, not as a drive-by move.
 

@@ -93,6 +93,38 @@ def test_delete_document_removes_segments_topics_and_subplot_membership(db_conn)
     assert repository.list_themes(db_conn)[0]["id"] == theme_id
 
 
+def test_list_all_topics_resolves_chapter_title_and_page_number(db_conn):
+    doc_id = repository.insert_document(
+        db_conn,
+        role="draft_script",
+        source_path="draft_scripts/chapter1.docx",
+        filename="chapter1.docx",
+        source_type="docx",
+        content_hash="chapter123",
+    )
+    heading_id = repository.insert_segment(
+        db_conn, document_id=doc_id, sequence_index=0, text="Chapter One: The Beginning"
+    )
+    repository.insert_style(db_conn, segment_id=heading_id, style_kind="heading")
+    body_id = repository.insert_segment(
+        db_conn, document_id=doc_id, sequence_index=1, text="The story starts here.", page_number=3
+    )
+    repository.insert_topic(
+        db_conn,
+        document_id=doc_id,
+        sequence_index=0,
+        title="Opening scene",
+        summary="Summary.",
+        segment_start_id=body_id,
+        segment_end_id=body_id,
+    )
+
+    topics = repository.list_all_topics(db_conn)
+
+    assert topics[0]["chapter_title"] == "Chapter One: The Beginning"
+    assert topics[0]["page_number"] == 3
+
+
 def test_set_topic_act_updates_and_clears(db_conn):
     doc_id = repository.insert_document(
         db_conn,

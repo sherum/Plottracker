@@ -149,7 +149,20 @@ def list_themes(conn: sqlite3.Connection) -> list[dict]:
 def list_all_topics(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute(
         """
-        SELECT topics.*, documents.filename AS document_filename
+        SELECT topics.*, documents.filename AS document_filename,
+            (SELECT page_number FROM segments WHERE id = topics.segment_start_id) AS page_number,
+            (
+                SELECT segments.text
+                FROM segments
+                JOIN segment_styles ON segment_styles.segment_id = segments.id
+                WHERE segments.document_id = topics.document_id
+                    AND segment_styles.style_kind = 'heading'
+                    AND segments.sequence_index <= (
+                        SELECT sequence_index FROM segments WHERE id = topics.segment_start_id
+                    )
+                ORDER BY segments.sequence_index DESC
+                LIMIT 1
+            ) AS chapter_title
         FROM topics
         JOIN documents ON documents.id = topics.document_id
         ORDER BY topics.document_id, topics.sequence_index

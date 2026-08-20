@@ -11,6 +11,8 @@ export interface Topic {
   document_filename: string
   sequence_index: number
   excluded: boolean
+  chapter_title?: string | null
+  page_number?: number | null
 }
 
 type Act = 'opening' | 'conflict' | 'climax'

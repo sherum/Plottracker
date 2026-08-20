@@ -22,6 +22,7 @@ interface Props {
   onUpdateTopic: (id: number, data: { title: string; summary: string }) => void
   onToggleExcludeTopic: (id: number, excluded: boolean) => void
   onSetAct?: (id: number, act: 'opening' | 'conflict' | 'climax' | null) => void
+  size?: 'large' | 'small'
 }
 
 function segmentWidths(counts: number[]): number[] {
@@ -33,6 +34,12 @@ function segmentWidths(counts: number[]): number[] {
   return raw.map((w) => (w / rawTotal) * 100)
 }
 
+function topicLocation(t: Topic): string | null {
+  if (t.chapter_title) return t.chapter_title
+  if (t.page_number != null) return `page ${t.page_number}`
+  return null
+}
+
 function ActHbar({
   buckets,
   extraBucket,
@@ -41,6 +48,7 @@ function ActHbar({
   onUpdateTopic,
   onToggleExcludeTopic,
   onSetAct,
+  size = 'large',
 }: Props) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const widths = segmentWidths(buckets.map((b) => b.activeTopics.length))
@@ -52,7 +60,7 @@ function ActHbar({
 
   return (
     <div className="notecards">
-      <div className="hbar">
+      <div className={`hbar${size === 'small' ? ' hbar-small' : ''}`}>
         {buckets.map((bucket, i) => (
           <div
             key={bucket.key}
@@ -64,9 +72,15 @@ function ActHbar({
             <div className="hbar-tooltip">
               <strong>{bucket.label}</strong>
               <ul>
-                {bucket.activeTopics.slice(0, 5).map((t) => (
-                  <li key={t.id}>{t.title}</li>
-                ))}
+                {bucket.activeTopics.slice(0, 5).map((t) => {
+                  const location = topicLocation(t)
+                  return (
+                    <li key={t.id}>
+                      {t.title}
+                      {location && <span className="hbar-tooltip-location"> — {location}</span>}
+                    </li>
+                  )
+                })}
               </ul>
               {bucket.activeTopics.length === 0 && <span>No topics yet</span>}
               {bucket.activeTopics.length > 5 && <span>+{bucket.activeTopics.length - 5} more</span>}
@@ -82,9 +96,15 @@ function ActHbar({
             <div className="hbar-tooltip">
               <strong>{extraBucket.label}</strong>
               <ul>
-                {extraBucket.activeTopics.slice(0, 5).map((t) => (
-                  <li key={t.id}>{t.title}</li>
-                ))}
+                {extraBucket.activeTopics.slice(0, 5).map((t) => {
+                  const location = topicLocation(t)
+                  return (
+                    <li key={t.id}>
+                      {t.title}
+                      {location && <span className="hbar-tooltip-location"> — {location}</span>}
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           </div>
