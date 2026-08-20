@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import ActHbar, { type HbarBucket } from './ActHbar'
 import CardEditForm from './CardEditForm'
+import { onActivateKey } from './keyboardActivate'
 import { useToast } from './ToastContext'
 import TopicCardGrid, { type Topic } from './TopicCardGrid'
 import './Notecards.css'
@@ -175,7 +176,15 @@ function Subplots({
 
       <div className="card-grid">
         {subplots.map((subplot) => (
-          <div className="card clickable" key={subplot.id} onClick={() => setSelectedId(subplot.id)}>
+          <div
+            className="card clickable"
+            key={subplot.id}
+            onClick={() => setSelectedId(subplot.id)}
+            role="button"
+            tabIndex={0}
+            aria-label={`Open subplot ${subplot.title}`}
+            onKeyDown={onActivateKey(() => setSelectedId(subplot.id))}
+          >
             <h4>{subplot.title}</h4>
             <p>{subplot.summary}</p>
             <div className="card-tags">

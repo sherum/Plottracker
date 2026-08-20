@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import CardEditForm from './CardEditForm'
+import { onActivateKey } from './keyboardActivate'
 import TopicCardGrid, { type Topic } from './TopicCardGrid'
 import './Notecards.css'
 
@@ -113,6 +114,10 @@ function Notecards({
               className={`card clickable${theme.excluded ? ' excluded' : ''}`}
               key={theme.id}
               onClick={() => onSelect(theme.id)}
+              role="button"
+              tabIndex={0}
+              aria-label={`Open theme ${theme.title}`}
+              onKeyDown={onActivateKey(() => onSelect(theme.id))}
             >
               <div className="card-header">
                 <h4>{theme.title}</h4>
@@ -161,7 +166,14 @@ function Notecards({
           )
         })}
         {unassignedTopics.length > 0 && (
-          <div className="card clickable" onClick={() => onSelect(UNASSIGNED)}>
+          <div
+            className="card clickable"
+            onClick={() => onSelect(UNASSIGNED)}
+            role="button"
+            tabIndex={0}
+            aria-label="Open unassigned topics"
+            onKeyDown={onActivateKey(() => onSelect(UNASSIGNED))}
+          >
             <h4>Unassigned Topics</h4>
             <p>Topics not yet grouped into a theme.</p>
             <span className="tag">{unassignedTopics.filter((t) => !t.excluded).length} topics</span>

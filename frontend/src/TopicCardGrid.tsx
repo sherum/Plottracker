@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import CardEditForm from './CardEditForm'
+import { onActivateKey } from './keyboardActivate'
 import './Notecards.css'
 
 export interface Topic {
@@ -144,6 +145,10 @@ function TopicCardGrid({
                 <span
                   className={onThemeClick ? 'tag tag-link' : 'tag'}
                   onClick={onThemeClick ? () => onThemeClick(topic.theme_id!) : undefined}
+                  role={onThemeClick ? 'button' : undefined}
+                  tabIndex={onThemeClick ? 0 : undefined}
+                  aria-label={onThemeClick ? `Open theme ${themeTitle}` : undefined}
+                  onKeyDown={onThemeClick ? onActivateKey(() => onThemeClick(topic.theme_id!)) : undefined}
                 >
                   {themeTitle}
                 </span>

@@ -219,6 +219,36 @@ Opening/Conflict boundary, matching the hovered topic's real sequence
 position), disappears on `mouseout`. All 39 backend tests pass
 (untouched — frontend-only change); frontend type-checks clean.
 
+**Iteration 9** — surveyed `UI.md` for every remaining unchecked item
+before touching anything: only three are left ("bootstrap layout" —
+deliberately declined with a documented reason; the two AI-manages-
+encoding-rules items — genuinely blocked on the same LLM tool-calling
+build) plus the partial carousel. Rather than force one of the two
+already-declined large items a third time, found and fixed a real,
+previously unflagged gap instead: **no clickable card, tag, or Hbar
+segment in the whole app was keyboard-accessible.** Six places
+(`ActHbar`'s act segments and unassigned segment, Notecards' theme cards
+and Unassigned Topics card, Subplots' subplot cards, `TopicCardGrid`'s
+theme tag-link) were `<div>`/`<span>` elements with only an `onClick` —
+no `tabIndex`, no `role`, no keyboard handler, meaning a keyboard-only or
+screen-reader user could not open a theme, a subplot, an act, or follow a
+theme link anywhere in the app. Added a small shared helper
+(`keyboardActivate.ts`) and wired `role="button"`, `tabIndex={0}`, an
+`aria-label`, and an Enter/Space handler into all six, plus a
+`:focus-visible` outline in the app's accent color so keyboard focus is
+actually visible. Known imperfection, noted rather than hidden: the theme
+and subplot cards still nest their own Edit/Exclude/Promote buttons
+inside an outer `role="button"` element, which strict ARIA authoring
+practice discourages (a button containing other interactive elements) —
+fixing that properly means restructuring those cards (e.g. splitting the
+"open" affordance from the action buttons), which is a real layout change
+this iteration didn't attempt. Verified live: focused an Hbar segment and
+a theme card via `.focus()`, confirmed `document.activeElement` matched,
+dispatched a real `Enter` `keydown`, and confirmed both actually
+activated (the Hbar selection changed; the theme detail view opened) —
+not just that a handler existed. Frontend-only change; all 39 backend
+tests pass untouched; frontend type-checks clean.
+
 ---
 
 ## Layout overview
@@ -417,3 +447,4 @@ any subset to hand to the MCP agent.
 - [x] **G10 — No loading state for the initial page fetch.** Fixed: a `loading` state renders "Loading Genre Writer…" until the initial `Promise.all` settles (success or failure), instead of an empty shell.
 - [x] **G11 — No responsive/narrow-viewport layout.** Fixed and verified: `.layout` collapses to one column under 900px; confirmed live at a 700px viewport — Documents, Plot Viewer, Notecards, and Subplots stack cleanly with no overflow.
 - [~] **G12 — No search or pagination.** Partially fixed: `TopicCardGrid` and Notecards' theme list now show a search filter once they pass 6 items (covers Plot Viewer, Notecards, and Subplots' topic grids in one change, since they share `TopicCardGrid`). Documents, Subplots, and Encoding Rules still have no search and nothing has pagination — none of those lists are large enough yet to need it.
+- [x] **G13 — No keyboard access to clickable cards, tags, or Hbar segments** (found and fixed in iteration 9). Six spots across `ActHbar`, `Notecards`, `Subplots`, and `TopicCardGrid` were div/span `onClick` handlers with no `tabIndex`/`role`/keyboard handler — a keyboard-only user could not open a theme, subplot, or act, or follow a theme link, anywhere in the app. Fixed with a shared `onActivateKey` helper (Enter/Space) plus `role="button"`, `tabIndex`, `aria-label`, and a visible `:focus-visible` ring. Not fully ARIA-clean: theme/subplot cards still nest their own action buttons inside an outer `role="button"`, which is discouraged — a proper fix means restructuring those cards, not attempted here.

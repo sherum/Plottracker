@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { onActivateKey } from './keyboardActivate'
 import TopicCardGrid, { type Topic } from './TopicCardGrid'
 import './Notecards.css'
 import './PlotViewer.css'
@@ -77,6 +78,10 @@ function ActHbar({
             className={`hbar-segment ${ACT_COLOR_CLASSES[i % ACT_COLOR_CLASSES.length]}${selectedKey === bucket.key ? ' active' : ''}`}
             style={{ width: `${widths[i]}%` }}
             onClick={() => setSelectedKey(bucket.key)}
+            role="button"
+            tabIndex={0}
+            aria-label={bucket.label}
+            onKeyDown={onActivateKey(() => setSelectedKey(bucket.key))}
           >
             <span className="hbar-label">{bucket.label}</span>
             <div className="hbar-tooltip">
@@ -101,6 +106,10 @@ function ActHbar({
           <div
             className={`hbar-segment hbar-unassigned${selectedKey === extraBucket.key ? ' active' : ''}`}
             onClick={() => setSelectedKey(extraBucket.key)}
+            role="button"
+            tabIndex={0}
+            aria-label={extraBucket.label}
+            onKeyDown={onActivateKey(() => setSelectedKey(extraBucket.key))}
           >
             <span className="hbar-label">?</span>
             <div className="hbar-tooltip">
