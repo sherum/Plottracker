@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import IngestForm from './IngestForm'
 import Notecards, { type Selection } from './Notecards'
 import PlotViewer from './PlotViewer'
 import Subplots, { type Subplot } from './Subplots'
@@ -54,6 +55,12 @@ function App() {
   function navigateToTheme(themeId: number) {
     setSelectedTheme(themeId)
     notecardsRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  function refetchDocuments() {
+    fetch('/documents')
+      .then((res) => res.json())
+      .then(setDocuments)
   }
 
   function refetchSubplots() {
@@ -129,6 +136,7 @@ function App() {
 
       <section>
         <h2>Documents</h2>
+        <IngestForm onIngested={refetchDocuments} />
         {documents.length === 0 ? (
           <p>No documents ingested yet.</p>
         ) : (

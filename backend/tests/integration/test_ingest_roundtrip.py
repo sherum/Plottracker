@@ -51,6 +51,14 @@ def test_ingest_folder_round_trip(db_conn, tmp_path):
     assert "comment" in all_styles
 
 
+def test_ingest_folder_missing_directory_raises(db_conn, tmp_path):
+    try:
+        ingest_folder(db_conn, tmp_path / "does_not_exist", role="draft_script")
+        assert False, "expected ValueError"
+    except ValueError:
+        pass
+
+
 def test_ingest_folder_skips_unsupported_files(db_conn, tmp_path):
     fixtures_dir = tmp_path / "fixtures"
     fixtures_dir.mkdir()

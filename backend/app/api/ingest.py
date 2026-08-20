@@ -1,6 +1,6 @@
 import sqlite3
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.db.connection import get_db
@@ -16,4 +16,7 @@ class IngestRequest(BaseModel):
 
 @router.post("/ingest")
 def ingest(request: IngestRequest, conn: sqlite3.Connection = Depends(get_db)) -> dict:
-    return ingest_folder(conn, request.folder_path, request.role)
+    try:
+        return ingest_folder(conn, request.folder_path, request.role)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

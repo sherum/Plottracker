@@ -11,6 +11,9 @@ def ingest_folder(conn: sqlite3.Connection, folder_path: Path | str, role: str) 
     folder = Path(folder_path)
     if not folder.is_absolute():
         folder = REPO_ROOT / folder
+    if not folder.is_dir():
+        raise ValueError(f"folder not found: {folder}")
+
     ingested: list[str] = []
     skipped: list[str] = []
     failed: list[dict[str, str]] = []

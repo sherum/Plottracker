@@ -43,6 +43,11 @@ def test_ingest_and_query_documents(client, tmp_path):
     assert [s["text"] for s in segments] == ["First paragraph.", "Second paragraph."]
 
 
+def test_ingest_missing_folder_returns_400(client, tmp_path):
+    response = client.post("/ingest", json={"folder_path": str(tmp_path / "nope"), "role": "draft_script"})
+    assert response.status_code == 400
+
+
 def test_analyze_document_creates_topics_and_themes(client, tmp_path, monkeypatch):
     (tmp_path / "chapter1.txt").write_text("The hero leaves home.\n\nThe hero finds an ally.")
     client.post("/ingest", json={"folder_path": str(tmp_path), "role": "draft_script"})
