@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import ActHbar, { type HbarBucket } from './ActHbar'
 import CardEditForm from './CardEditForm'
 import Sidekick from './Sidekick'
 import TopicCardGrid, { type Topic } from './TopicCardGrid'
@@ -13,19 +14,53 @@ export interface Subplot {
   topic_count: number
 }
 
+interface Theme {
+  id: number
+  title: string
+}
+
 interface Props {
   subplots: Subplot[]
   allTopics: Topic[]
+  themes: Theme[]
+  onThemeClick: (themeId: number) => void
   onUpdateTopic: (id: number, data: { title: string; summary: string }) => void
   onSubplotsChanged: () => void
   onToggleExcludeTopic: (id: number, excluded: boolean) => void
 }
 
-function Subplots({ subplots, allTopics, onUpdateTopic, onSubplotsChanged, onToggleExcludeTopic }: Props) {
+const SUBPLOT_ACT_LABELS = ['Opening', 'Conflict', 'Climax']
+
+// A subplot has no LLM-assigned act, so its own three-act shape is derived
+// from the chronological order its member topics already carry.
+function bucketSubplotIntoActs(topics: Topic[]): HbarBucket[] {
+  const active = topics.filter((t) => !t.excluded)
+  const base = Math.floor(active.length / 3)
+  const remainder = active.length % 3
+  const sizes = [base + (remainder > 0 ? 1 : 0), base + (remainder > 1 ? 1 : 0), base]
+
+  let index = 0
+  return SUBPLOT_ACT_LABELS.map((label, i) => {
+    const slice = active.slice(index, index + sizes[i])
+    index += sizes[i]
+    return { key: `act-${i}`, label, topics: slice, activeTopics: slice }
+  })
+}
+
+function Subplots({
+  subplots,
+  allTopics,
+  themes,
+  onThemeClick,
+  onUpdateTopic,
+  onSubplotsChanged,
+  onToggleExcludeTopic,
+}: Props) {
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [subplotTopics, setSubplotTopics] = useState<Topic[]>([])
   const [addTopicId, setAddTopicId] = useState('')
   const [creating, setCreating] = useState(false)
+  const themeTitleById = Object.fromEntries(themes.map((t) => [t.id, t.title]))
 
   useEffect(() => {
     if (selectedId === null) return
@@ -72,6 +107,16 @@ function Subplots({ subplots, allTopics, onUpdateTopic, onSubplotsChanged, onTog
         <h3>{subplot?.title}</h3>
         <p className="theme-summary">{subplot?.summary}</p>
 
+        <h4>Structure</h4>
+        <ActHbar
+          buckets={bucketSubplotIntoActs(subplotTopics)}
+          themeTitleById={themeTitleById}
+          onThemeClick={onThemeClick}
+          onUpdateTopic={onUpdateTopic}
+          onToggleExcludeTopic={onToggleExcludeTopic}
+        />
+
+        <h4>All Topics</h4>
         <div className="subplot-add">
           <select value={addTopicId} onChange={(e) => setAddTopicId(e.target.value)}>
             <option value="">Add a topic&hellip;</option>
@@ -88,6 +133,8 @@ function Subplots({ subplots, allTopics, onUpdateTopic, onSubplotsChanged, onTog
 
         <TopicCardGrid
           topics={subplotTopics}
+          themeTitleById={themeTitleById}
+          onThemeClick={onThemeClick}
           onUpdateTopic={onUpdateTopic}
           onRemoveTopic={removeTopic}
           onToggleExcludeTopic={onToggleExcludeTopic}

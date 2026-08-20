@@ -177,6 +177,8 @@ function App() {
         <Subplots
           subplots={subplots}
           allTopics={topics}
+          themes={themes}
+          onThemeClick={navigateToTheme}
           onUpdateTopic={updateTopic}
           onSubplotsChanged={refetchSubplots}
           onToggleExcludeTopic={toggleExcludeTopic}
