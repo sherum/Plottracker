@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import ActHbar, { type HbarBucket } from './ActHbar'
 import CardEditForm from './CardEditForm'
 import Sidekick from './Sidekick'
+import { useToast } from './ToastContext'
 import TopicCardGrid, { type Topic } from './TopicCardGrid'
 import './Notecards.css'
 
@@ -61,22 +62,29 @@ function Subplots({
   const [addTopicId, setAddTopicId] = useState('')
   const [creating, setCreating] = useState(false)
   const themeTitleById = Object.fromEntries(themes.map((t) => [t.id, t.title]))
+  const { showError } = useToast()
 
   useEffect(() => {
     if (selectedId === null) return
     fetch(`/subplots/${selectedId}/topics`)
       .then((res) => res.json())
       .then((data: Topic[]) => setSubplotTopics(data.map((t) => ({ ...t, excluded: Boolean(t.excluded) }))))
-  }, [selectedId, subplots])
+      .catch(() => showError('Could not load this subplot. Please try again.'))
+  }, [selectedId, subplots, showError])
 
   async function createSubplot(data: { title: string; summary: string }) {
-    await fetch('/subplots', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-    setCreating(false)
-    onSubplotsChanged()
+    try {
+      const response = await fetch('/subplots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!response.ok) throw new Error()
+      setCreating(false)
+      onSubplotsChanged()
+    } catch {
+      showError('Could not create the subplot. Please try again.')
+    }
   }
 
   if (selectedId !== null) {
@@ -85,18 +93,29 @@ function Subplots({
 
     async function addTopic() {
       if (!addTopicId) return
-      await fetch(`/subplots/${selectedId}/topics`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic_id: Number(addTopicId) }),
-      })
-      setAddTopicId('')
-      onSubplotsChanged()
+      try {
+        const response = await fetch(`/subplots/${selectedId}/topics`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ topic_id: Number(addTopicId) }),
+        })
+        if (!response.ok) throw new Error()
+        setAddTopicId('')
+        onSubplotsChanged()
+      } catch {
+        showError('Could not add this topic to the subplot. Please try again.')
+      }
     }
 
     async function removeTopic(topicId: number) {
-      await fetch(`/subplots/${selectedId}/topics/${topicId}`, { method: 'DELETE' })
-      onSubplotsChanged()
+      if (!window.confirm('Remove this topic from the subplot?')) return
+      try {
+        const response = await fetch(`/subplots/${selectedId}/topics/${topicId}`, { method: 'DELETE' })
+        if (!response.ok) throw new Error()
+        onSubplotsChanged()
+      } catch {
+        showError('Could not remove this topic from the subplot. Please try again.')
+      }
     }
 
     return (
@@ -137,6 +156,7 @@ function Subplots({
           onThemeClick={onThemeClick}
           onUpdateTopic={onUpdateTopic}
           onRemoveTopic={removeTopic}
+          removeLabel="Remove from subplot"
           onToggleExcludeTopic={onToggleExcludeTopic}
         />
         <Sidekick topics={subplotTopics.filter((t) => !t.excluded)} />

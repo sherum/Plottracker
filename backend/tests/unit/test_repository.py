@@ -91,3 +91,31 @@ def test_delete_document_removes_segments_topics_and_subplot_membership(db_conn)
     assert repository.list_subplot_topics(db_conn, subplot_id) == []
     # The theme itself is not document-owned, so it survives with no topics.
     assert repository.list_themes(db_conn)[0]["id"] == theme_id
+
+
+def test_unassign_topic_theme_clears_theme_id(db_conn):
+    doc_id = repository.insert_document(
+        db_conn,
+        role="draft_script",
+        source_path="draft_scripts/chapter1.docx",
+        filename="chapter1.docx",
+        source_type="docx",
+        content_hash="unassign123",
+    )
+    segment_id = repository.insert_segment(db_conn, document_id=doc_id, sequence_index=0, text="Some text.")
+    theme_id = repository.insert_theme(db_conn, title="A Theme", summary="Summary.")
+    topic_id = repository.insert_topic(
+        db_conn,
+        document_id=doc_id,
+        sequence_index=0,
+        title="A Topic",
+        summary="Summary.",
+        segment_start_id=segment_id,
+        segment_end_id=segment_id,
+    )
+    repository.set_topic_theme(db_conn, topic_id, theme_id)
+
+    updated = repository.unassign_topic_theme(db_conn, topic_id)
+
+    assert updated["theme_id"] is None
+    assert repository.list_topics(db_conn, doc_id)[0]["theme_id"] is None

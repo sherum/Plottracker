@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useToast } from './ToastContext'
 import './Notecards.css'
 import './EncodingRules.css'
 
@@ -22,22 +23,34 @@ function EncodingRules({ rules, onRulesChanged }: Props) {
   const [position, setPosition] = useState<'chapter_start' | 'anywhere'>('chapter_start')
   const [label, setLabel] = useState('')
   const [description, setDescription] = useState('')
+  const { showError } = useToast()
 
   async function addRule() {
     if (!label.trim()) return
-    await fetch('/encoding-rules', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ style_kind: styleKind, block_length: blockLength, position, label, description }),
-    })
-    setLabel('')
-    setDescription('')
-    onRulesChanged()
+    try {
+      const response = await fetch('/encoding-rules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ style_kind: styleKind, block_length: blockLength, position, label, description }),
+      })
+      if (!response.ok) throw new Error()
+      setLabel('')
+      setDescription('')
+      onRulesChanged()
+    } catch {
+      showError('Could not add this encoding rule. Please try again.')
+    }
   }
 
-  async function deleteRule(id: number) {
-    await fetch(`/encoding-rules/${id}`, { method: 'DELETE' })
-    onRulesChanged()
+  async function deleteRule(id: number, label: string) {
+    if (!window.confirm(`Delete the "${label}" encoding rule?`)) return
+    try {
+      const response = await fetch(`/encoding-rules/${id}`, { method: 'DELETE' })
+      if (!response.ok) throw new Error()
+      onRulesChanged()
+    } catch {
+      showError('Could not delete this encoding rule. Please try again.')
+    }
   }
 
   return (
@@ -49,7 +62,7 @@ function EncodingRules({ rules, onRulesChanged }: Props) {
               <h4>{rule.label}</h4>
               <button
                 className="edit-btn"
-                onClick={() => deleteRule(rule.id)}
+                onClick={() => deleteRule(rule.id, rule.label)}
                 aria-label="Delete rule"
                 title="Delete this encoding rule"
               >

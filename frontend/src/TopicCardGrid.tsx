@@ -19,6 +19,7 @@ interface Props {
   onThemeClick?: (themeId: number) => void
   onUpdateTopic: (id: number, data: { title: string; summary: string }) => void
   onRemoveTopic?: (id: number) => void
+  removeLabel?: string
   onToggleExcludeTopic: (id: number, excluded: boolean) => void
 }
 
@@ -28,6 +29,7 @@ function TopicCardGrid({
   onThemeClick,
   onUpdateTopic,
   onRemoveTopic,
+  removeLabel = 'Remove',
   onToggleExcludeTopic,
 }: Props) {
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -77,10 +79,10 @@ function TopicCardGrid({
                   <button
                     className="edit-btn"
                     onClick={() => onRemoveTopic(topic.id)}
-                    aria-label="Remove topic from subplot"
-                    title="Remove this topic from the subplot"
+                    aria-label={removeLabel}
+                    title={removeLabel}
                   >
-                    Remove
+                    {removeLabel}
                   </button>
                 )}
               </div>

@@ -24,6 +24,7 @@ interface Props {
   onPromoteTheme: (themeId: number) => void
   onToggleExcludeTopic: (id: number, excluded: boolean) => void
   onToggleExcludeTheme: (id: number, excluded: boolean) => void
+  onUnassignTheme: (topicId: number) => void
 }
 
 function Notecards({
@@ -36,6 +37,7 @@ function Notecards({
   onPromoteTheme,
   onToggleExcludeTopic,
   onToggleExcludeTheme,
+  onUnassignTheme,
 }: Props) {
   const [editingThemeId, setEditingThemeId] = useState<number | null>(null)
   const unassignedTopics = topics.filter((t) => t.theme_id === null)
@@ -57,6 +59,8 @@ function Notecards({
           topics={shownTopics}
           onUpdateTopic={onUpdateTopic}
           onToggleExcludeTopic={onToggleExcludeTopic}
+          onRemoveTopic={isUnassigned ? undefined : onUnassignTheme}
+          removeLabel="Remove from theme"
         />
         <Sidekick topics={activeTopics} />
       </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useToast } from './ToastContext'
 import type { Topic } from './TopicCardGrid'
 import './Sidekick.css'
 
@@ -10,19 +11,26 @@ function Sidekick({ topics }: Props) {
   const [question, setQuestion] = useState('')
   const [answer, setAnswer] = useState<string | null>(null)
   const [asking, setAsking] = useState(false)
+  const { showError } = useToast()
 
   async function ask() {
     if (!question.trim()) return
     setAsking(true)
     setAnswer(null)
-    const response = await fetch('/sidekick/ask', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, topic_ids: topics.map((t) => t.id) }),
-    })
-    const data = await response.json()
-    setAnswer(data.answer)
-    setAsking(false)
+    try {
+      const response = await fetch('/sidekick/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, topic_ids: topics.map((t) => t.id) }),
+      })
+      if (!response.ok) throw new Error()
+      const data = await response.json()
+      setAnswer(data.answer)
+    } catch {
+      showError('The sidekick could not answer that. Please try again.')
+    } finally {
+      setAsking(false)
+    }
   }
 
   return (

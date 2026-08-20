@@ -172,3 +172,9 @@ main {
   text-align: center;
   margin-top: 2rem;
 }
+
+.loading {
+  color: #888;
+  text-align: center;
+  margin-top: 4rem;
+}

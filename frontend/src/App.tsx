@@ -5,6 +5,7 @@ import IngestForm from './IngestForm'
 import Notecards, { type Selection } from './Notecards'
 import PlotViewer from './PlotViewer'
 import Subplots, { type Subplot } from './Subplots'
+import { ToastProvider, useToast } from './ToastContext'
 import type { Topic } from './TopicCardGrid'
 import './App.css'
 
@@ -29,6 +30,14 @@ function normalizeExcluded<T extends { excluded: unknown }>(row: T): T & { exclu
 }
 
 function App() {
+  return (
+    <ToastProvider>
+      <AppContent />
+    </ToastProvider>
+  )
+}
+
+function AppContent() {
   const [documents, setDocuments] = useState<Document[]>([])
   const [themes, setThemes] = useState<Theme[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
@@ -36,11 +45,13 @@ function App() {
   const [encodingRules, setEncodingRules] = useState<EncodingRule[]>([])
   const [selectedTheme, setSelectedTheme] = useState<Selection>(null)
   const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
   const [analyzing, setAnalyzing] = useState<Record<number, string>>({})
   const [classifying, setClassifying] = useState<Record<number, string>>({})
   const [loadedDocument, setLoadedDocument] = useState<Document | null>(null)
   const [documentsCollapsed, setDocumentsCollapsed] = useState(false)
   const notecardsRef = useRef<HTMLDivElement>(null)
+  const { showError } = useToast()
 
   useEffect(() => {
     Promise.all([
@@ -58,6 +69,7 @@ function App() {
         setEncodingRules(encodingRulesData)
       })
       .catch(() => setError('Could not reach the backend at http://localhost:8000'))
+      .finally(() => setLoading(false))
   }, [])
 
   function navigateToTheme(themeId: number) {
@@ -87,51 +99,93 @@ function App() {
   }
 
   async function updateTopic(id: number, data: { title: string; summary: string }) {
-    const response = await fetch(`/topics/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-    const updated = normalizeExcluded(await response.json())
-    setTopics((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
+    try {
+      const response = await fetch(`/topics/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!response.ok) throw new Error()
+      const updated = normalizeExcluded(await response.json())
+      setTopics((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
+    } catch {
+      showError('Could not save the topic. Please try again.')
+    }
   }
 
   async function updateTheme(id: number, data: { title: string; summary: string }) {
-    const response = await fetch(`/themes/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-    const updated = normalizeExcluded(await response.json())
-    setThemes((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
+    try {
+      const response = await fetch(`/themes/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!response.ok) throw new Error()
+      const updated = normalizeExcluded(await response.json())
+      setThemes((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
+    } catch {
+      showError('Could not save the theme. Please try again.')
+    }
   }
 
   async function promoteTheme(themeId: number) {
-    await fetch(`/themes/${themeId}/promote`, { method: 'POST' })
-    refetchSubplots()
+    try {
+      const response = await fetch(`/themes/${themeId}/promote`, { method: 'POST' })
+      if (!response.ok) throw new Error()
+      refetchSubplots()
+    } catch {
+      showError('Could not promote the theme to a subplot. Please try again.')
+    }
   }
 
   async function toggleExcludeTopic(id: number, excluded: boolean) {
-    const response = await fetch(`/topics/${id}/${excluded ? 'exclude' : 'include'}`, { method: 'POST' })
-    const updated = normalizeExcluded(await response.json())
-    setTopics((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
+    try {
+      const response = await fetch(`/topics/${id}/${excluded ? 'exclude' : 'include'}`, { method: 'POST' })
+      if (!response.ok) throw new Error()
+      const updated = normalizeExcluded(await response.json())
+      setTopics((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
+    } catch {
+      showError(`Could not ${excluded ? 'exclude' : 'include'} the topic. Please try again.`)
+    }
   }
 
   async function toggleExcludeTheme(id: number, excluded: boolean) {
-    const response = await fetch(`/themes/${id}/${excluded ? 'exclude' : 'include'}`, { method: 'POST' })
-    const updated = normalizeExcluded(await response.json())
-    setThemes((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
+    try {
+      const response = await fetch(`/themes/${id}/${excluded ? 'exclude' : 'include'}`, { method: 'POST' })
+      if (!response.ok) throw new Error()
+      const updated = normalizeExcluded(await response.json())
+      setThemes((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
+    } catch {
+      showError(`Could not ${excluded ? 'exclude' : 'include'} the theme. Please try again.`)
+    }
+  }
+
+  async function unassignTopicTheme(id: number) {
+    try {
+      const response = await fetch(`/topics/${id}/unassign-theme`, { method: 'POST' })
+      if (!response.ok) throw new Error()
+      const updated = normalizeExcluded(await response.json())
+      setTopics((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
+    } catch {
+      showError('Could not remove the topic from its theme. Please try again.')
+    }
   }
 
   async function reanalyzeDocument(id: number) {
     setAnalyzing((prev) => ({ ...prev, [id]: 'Analyzing…' }))
-    const response = await fetch(`/documents/${id}/analyze`, { method: 'POST' })
-    const result = await response.json()
-    setAnalyzing((prev) => ({
-      ...prev,
-      [id]: `Done: ${result.topics_created} topics, ${result.themes_created} themes created`,
-    }))
-    refetchTopicsAndThemes()
+    try {
+      const response = await fetch(`/documents/${id}/analyze`, { method: 'POST' })
+      if (!response.ok) throw new Error()
+      const result = await response.json()
+      setAnalyzing((prev) => ({
+        ...prev,
+        [id]: `Done: ${result.topics_created} topics, ${result.themes_created} themes created`,
+      }))
+      refetchTopicsAndThemes()
+    } catch {
+      setAnalyzing((prev) => ({ ...prev, [id]: '' }))
+      showError('Could not analyze this document. Please try again.')
+    }
   }
 
   function refetchEncodingRules() {
@@ -142,18 +196,29 @@ function App() {
 
   async function classifyDocument(id: number) {
     setClassifying((prev) => ({ ...prev, [id]: 'Classifying…' }))
-    const response = await fetch(`/documents/${id}/classify-encoding`, { method: 'POST' })
-    const result = await response.json()
-    setClassifying((prev) => ({ ...prev, [id]: `Tagged ${result.tagged} segments` }))
+    try {
+      const response = await fetch(`/documents/${id}/classify-encoding`, { method: 'POST' })
+      if (!response.ok) throw new Error()
+      const result = await response.json()
+      setClassifying((prev) => ({ ...prev, [id]: `Tagged ${result.tagged} segments` }))
+    } catch {
+      setClassifying((prev) => ({ ...prev, [id]: '' }))
+      showError('Could not classify encoding for this document. Please try again.')
+    }
   }
 
   async function deleteDocument(id: number, filename: string) {
     if (!window.confirm(`Delete "${filename}" and all its segments, topics, and subplot memberships?`)) return
-    await fetch(`/documents/${id}`, { method: 'DELETE' })
-    if (loadedDocument?.id === id) setLoadedDocument(null)
-    refetchDocuments()
-    refetchTopicsAndThemes()
-    refetchSubplots()
+    try {
+      const response = await fetch(`/documents/${id}`, { method: 'DELETE' })
+      if (!response.ok) throw new Error()
+      if (loadedDocument?.id === id) setLoadedDocument(null)
+      refetchDocuments()
+      refetchTopicsAndThemes()
+      refetchSubplots()
+    } catch {
+      showError('Could not delete this document. Please try again.')
+    }
   }
 
   function loadDocument(doc: Document) {
@@ -163,6 +228,10 @@ function App() {
 
   if (error) {
     return <p className="error">{error}</p>
+  }
+
+  if (loading) {
+    return <p className="loading">Loading Genre Writer…</p>
   }
 
   const loadedTopics = loadedDocument ? topics.filter((t) => t.document_filename === loadedDocument.filename) : []
@@ -230,11 +299,13 @@ function App() {
                 onPromoteTheme={promoteTheme}
                 onToggleExcludeTopic={toggleExcludeTopic}
                 onToggleExcludeTheme={toggleExcludeTheme}
+                onUnassignTheme={unassignTopicTheme}
               />
             </section>
 
             <section className="panel">
               <h2>Subplots</h2>
+              <p className="hbar-hint">Subplots span all documents, not just the loaded one.</p>
               <Subplots
                 subplots={subplots}
                 allTopics={topics}

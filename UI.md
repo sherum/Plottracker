@@ -28,6 +28,23 @@ inline notes for why): the standard-file-dialog ingest flow, the Hbar → big
 progress bar redesign, the click-nearest-topic carousel, and moving Sidekick
 into the right column. Each is flagged below with what's blocking it.
 
+**Iteration 2** — done: a shared `ToastContext` (`frontend/src/ToastContext.tsx`)
+gives every mutation a consistent error banner instead of failing silently
+(Gap G4 — fixed for every fetch in `App.tsx`, `Subplots.tsx`,
+`EncodingRules.tsx`, and `Sidekick.tsx`); confirmation prompts added before
+deleting an encoding rule or removing a topic from a subplot, matching
+document delete (Gap G5 — fixed); a new "Remove from theme" action in
+Notecards' theme detail, backed by a new `POST /topics/{id}/unassign-theme`
+endpoint + `repository.unassign_topic_theme` (Gap G6 — fixed, with unit +
+integration test coverage); an explicit "Subplots span all documents, not
+just the loaded one" hint under the Subplots heading (Gap G1 — resolved by
+making the scope explicit rather than filtering, to avoid hiding
+intentionally cross-document subplots); a real loading state for the initial
+page fetch (Gap G10 — fixed). Verified live: toast renders on a forced 500,
+delete confirmations block on cancel, remove-from-theme updates the grid
+immediately, all 32 backend tests pass. Not touched this pass: G7, G8, G12,
+and the larger deferred items from iteration 1 (still open below).
+
 ---
 
 ## Layout overview
@@ -149,7 +166,7 @@ column shows, and what the user can actually do.
 ### S6 — Notecards: theme/unassigned detail
 - **Trigger:** clicking a theme card body, or the "Unassigned Topics" card.
 - **Displayed:** "← Themes" back button, theme title (+ summary, unless unassigned), topic card grid, Sidekick scoped to these topics.
-- **Functionality:** each topic card is independently editable/excludable in place (`TopicCardGrid`'s own edit state); no "remove from theme" action exists here (Gap G6). Back returns to S4.
+- **Functionality:** each topic card is independently editable/excludable in place (`TopicCardGrid`'s own edit state); a topic card also shows "Remove from theme" (not shown for Unassigned, since there's nothing to remove it from) — Gap G6, fixed. Back returns to S4.
 
 ### S6 - TODOs
 
@@ -194,15 +211,15 @@ column shows, and what the user can actually do.
 Not yet built, but implied by the states above. Each is independent — pick
 any subset to hand to the MCP agent.
 
-- [ ] **G1 — Subplots isn't scoped to the loaded document.** Plot Viewer and Notecards filter to the loaded document's topics/themes; Subplots always shows every subplot from every document. Either scope it the same way, or make the global scope explicit in the UI (e.g., a note or its own "all documents" label).
+- [x] **G1 — Subplots isn't scoped to the loaded document.** Resolved by making the scope explicit: a "Subplots span all documents, not just the loaded one" hint now sits under the heading. Deliberately not filtered — subplots can legitimately mix topics from multiple documents (the add-topic dropdown in subplot detail already draws from every document), so hiding subplots that reference other documents would hide real membership, not noise.
 - [x] **G2 — No visual indicator of which document is loaded, inside the Documents list itself.** Fixed: the loaded row now gets an accent border + tinted background (`.documents-list li.loaded`).
 - [x] **G3 — Plot Viewer has no back/deselect control.** Fixed: added a "← Clear selection" button in `ActHbar`, shown whenever a segment is selected.
-- [ ] **G4 — No error handling on any mutation.** Ingest, reanalyze, classify, delete, promote, add/remove topic, add/delete encoding rule, Sidekick ask — all `fetch` calls assume success. A failed request fails silently (no toast, no inline error).
-- [ ] **G5 — Delete is the only destructive action with a confirmation.** Deleting an encoding rule and removing a topic from a subplot both fire immediately with no confirmation, inconsistent with document delete's `window.confirm`.
-- [ ] **G6 — No "remove topic from theme" action.** `TopicCardGrid` supports `onRemoveTopic` (used in Subplots' detail view) but Notecards never passes it, so a topic can only be excluded, never unlinked from its theme, via the UI.
+- [x] **G4 — No error handling on any mutation.** Fixed: a shared `ToastContext` shows a dismissible error banner on any failed fetch, wired into every mutation in `App.tsx`, `Subplots.tsx`, `EncodingRules.tsx`, and `Sidekick.tsx`. Verified by forcing a 500 response and confirming the toast renders.
+- [x] **G5 — Delete is the only destructive action with a confirmation.** Fixed: deleting an encoding rule and removing a topic from a subplot now confirm first, same pattern as document delete. Verified the confirm fires with the correct label and a cancel leaves the rule in place.
+- [x] **G6 — No "remove topic from theme" action.** Fixed: a "Remove from theme" button now appears on topic cards inside Notecards' theme detail view (not shown for "Unassigned Topics", since there's no theme to remove from), calling a new `POST /topics/{id}/unassign-theme` endpoint. Verified the topic disappears from the theme's grid immediately.
 - [ ] **G7 — Encoding rules can't be edited**, only added or deleted; fixing a typo in a label means delete-and-recreate.
 - [ ] **G8 — No manual act reassignment.** Plot Viewer's Opening/Conflict/Climax buckets are entirely LLM-assigned (`topic.act`); there's no UI to move a topic between acts or into/out of "Unassigned".
 - [x] **G9 — Inconsistent empty-state messaging.** Fixed: Notecards now shows a hint matching Plot Viewer/Subplots when there's nothing to display.
-- [ ] **G10 — No loading state for the initial page fetch.** Between mount and the `Promise.all` resolving, the page renders a fully empty shell with no spinner or skeleton.
-- [~] **G11 — No responsive/narrow-viewport layout.** Partially fixed: `.layout` now collapses to one column under 900px viewport width. Not yet verified in an actual narrow browser window — the change is syntactically standard CSS but should get a manual resize check.
+- [x] **G10 — No loading state for the initial page fetch.** Fixed: a `loading` state renders "Loading Genre Writer…" until the initial `Promise.all` settles (success or failure), instead of an empty shell.
+- [x] **G11 — No responsive/narrow-viewport layout.** Fixed and verified: `.layout` collapses to one column under 900px; confirmed live at a 700px viewport — Documents, Plot Viewer, Notecards, and Subplots stack cleanly with no overflow.
 - [ ] **G12 — No search or pagination** anywhere (documents, topics, themes, subplots, encoding rules) — every list renders in full.

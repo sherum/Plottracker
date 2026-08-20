@@ -45,6 +45,11 @@ def include_topic(topic_id: int, conn: sqlite3.Connection = Depends(get_db)) -> 
     return repository.set_topic_excluded(conn, topic_id, False)
 
 
+@router.post("/topics/{topic_id}/unassign-theme")
+def unassign_topic_theme(topic_id: int, conn: sqlite3.Connection = Depends(get_db)) -> dict:
+    return repository.unassign_topic_theme(conn, topic_id)
+
+
 @router.get("/themes")
 def get_themes(conn: sqlite3.Connection = Depends(get_db)) -> list[dict]:
     return repository.list_themes(conn)

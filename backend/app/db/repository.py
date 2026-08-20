@@ -199,6 +199,13 @@ def set_topic_excluded(conn: sqlite3.Connection, topic_id: int, excluded: bool) 
     return dict(row)
 
 
+def unassign_topic_theme(conn: sqlite3.Connection, topic_id: int) -> dict:
+    conn.execute("UPDATE topics SET theme_id = NULL WHERE id = ?", (topic_id,))
+    conn.commit()
+    row = conn.execute("SELECT * FROM topics WHERE id = ?", (topic_id,)).fetchone()
+    return dict(row)
+
+
 def set_theme_excluded(conn: sqlite3.Connection, theme_id: int, excluded: bool) -> dict:
     conn.execute("UPDATE themes SET excluded = ? WHERE id = ?", (int(excluded), theme_id))
     conn.commit()
