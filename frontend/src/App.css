@@ -1,3 +1,16 @@
+:root {
+  --color-opening: #4f8fdb;
+  --color-conflict: #db9a3c;
+  --color-climax: #d64550;
+  --color-accent: #7c5cdb;
+  --color-border: color-mix(in srgb, canvastext 20%, canvas);
+  --color-panel: color-mix(in srgb, canvastext 3%, canvas);
+}
+
+* {
+  box-sizing: border-box;
+}
+
 main {
   max-width: 1400px;
   margin: 2rem auto;
@@ -12,9 +25,48 @@ main {
   align-items: start;
 }
 
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .col-encoding {
+    text-align: left;
+  }
+
+  .col-encoding .card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+}
+
+.panel {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-panel);
+  padding: 1.25rem;
+}
+
+.col-documents {
+  text-align: center;
+}
+
+.col-documents .ingest-form-row input,
+.col-documents .ingest-form-row select,
+.col-documents .ingest-form-row button {
+  width: 100%;
+}
+
 .col-center-inner {
   max-width: 700px;
   margin: 0 auto;
+}
+
+.col-center-inner .panel {
+  margin-bottom: 1.5rem;
+}
+
+.col-center-inner .panel:last-child {
+  margin-bottom: 0;
 }
 
 .col-encoding {
@@ -43,11 +95,33 @@ main {
 
 .documents-list li {
   margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+
+.documents-list li:hover {
+  background: color-mix(in srgb, canvastext 6%, canvas);
+}
+
+.documents-list li.loaded {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 10%, canvas);
+}
+
+.doc-filename {
+  font-weight: 500;
+}
+
+.documents-list li:hover .doc-filename {
+  color: var(--color-accent);
+  text-decoration: underline;
 }
 
 .doc-actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 0.3rem;
   margin-top: 0.25rem;
 }
@@ -71,10 +145,26 @@ main {
   border-color: canvastext;
 }
 
-.section-header {
-  display: flex;
-  align-items: baseline;
-  gap: 0.6rem;
+.documents-accordion summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.4rem 0;
+  list-style: none;
+}
+
+.documents-accordion summary::-webkit-details-marker {
+  display: none;
+}
+
+.documents-accordion summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 0.4rem;
+  transition: transform 0.15s ease;
+}
+
+.documents-accordion[open] summary::before {
+  transform: rotate(90deg);
 }
 
 .error {

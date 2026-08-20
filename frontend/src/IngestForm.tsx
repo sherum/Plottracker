@@ -51,7 +51,11 @@ function IngestForm({ onIngested }: Props) {
           <option value="draft_script">draft_script</option>
           <option value="story_note">story_note</option>
         </select>
-        <button onClick={submit} disabled={status === 'loading' || !folderPath.trim()}>
+        <button
+          onClick={submit}
+          disabled={status === 'loading' || !folderPath.trim()}
+          title="Ingest documents from this folder"
+        >
           {status === 'loading' ? 'Ingesting…' : 'Ingest'}
         </button>
       </div>

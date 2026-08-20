@@ -20,8 +20,12 @@ function CardEditForm({ title, summary, onSave, onCancel }: Props) {
         onChange={(e) => setDraftSummary(e.target.value)}
       />
       <div className="card-actions">
-        <button onClick={() => onSave({ title: draftTitle, summary: draftSummary })}>Save</button>
-        <button onClick={onCancel}>Cancel</button>
+        <button onClick={() => onSave({ title: draftTitle, summary: draftSummary })} title="Save changes">
+          Save
+        </button>
+        <button onClick={onCancel} title="Discard changes">
+          Cancel
+        </button>
       </div>
     </div>
   )

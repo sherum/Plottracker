@@ -51,18 +51,25 @@ function TopicCardGrid({
         }
 
         const themeTitle = topic.theme_id !== null ? themeTitleById?.[topic.theme_id] : undefined
+        const actClass = topic.act ? ` card-act-${topic.act}` : ''
         return (
-          <div className={`card${topic.excluded ? ' excluded' : ''}`} key={topic.id}>
+          <div className={`card${actClass}${topic.excluded ? ' excluded' : ''}`} key={topic.id}>
             <div className="card-header">
               <h4>{topic.title}</h4>
               <div className="card-header-actions">
-                <button className="edit-btn" onClick={() => setEditingId(topic.id)} aria-label="Edit topic">
+                <button
+                  className="edit-btn"
+                  onClick={() => setEditingId(topic.id)}
+                  aria-label="Edit topic"
+                  title="Edit this topic"
+                >
                   Edit
                 </button>
                 <button
                   className="edit-btn"
                   onClick={() => onToggleExcludeTopic(topic.id, !topic.excluded)}
                   aria-label={topic.excluded ? 'Include topic' : 'Exclude topic'}
+                  title={topic.excluded ? 'Include this topic again' : 'Exclude this topic'}
                 >
                   {topic.excluded ? 'Include' : 'Exclude'}
                 </button>
@@ -71,6 +78,7 @@ function TopicCardGrid({
                     className="edit-btn"
                     onClick={() => onRemoveTopic(topic.id)}
                     aria-label="Remove topic from subplot"
+                    title="Remove this topic from the subplot"
                   >
                     Remove
                   </button>

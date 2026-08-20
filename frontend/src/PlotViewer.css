@@ -25,6 +25,36 @@
   border-color: canvastext;
 }
 
+.hbar-act-0 {
+  border-color: var(--color-opening);
+  background: color-mix(in srgb, var(--color-opening) 18%, canvas);
+}
+
+.hbar-act-1 {
+  border-color: var(--color-conflict);
+  background: color-mix(in srgb, var(--color-conflict) 18%, canvas);
+}
+
+.hbar-act-2 {
+  border-color: var(--color-climax);
+  background: color-mix(in srgb, var(--color-climax) 18%, canvas);
+}
+
+.hbar-act-0:hover,
+.hbar-act-0.active {
+  background: color-mix(in srgb, var(--color-opening) 38%, canvas);
+}
+
+.hbar-act-1:hover,
+.hbar-act-1.active {
+  background: color-mix(in srgb, var(--color-conflict) 38%, canvas);
+}
+
+.hbar-act-2:hover,
+.hbar-act-2.active {
+  background: color-mix(in srgb, var(--color-climax) 38%, canvas);
+}
+
 .hbar-unassigned {
   flex: 0 0 2.5rem;
   border-style: dashed;

@@ -5,6 +5,7 @@ import './Notecards.css'
 import './PlotViewer.css'
 
 const MIN_SEGMENT_PERCENT = 10
+const ACT_COLOR_CLASSES = ['hbar-act-0', 'hbar-act-1', 'hbar-act-2']
 
 export interface HbarBucket {
   key: string
@@ -46,7 +47,7 @@ function ActHbar({ buckets, extraBucket, themeTitleById, onThemeClick, onUpdateT
         {buckets.map((bucket, i) => (
           <div
             key={bucket.key}
-            className={`hbar-segment${selectedKey === bucket.key ? ' active' : ''}`}
+            className={`hbar-segment ${ACT_COLOR_CLASSES[i % ACT_COLOR_CLASSES.length]}${selectedKey === bucket.key ? ' active' : ''}`}
             style={{ width: `${widths[i]}%` }}
             onClick={() => setSelectedKey(bucket.key)}
           >
@@ -85,6 +86,9 @@ function ActHbar({ buckets, extraBucket, themeTitleById, onThemeClick, onUpdateT
         <p className="hbar-hint">Click a section above to see its topics.</p>
       ) : (
         <>
+          <button className="back" onClick={() => setSelectedKey(null)} title="Clear the current selection">
+            &larr; Clear selection
+          </button>
           <TopicCardGrid
             topics={selected.topics}
             themeTitleById={themeTitleById}

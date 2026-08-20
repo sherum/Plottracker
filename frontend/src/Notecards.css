@@ -23,6 +23,18 @@
   border-style: dashed;
 }
 
+.card-act-opening {
+  border-left: 4px solid var(--color-opening);
+}
+
+.card-act-conflict {
+  border-left: 4px solid var(--color-conflict);
+}
+
+.card-act-climax {
+  border-left: 4px solid var(--color-climax);
+}
+
 .card h4 {
   margin: 0 0 0.4rem;
 }

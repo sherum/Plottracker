@@ -47,7 +47,12 @@ function EncodingRules({ rules, onRulesChanged }: Props) {
           <div className="card" key={rule.id}>
             <div className="card-header">
               <h4>{rule.label}</h4>
-              <button className="edit-btn" onClick={() => deleteRule(rule.id)} aria-label="Delete rule">
+              <button
+                className="edit-btn"
+                onClick={() => deleteRule(rule.id)}
+                aria-label="Delete rule"
+                title="Delete this encoding rule"
+              >
                 Delete
               </button>
             </div>
@@ -81,7 +86,7 @@ function EncodingRules({ rules, onRulesChanged }: Props) {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="description (optional)"
           />
-          <button onClick={addRule} disabled={!label.trim()}>
+          <button onClick={addRule} disabled={!label.trim()} title="Add this encoding rule">
             Add Rule
           </button>
         </div>

@@ -48,7 +48,7 @@ function Notecards({
 
     return (
       <div className="notecards">
-        <button className="back" onClick={() => onSelect(null)}>
+        <button className="back" onClick={() => onSelect(null)} title="Back to the theme list">
           &larr; Themes
         </button>
         <h3>{isUnassigned ? 'Unassigned Topics' : theme?.title}</h3>
@@ -99,6 +99,7 @@ function Notecards({
                       setEditingThemeId(theme.id)
                     }}
                     aria-label="Edit theme"
+                    title="Edit this theme"
                   >
                     Edit
                   </button>
@@ -109,6 +110,7 @@ function Notecards({
                       onToggleExcludeTheme(theme.id, !theme.excluded)
                     }}
                     aria-label={theme.excluded ? 'Include theme' : 'Exclude theme'}
+                    title={theme.excluded ? 'Include this theme again' : 'Exclude this theme'}
                   >
                     {theme.excluded ? 'Include' : 'Exclude'}
                   </button>
@@ -119,6 +121,7 @@ function Notecards({
                       onPromoteTheme(theme.id)
                     }}
                     aria-label="Promote theme to subplot"
+                    title="Promote this theme to a subplot"
                   >
                     Promote
                   </button>
@@ -140,6 +143,9 @@ function Notecards({
           </div>
         )}
       </div>
+      {themes.length === 0 && unassignedTopics.length === 0 && (
+        <p className="hbar-hint">No notecards yet. Load a document and analyze it to see topics and themes here.</p>
+      )}
     </div>
   )
 }

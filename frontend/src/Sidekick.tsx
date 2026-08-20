@@ -34,7 +34,7 @@ function Sidekick({ topics }: Props) {
           onKeyDown={(e) => e.key === 'Enter' && ask()}
           placeholder={`Ask about these ${topics.length} topic${topics.length === 1 ? '' : 's'}…`}
         />
-        <button onClick={ask} disabled={asking || !question.trim()}>
+        <button onClick={ask} disabled={asking || !question.trim()} title="Ask the AI sidekick">
           {asking ? 'Asking…' : 'Ask'}
         </button>
       </div>

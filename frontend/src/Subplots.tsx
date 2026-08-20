@@ -101,7 +101,7 @@ function Subplots({
 
     return (
       <div className="notecards">
-        <button className="back" onClick={() => setSelectedId(null)}>
+        <button className="back" onClick={() => setSelectedId(null)} title="Back to the subplot list">
           &larr; Subplots
         </button>
         <h3>{subplot?.title}</h3>
@@ -126,7 +126,7 @@ function Subplots({
               </option>
             ))}
           </select>
-          <button onClick={addTopic} disabled={!addTopicId}>
+          <button onClick={addTopic} disabled={!addTopicId} title="Add the selected topic to this subplot">
             Add
           </button>
         </div>
@@ -149,7 +149,7 @@ function Subplots({
       {creating ? (
         <CardEditForm title="" summary="" onSave={createSubplot} onCancel={() => setCreating(false)} />
       ) : (
-        <button className="back" onClick={() => setCreating(true)}>
+        <button className="back" onClick={() => setCreating(true)} title="Create a new subplot">
           + New Subplot
         </button>
       )}

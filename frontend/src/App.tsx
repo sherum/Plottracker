@@ -174,22 +174,22 @@ function App() {
       <h1>{loadedDocument ? loadedDocument.filename : 'Genre Writer'}</h1>
 
       <div className="layout">
-        <div className="col col-documents">
-          <div className="section-header">
-            <h2>Documents</h2>
-            <button className="edit-btn" onClick={() => setDocumentsCollapsed((prev) => !prev)}>
-              {documentsCollapsed ? 'Show' : 'Hide'}
-            </button>
-          </div>
+        <div className="col col-documents panel">
+          <h2>Documents</h2>
           <IngestForm onIngested={refetchDocuments} />
-          {!documentsCollapsed &&
-            (documents.length === 0 ? (
+          <details
+            className="documents-accordion"
+            open={!documentsCollapsed}
+            onToggle={(e) => setDocumentsCollapsed(!(e.target as HTMLDetailsElement).open)}
+          >
+            <summary title="Show or hide the document list">Document list ({documents.length})</summary>
+            {documents.length === 0 ? (
               <p>No documents ingested yet.</p>
             ) : (
               <ul className="documents-list">
                 {documents.map((doc) => (
-                  <li key={doc.id}>
-                    {doc.filename} <span className="tag">{doc.role}</span>
+                  <li key={doc.id} className={loadedDocument?.id === doc.id ? 'loaded' : undefined}>
+                    <span className="doc-filename">{doc.filename}</span> <span className="tag">{doc.role}</span>
                     <div className="doc-actions">
                       <IconButton icon="load" label="Load" onClick={() => loadDocument(doc)} />
                       <IconButton icon="reanalyze" label="Reanalyze" onClick={() => reanalyzeDocument(doc.id)} />
@@ -201,12 +201,13 @@ function App() {
                   </li>
                 ))}
               </ul>
-            ))}
+            )}
+          </details>
         </div>
 
         <div className="col col-center">
           <div className="col-center-inner">
-            <section>
+            <section className="panel">
               <h2>Plot Viewer</h2>
               <PlotViewer
                 topics={loadedTopics}
@@ -217,7 +218,7 @@ function App() {
               />
             </section>
 
-            <section ref={notecardsRef}>
+            <section className="panel" ref={notecardsRef}>
               <h2>Notecards</h2>
               <Notecards
                 themes={loadedThemes}
@@ -232,7 +233,7 @@ function App() {
               />
             </section>
 
-            <section>
+            <section className="panel">
               <h2>Subplots</h2>
               <Subplots
                 subplots={subplots}
@@ -247,7 +248,7 @@ function App() {
           </div>
         </div>
 
-        <div className="col col-encoding">
+        <div className="col col-encoding panel">
           <h2>Encoding Rules</h2>
           <EncodingRules rules={encodingRules} onRulesChanged={refetchEncodingRules} />
         </div>
