@@ -6,6 +6,8 @@ from app.config import REPO_ROOT
 from app.db import repository
 from app.ingest.dispatcher import get_extractor
 
+ROLE_DIRS = {"draft_script": "draft_scripts", "story_note": "story_notes"}
+
 
 def ingest_folder(conn: sqlite3.Connection, folder_path: Path | str, role: str) -> dict:
     folder = Path(folder_path)
@@ -34,6 +36,32 @@ def ingest_folder(conn: sqlite3.Connection, folder_path: Path | str, role: str) 
             failed.append({"filename": file_path.name, "error": str(exc)})
 
     return {"ingested": ingested, "skipped": skipped, "failed": failed}
+
+
+def upload_and_ingest(conn: sqlite3.Connection, *, filename: str, content: bytes, role: str) -> dict:
+    if role not in ROLE_DIRS:
+        raise ValueError(f"unknown role: {role}")
+    if not filename:
+        raise ValueError("missing filename")
+
+    # Strip any path components the browser or client sent, so an upload can
+    # only ever land inside its role's own folder.
+    safe_name = Path(filename).name
+    target_dir = REPO_ROOT / ROLE_DIRS[role]
+    target_dir.mkdir(parents=True, exist_ok=True)
+    file_path = target_dir / safe_name
+
+    extractor = get_extractor(file_path)
+    if extractor is None:
+        return {"ingested": [], "skipped": [safe_name], "failed": []}
+
+    file_path.write_bytes(content)
+
+    try:
+        _ingest_file(conn, file_path, extractor, role)
+        return {"ingested": [safe_name], "skipped": [], "failed": []}
+    except Exception as exc:
+        return {"ingested": [], "skipped": [], "failed": [{"filename": safe_name, "error": str(exc)}]}
 
 
 def _ingest_file(conn: sqlite3.Connection, file_path: Path, extractor, role: str) -> None:

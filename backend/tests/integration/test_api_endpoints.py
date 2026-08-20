@@ -1,5 +1,6 @@
 from app.analysis import llm
 from app.analysis.models import AnalysisResult, ThemeOut, TopicOut
+from app.ingest import service as ingest_service
 from app.sidekick import llm as sidekick_llm
 
 
@@ -34,6 +35,45 @@ def test_ingest_and_query_documents(client, tmp_path):
 
 def test_ingest_missing_folder_returns_400(client, tmp_path):
     response = client.post("/ingest", json={"folder_path": str(tmp_path / "nope"), "role": "draft_script"})
+    assert response.status_code == 400
+
+
+def test_ingest_upload_creates_document(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(ingest_service, "REPO_ROOT", tmp_path)
+
+    response = client.post(
+        "/ingest/upload",
+        files={"file": ("notes.txt", b"First paragraph.\n\nSecond paragraph.", "text/plain")},
+        data={"role": "story_note"},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"ingested": ["notes.txt"], "skipped": [], "failed": []}
+    assert (tmp_path / "story_notes" / "notes.txt").exists()
+
+    documents = client.get("/documents").json()
+    assert documents[0]["filename"] == "notes.txt"
+
+
+def test_ingest_upload_skips_unsupported_extension(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(ingest_service, "REPO_ROOT", tmp_path)
+
+    response = client.post(
+        "/ingest/upload",
+        files={"file": ("notes.xyz", b"whatever", "application/octet-stream")},
+        data={"role": "draft_script"},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"ingested": [], "skipped": ["notes.xyz"], "failed": []}
+
+
+def test_ingest_upload_unknown_role_returns_400(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(ingest_service, "REPO_ROOT", tmp_path)
+
+    response = client.post(
+        "/ingest/upload",
+        files={"file": ("notes.txt", b"text", "text/plain")},
+        data={"role": "not_a_real_role"},
+    )
     assert response.status_code == 400
 
 

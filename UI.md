@@ -62,6 +62,30 @@ and the select's color immediately. All 35 backend tests pass; frontend
 type-checks clean. Not touched this pass: G12, and the four larger
 iteration-1 deferrals (still open below).
 
+**Iteration 4** — done: the ingest flow now uses a real file dialog instead
+of a typed folder path (Left Column TODO — fixed). `IngestForm.tsx` uses a
+native `<input type="file" multiple>` (accepting .txt/.md/.docx/.pdf); the
+Ingest button only renders once files are selected, exactly as asked. Files
+upload one at a time to a new `POST /ingest/upload` endpoint
+(multipart/form-data), backed by `service.upload_and_ingest`, which writes
+into `draft_scripts/`/`story_notes/` (matching the selected role) and reuses
+the existing single-file ingest pipeline — so it produces identical
+documents/segments/styles to the folder-path route, just for a
+browser-selected file instead of a server-side path. Filenames are
+sanitized to their basename before being used as a path, since this
+endpoint now takes untrusted client input. The old folder-path route
+(`POST /ingest`) is untouched and still works for bulk/scripted ingestion;
+only the UI's own form was replaced, per the TODO's wording ("replace the
+text box... with a standard file dialog"). `python-multipart` added as a
+backend dependency (required by FastAPI for form/file parsing) via
+`uv add`. Verified live end-to-end: selected a real file via a synthetic
+`DataTransfer`, confirmed the button only appears after selection, clicked
+Ingest, confirmed the new document appears in the list and is queryable,
+then cleaned up both the document and the file it wrote to disk. All 38
+backend tests pass (3 new: upload creates a document, unsupported extension
+is skipped, unknown role 400s — all against a monkeypatched `REPO_ROOT` so
+tests never touch the real `draft_scripts/`/`story_notes/` folders).
+
 ---
 
 ## Layout overview
@@ -86,9 +110,12 @@ iteration-1 deferrals (still open below).
 ## Column layout (top to bottom)
 
 ### Left column — Documents
-1. "Documents" heading + Show/Hide toggle button (controls the list below only)
-2. Ingest form: folder path input, role select (`draft_script`/`story_note`), Ingest button
-3. Document list (hidden when toggled off): per document —
+1. "Documents" heading
+2. Ingest form: native file picker (multi-select, .txt/.md/.docx/.pdf), role
+   select (`draft_script`/`story_note`), Ingest button (only rendered once
+   files are selected)
+3. Document list, inside a native `<details>` accordion (open by default;
+   loading a document auto-collapses it): per document —
    filename, role tag, then four icon buttons (Load, Reanalyze, Classify
    Encoding, Delete), then a transient status tag if Reanalyze or Classify
    Encoding is in flight/just finished
@@ -96,8 +123,8 @@ iteration-1 deferrals (still open below).
 - [x] Use an accordion component, remove the hide/show — replaced the button + `documentsCollapsed` toggle with native `<details>/<summary>`. `documentsCollapsed` state kept (renamed use) only so loading a document can still auto-collapse the list; the manual button is gone.
 - [x] onHover on a button shows tool tip with its name — done app-wide, not just this column.
 - [x] onMouseOver changes the document title css to give a visual clue that it has the mouse focus — filename underlines and recolors on row hover.
-- [ ] replace the text box, selector and ingest with a standard file dialog — **not started.** This is a full-stack change, not a UI swap: the backend's `/ingest` only accepts a server-side folder path (`ingest_folder`); a real file-picker needs a new multipart upload endpoint that writes the uploaded bytes into `draft_scripts/`/`story_notes/` before running the existing extractor. Needs its own iteration with backend + frontend + tests, not a rushed partial version.
-- [ ] The ingest button appears after a file is selected — blocked on the above; same iteration.
+- [x] replace the text box, selector and ingest with a standard file dialog — fixed in iteration 4: `IngestForm.tsx` now uses `<input type="file" multiple>`, uploading to a new `POST /ingest/upload` endpoint that reuses the existing single-file ingest pipeline.
+- [x] The ingest button appears after a file is selected — fixed alongside the above; the button is conditionally rendered, not just disabled.
 - [x] center and justify all elements in the left column — `.col-documents` is centered; ingest inputs/selects/buttons stretch full width; doc-action icons are centered per row.
 
 ### Center column — Plot Viewer, Notecards, Subplots (in that order)
