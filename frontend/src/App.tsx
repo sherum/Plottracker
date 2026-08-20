@@ -171,6 +171,21 @@ function AppContent() {
     }
   }
 
+  async function setTopicAct(id: number, act: 'opening' | 'conflict' | 'climax' | null) {
+    try {
+      const response = await fetch(`/topics/${id}/set-act`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ act }),
+      })
+      if (!response.ok) throw new Error()
+      const updated = normalizeExcluded(await response.json())
+      setTopics((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
+    } catch {
+      showError('Could not move this topic. Please try again.')
+    }
+  }
+
   async function reanalyzeDocument(id: number) {
     setAnalyzing((prev) => ({ ...prev, [id]: 'Analyzing…' }))
     try {
@@ -284,6 +299,7 @@ function AppContent() {
                 onThemeClick={navigateToTheme}
                 onUpdateTopic={updateTopic}
                 onToggleExcludeTopic={toggleExcludeTopic}
+                onSetAct={setTopicAct}
               />
             </section>
 
@@ -300,6 +316,7 @@ function AppContent() {
                 onToggleExcludeTopic={toggleExcludeTopic}
                 onToggleExcludeTheme={toggleExcludeTheme}
                 onUnassignTheme={unassignTopicTheme}
+                onSetAct={setTopicAct}
               />
             </section>
 

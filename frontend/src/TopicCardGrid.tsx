@@ -13,6 +13,8 @@ export interface Topic {
   excluded: boolean
 }
 
+type Act = 'opening' | 'conflict' | 'climax'
+
 interface Props {
   topics: Topic[]
   themeTitleById?: Record<number, string>
@@ -21,6 +23,7 @@ interface Props {
   onRemoveTopic?: (id: number) => void
   removeLabel?: string
   onToggleExcludeTopic: (id: number, excluded: boolean) => void
+  onSetAct?: (id: number, act: Act | null) => void
 }
 
 function TopicCardGrid({
@@ -31,6 +34,7 @@ function TopicCardGrid({
   onRemoveTopic,
   removeLabel = 'Remove',
   onToggleExcludeTopic,
+  onSetAct,
 }: Props) {
   const [editingId, setEditingId] = useState<number | null>(null)
 
@@ -88,6 +92,20 @@ function TopicCardGrid({
               </div>
             </div>
             <p>{topic.summary}</p>
+            {onSetAct && (
+              <select
+                className={`act-select${actClass}`}
+                value={topic.act ?? ''}
+                onChange={(e) => onSetAct(topic.id, (e.target.value || null) as Act | null)}
+                title="Move this topic to a different act"
+                aria-label="Act"
+              >
+                <option value="">Unassigned</option>
+                <option value="opening">Opening</option>
+                <option value="conflict">Conflict</option>
+                <option value="climax">Climax</option>
+              </select>
+            )}
             <div className="card-tags">
               {topic.excluded && <span className="tag">Excluded</span>}
               <span className="tag">{topic.document_filename}</span>

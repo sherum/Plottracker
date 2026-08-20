@@ -21,6 +21,7 @@ interface Props {
   onThemeClick?: (themeId: number) => void
   onUpdateTopic: (id: number, data: { title: string; summary: string }) => void
   onToggleExcludeTopic: (id: number, excluded: boolean) => void
+  onSetAct?: (id: number, act: 'opening' | 'conflict' | 'climax' | null) => void
 }
 
 function segmentWidths(counts: number[]): number[] {
@@ -32,7 +33,15 @@ function segmentWidths(counts: number[]): number[] {
   return raw.map((w) => (w / rawTotal) * 100)
 }
 
-function ActHbar({ buckets, extraBucket, themeTitleById, onThemeClick, onUpdateTopic, onToggleExcludeTopic }: Props) {
+function ActHbar({
+  buckets,
+  extraBucket,
+  themeTitleById,
+  onThemeClick,
+  onUpdateTopic,
+  onToggleExcludeTopic,
+  onSetAct,
+}: Props) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const widths = segmentWidths(buckets.map((b) => b.activeTopics.length))
 
@@ -95,6 +104,7 @@ function ActHbar({ buckets, extraBucket, themeTitleById, onThemeClick, onUpdateT
             onThemeClick={onThemeClick}
             onUpdateTopic={onUpdateTopic}
             onToggleExcludeTopic={onToggleExcludeTopic}
+            onSetAct={onSetAct}
           />
           <Sidekick topics={selected.activeTopics} />
         </>

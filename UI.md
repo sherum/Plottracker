@@ -45,6 +45,23 @@ delete confirmations block on cancel, remove-from-theme updates the grid
 immediately, all 32 backend tests pass. Not touched this pass: G7, G8, G12,
 and the larger deferred items from iteration 1 (still open below).
 
+**Iteration 3** — done: encoding rules can now be edited in place (Gap G7 —
+fixed). `EncodingRules.tsx` reuses its existing add-rule form for both add
+and edit (an Edit button per card populates the form and swaps "Add Rule"
+for "Save Changes" + "Cancel"), backed by a new `PATCH /encoding-rules/{id}`
+endpoint + `repository.update_encoding_rule`. Topics can now be manually
+moved between acts (Gap G8 — fixed): every `TopicCardGrid` card can show a
+small act `<select>` (color-matched to the palette), backed by a new
+`POST /topics/{id}/set-act` endpoint + `repository.set_topic_act`; wired
+into Plot Viewer and Notecards' theme detail (not Subplots — its structure
+bar is chronological, not act-based, so reassigning act there would not
+change what the user sees, and adding it would just be a second control
+with no visible effect). Verified live: editing a rule's description
+persists via the PATCH; reassigning a topic's act updates its card border
+and the select's color immediately. All 35 backend tests pass; frontend
+type-checks clean. Not touched this pass: G12, and the four larger
+iteration-1 deferrals (still open below).
+
 ---
 
 ## Layout overview
@@ -193,7 +210,7 @@ column shows, and what the user can actually do.
 
 ### S10 — Encoding Rules (single state, no navigation)
 - **Displayed:** rule card grid + always-visible add-rule form.
-- **Functionality:** add a rule (style_kind, block_length, position, label, description), delete a rule. No edit-in-place (Gap G7). Not scoped to any document — rules are global and only take effect when a document's Classify Encoding is run.
+- **Functionality:** add a rule (style_kind, block_length, position, label, description), edit a rule in place via the same form (Gap G7, fixed), delete a rule. Not scoped to any document — rules are global and only take effect when a document's Classify Encoding is run.
 
 ### S10 - TODOs
 
@@ -217,8 +234,8 @@ any subset to hand to the MCP agent.
 - [x] **G4 — No error handling on any mutation.** Fixed: a shared `ToastContext` shows a dismissible error banner on any failed fetch, wired into every mutation in `App.tsx`, `Subplots.tsx`, `EncodingRules.tsx`, and `Sidekick.tsx`. Verified by forcing a 500 response and confirming the toast renders.
 - [x] **G5 — Delete is the only destructive action with a confirmation.** Fixed: deleting an encoding rule and removing a topic from a subplot now confirm first, same pattern as document delete. Verified the confirm fires with the correct label and a cancel leaves the rule in place.
 - [x] **G6 — No "remove topic from theme" action.** Fixed: a "Remove from theme" button now appears on topic cards inside Notecards' theme detail view (not shown for "Unassigned Topics", since there's no theme to remove from), calling a new `POST /topics/{id}/unassign-theme` endpoint. Verified the topic disappears from the theme's grid immediately.
-- [ ] **G7 — Encoding rules can't be edited**, only added or deleted; fixing a typo in a label means delete-and-recreate.
-- [ ] **G8 — No manual act reassignment.** Plot Viewer's Opening/Conflict/Climax buckets are entirely LLM-assigned (`topic.act`); there's no UI to move a topic between acts or into/out of "Unassigned".
+- [x] **G7 — Encoding rules can't be edited.** Fixed: an Edit button per rule card opens the same form used to add one, PATCHing instead of POSTing.
+- [x] **G8 — No manual act reassignment.** Fixed: topic cards in Plot Viewer and Notecards now have an act `<select>` (Opening/Conflict/Climax/Unassigned) that calls the new set-act endpoint. Not wired into Subplots' topic grid — its structure bar buckets by chronological order, not `topic.act`, so the control would have no visible effect there.
 - [x] **G9 — Inconsistent empty-state messaging.** Fixed: Notecards now shows a hint matching Plot Viewer/Subplots when there's nothing to display.
 - [x] **G10 — No loading state for the initial page fetch.** Fixed: a `loading` state renders "Loading Genre Writer…" until the initial `Promise.all` settles (success or failure), instead of an empty shell.
 - [x] **G11 — No responsive/narrow-viewport layout.** Fixed and verified: `.layout` collapses to one column under 900px; confirmed live at a 700px viewport — Documents, Plot Viewer, Notecards, and Subplots stack cleanly with no overflow.

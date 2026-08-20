@@ -37,6 +37,21 @@ def create_encoding_rule(request: EncodingRuleCreate, conn: sqlite3.Connection =
     return {"id": rule_id, **request.model_dump()}
 
 
+@router.patch("/encoding-rules/{rule_id}")
+def update_encoding_rule(
+    rule_id: int, request: EncodingRuleCreate, conn: sqlite3.Connection = Depends(get_db)
+) -> dict:
+    return repository.update_encoding_rule(
+        conn,
+        rule_id,
+        style_kind=request.style_kind,
+        block_length=request.block_length,
+        position=request.position,
+        label=request.label,
+        description=request.description,
+    )
+
+
 @router.delete("/encoding-rules/{rule_id}")
 def delete_encoding_rule(rule_id: int, conn: sqlite3.Connection = Depends(get_db)) -> dict:
     repository.delete_encoding_rule(conn, rule_id)

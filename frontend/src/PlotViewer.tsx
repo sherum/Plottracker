@@ -18,9 +18,10 @@ interface Props {
   onThemeClick: (themeId: number) => void
   onUpdateTopic: (id: number, data: { title: string; summary: string }) => void
   onToggleExcludeTopic: (id: number, excluded: boolean) => void
+  onSetAct: (id: number, act: 'opening' | 'conflict' | 'climax' | null) => void
 }
 
-function PlotViewer({ topics, themes, onThemeClick, onUpdateTopic, onToggleExcludeTopic }: Props) {
+function PlotViewer({ topics, themes, onThemeClick, onUpdateTopic, onToggleExcludeTopic, onSetAct }: Props) {
   const themeTitleById = Object.fromEntries(themes.map((t) => [t.id, t.title]))
 
   const buckets: HbarBucket[] = ACTS.map((act) => {
@@ -49,6 +50,7 @@ function PlotViewer({ topics, themes, onThemeClick, onUpdateTopic, onToggleExclu
       onThemeClick={onThemeClick}
       onUpdateTopic={onUpdateTopic}
       onToggleExcludeTopic={onToggleExcludeTopic}
+      onSetAct={onSetAct}
     />
   )
 }

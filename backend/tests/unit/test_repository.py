@@ -93,6 +93,60 @@ def test_delete_document_removes_segments_topics_and_subplot_membership(db_conn)
     assert repository.list_themes(db_conn)[0]["id"] == theme_id
 
 
+def test_set_topic_act_updates_and_clears(db_conn):
+    doc_id = repository.insert_document(
+        db_conn,
+        role="draft_script",
+        source_path="draft_scripts/chapter1.docx",
+        filename="chapter1.docx",
+        source_type="docx",
+        content_hash="act123",
+    )
+    segment_id = repository.insert_segment(db_conn, document_id=doc_id, sequence_index=0, text="Some text.")
+    topic_id = repository.insert_topic(
+        db_conn,
+        document_id=doc_id,
+        sequence_index=0,
+        title="A Topic",
+        summary="Summary.",
+        segment_start_id=segment_id,
+        segment_end_id=segment_id,
+    )
+
+    updated = repository.set_topic_act(db_conn, topic_id, "climax")
+    assert updated["act"] == "climax"
+
+    cleared = repository.set_topic_act(db_conn, topic_id, None)
+    assert cleared["act"] is None
+
+
+def test_update_encoding_rule_changes_fields(db_conn):
+    rule_id = repository.insert_encoding_rule(
+        db_conn,
+        style_kind="italic",
+        block_length="multi",
+        position="chapter_start",
+        label="dream_sequence",
+        description="Original.",
+    )
+
+    updated = repository.update_encoding_rule(
+        db_conn,
+        rule_id,
+        style_kind="bold",
+        block_length="single",
+        position="anywhere",
+        label="renamed_rule",
+        description="Revised.",
+    )
+
+    assert updated["style_kind"] == "bold"
+    assert updated["block_length"] == "single"
+    assert updated["position"] == "anywhere"
+    assert updated["label"] == "renamed_rule"
+    assert updated["description"] == "Revised."
+
+
 def test_unassign_topic_theme_clears_theme_id(db_conn):
     doc_id = repository.insert_document(
         db_conn,

@@ -1,4 +1,5 @@
 import sqlite3
+from typing import Literal
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -13,6 +14,10 @@ router = APIRouter()
 class NotecardUpdate(BaseModel):
     title: str
     summary: str
+
+
+class TopicActUpdate(BaseModel):
+    act: Literal["opening", "conflict", "climax"] | None
 
 
 @router.post("/documents/{document_id}/analyze")
@@ -48,6 +53,11 @@ def include_topic(topic_id: int, conn: sqlite3.Connection = Depends(get_db)) -> 
 @router.post("/topics/{topic_id}/unassign-theme")
 def unassign_topic_theme(topic_id: int, conn: sqlite3.Connection = Depends(get_db)) -> dict:
     return repository.unassign_topic_theme(conn, topic_id)
+
+
+@router.post("/topics/{topic_id}/set-act")
+def set_topic_act(topic_id: int, request: TopicActUpdate, conn: sqlite3.Connection = Depends(get_db)) -> dict:
+    return repository.set_topic_act(conn, topic_id, request.act)
 
 
 @router.get("/themes")

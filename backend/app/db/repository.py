@@ -199,6 +199,13 @@ def set_topic_excluded(conn: sqlite3.Connection, topic_id: int, excluded: bool) 
     return dict(row)
 
 
+def set_topic_act(conn: sqlite3.Connection, topic_id: int, act: str | None) -> dict:
+    conn.execute("UPDATE topics SET act = ? WHERE id = ?", (act, topic_id))
+    conn.commit()
+    row = conn.execute("SELECT * FROM topics WHERE id = ?", (topic_id,)).fetchone()
+    return dict(row)
+
+
 def unassign_topic_theme(conn: sqlite3.Connection, topic_id: int) -> dict:
     conn.execute("UPDATE topics SET theme_id = NULL WHERE id = ?", (topic_id,))
     conn.commit()
@@ -325,6 +332,29 @@ def insert_encoding_rule(
 def list_encoding_rules(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute("SELECT * FROM encoding_rules ORDER BY id").fetchall()
     return [dict(row) for row in rows]
+
+
+def update_encoding_rule(
+    conn: sqlite3.Connection,
+    rule_id: int,
+    *,
+    style_kind: str,
+    block_length: str,
+    position: str,
+    label: str,
+    description: str,
+) -> dict:
+    conn.execute(
+        """
+        UPDATE encoding_rules
+        SET style_kind = ?, block_length = ?, position = ?, label = ?, description = ?
+        WHERE id = ?
+        """,
+        (style_kind, block_length, position, label, description, rule_id),
+    )
+    conn.commit()
+    row = conn.execute("SELECT * FROM encoding_rules WHERE id = ?", (rule_id,)).fetchone()
+    return dict(row)
 
 
 def delete_encoding_rule(conn: sqlite3.Connection, rule_id: int) -> None:

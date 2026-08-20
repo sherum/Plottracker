@@ -134,6 +134,49 @@ def test_analyze_document_creates_topics_and_themes(client, tmp_path, monkeypatc
     assert unassign_response.status_code == 200
     assert unassign_response.json()["theme_id"] is None
 
+    set_act_response = client.post(f"/topics/{topic_id}/set-act", json={"act": "climax"})
+    assert set_act_response.status_code == 200
+    assert set_act_response.json()["act"] == "climax"
+
+    clear_act_response = client.post(f"/topics/{topic_id}/set-act", json={"act": None})
+    assert clear_act_response.status_code == 200
+    assert clear_act_response.json()["act"] is None
+
     exclude_theme_response = client.post(f"/themes/{theme_id}/exclude")
     assert exclude_theme_response.status_code == 200
     assert exclude_theme_response.json()["excluded"] == 1
+
+
+def test_encoding_rule_crud(client):
+    create_response = client.post(
+        "/encoding-rules",
+        json={
+            "style_kind": "italic",
+            "block_length": "multi",
+            "position": "chapter_start",
+            "label": "dream_sequence",
+            "description": "Original.",
+        },
+    )
+    assert create_response.status_code == 200
+    rule_id = create_response.json()["id"]
+
+    assert client.get("/encoding-rules").json()[0]["label"] == "dream_sequence"
+
+    update_response = client.patch(
+        f"/encoding-rules/{rule_id}",
+        json={
+            "style_kind": "bold",
+            "block_length": "single",
+            "position": "anywhere",
+            "label": "renamed_rule",
+            "description": "Revised.",
+        },
+    )
+    assert update_response.status_code == 200
+    assert update_response.json()["label"] == "renamed_rule"
+    assert client.get("/encoding-rules").json()[0]["style_kind"] == "bold"
+
+    delete_response = client.delete(f"/encoding-rules/{rule_id}")
+    assert delete_response.status_code == 200
+    assert client.get("/encoding-rules").json() == []

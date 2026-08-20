@@ -23,6 +23,11 @@
   border-style: dashed;
 }
 
+.card.editing-source {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+
 .card-act-opening {
   border-left: 4px solid var(--color-opening);
 }
@@ -33,6 +38,33 @@
 
 .card-act-climax {
   border-left: 4px solid var(--color-climax);
+}
+
+.act-select {
+  display: block;
+  margin: 0 0 0.5rem;
+  font: inherit;
+  font-size: 0.8em;
+  background: canvas;
+  color: canvastext;
+  border: 1px solid #888;
+  border-radius: 4px;
+  padding: 0.2rem 0.4rem;
+}
+
+.act-select.card-act-opening {
+  border-color: var(--color-opening);
+  color: var(--color-opening);
+}
+
+.act-select.card-act-conflict {
+  border-color: var(--color-conflict);
+  color: var(--color-conflict);
+}
+
+.act-select.card-act-climax {
+  border-color: var(--color-climax);
+  color: var(--color-climax);
 }
 
 .card h4 {
