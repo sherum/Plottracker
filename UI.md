@@ -86,6 +86,26 @@ backend tests pass (3 new: upload creates a document, unsupported extension
 is skipped, unknown role 400s — all against a monkeypatched `REPO_ROOT` so
 tests never touch the real `draft_scripts/`/`story_notes/` folders).
 
+**Iteration 5** — done: search/filter added where lists actually get long
+(Gap G12 — partial, see below). `TopicCardGrid` now shows a search input
+(filtering by title/summary, case-insensitive) whenever it has more than 6
+topics — this one component is reused by Plot Viewer, Notecards' theme
+detail, and Subplots' detail, so it covers every place a topic grid can
+grow large in one change. Notecards' theme list gets the same treatment
+above 6 themes. Both show a "No topics/themes match" message when the
+filter has no results, and the threshold means small lists (which is most
+of them, most of the time) show no extra UI at all — search only appears
+when it would actually help, per the "without overwhelming" brief. Verified
+live: loaded `document.docx`, opened its 22-topic theme, confirmed the
+search box appears with the correct count, filtered "NTSB" down to the 2
+matching topics, and confirmed the no-match state on a nonsense query — the
+Sidekick below stayed scoped to all 22 topics throughout, since search is a
+display filter only, not a context filter. Frontend-only change; all 38
+backend tests still pass (untouched). G12 is not fully closed: no
+pagination was added (lists still render in full, just filterable) and
+Documents/Subplots/Encoding Rules lists have no search, since none of them
+are anywhere near large enough yet to need it — revisit if that changes.
+
 ---
 
 ## Layout overview
@@ -266,4 +286,4 @@ any subset to hand to the MCP agent.
 - [x] **G9 — Inconsistent empty-state messaging.** Fixed: Notecards now shows a hint matching Plot Viewer/Subplots when there's nothing to display.
 - [x] **G10 — No loading state for the initial page fetch.** Fixed: a `loading` state renders "Loading Genre Writer…" until the initial `Promise.all` settles (success or failure), instead of an empty shell.
 - [x] **G11 — No responsive/narrow-viewport layout.** Fixed and verified: `.layout` collapses to one column under 900px; confirmed live at a 700px viewport — Documents, Plot Viewer, Notecards, and Subplots stack cleanly with no overflow.
-- [ ] **G12 — No search or pagination** anywhere (documents, topics, themes, subplots, encoding rules) — every list renders in full.
+- [~] **G12 — No search or pagination.** Partially fixed: `TopicCardGrid` and Notecards' theme list now show a search filter once they pass 6 items (covers Plot Viewer, Notecards, and Subplots' topic grids in one change, since they share `TopicCardGrid`). Documents, Subplots, and Encoding Rules still have no search and nothing has pagination — none of those lists are large enough yet to need it.

@@ -4,6 +4,8 @@ import Sidekick from './Sidekick'
 import TopicCardGrid, { type Topic } from './TopicCardGrid'
 import './Notecards.css'
 
+const THEME_SEARCH_THRESHOLD = 6
+
 interface Theme {
   id: number
   title: string
@@ -42,6 +44,7 @@ function Notecards({
   onSetAct,
 }: Props) {
   const [editingThemeId, setEditingThemeId] = useState<number | null>(null)
+  const [themeSearch, setThemeSearch] = useState('')
   const unassignedTopics = topics.filter((t) => t.theme_id === null)
 
   if (selected !== null) {
@@ -70,10 +73,28 @@ function Notecards({
     )
   }
 
+  const themeQuery = themeSearch.trim().toLowerCase()
+  const shownThemes =
+    themeQuery === ''
+      ? themes
+      : themes.filter(
+          (t) => t.title.toLowerCase().includes(themeQuery) || t.summary.toLowerCase().includes(themeQuery)
+        )
+
   return (
     <div className="notecards">
+      {themes.length > THEME_SEARCH_THRESHOLD && (
+        <input
+          className="theme-search"
+          value={themeSearch}
+          onChange={(e) => setThemeSearch(e.target.value)}
+          placeholder={`Search these ${themes.length} themes…`}
+          aria-label="Search themes"
+        />
+      )}
+      {themeQuery !== '' && shownThemes.length === 0 && <p className="hbar-hint">No themes match "{themeSearch}".</p>}
       <div className="card-grid">
-        {themes.map((theme) => {
+        {shownThemes.map((theme) => {
           if (editingThemeId === theme.id) {
             return (
               <CardEditForm

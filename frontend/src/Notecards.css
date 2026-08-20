@@ -4,6 +4,20 @@
   gap: 0.75rem;
 }
 
+.topic-search,
+.theme-search {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  background: canvas;
+  color: canvastext;
+  border: 1px solid #888;
+  border-radius: 4px;
+  padding: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
 .card {
   border: 1px solid #ddd;
   border-radius: 8px;

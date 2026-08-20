@@ -15,6 +15,8 @@ export interface Topic {
 
 type Act = 'opening' | 'conflict' | 'climax'
 
+const SEARCH_THRESHOLD = 6
+
 interface Props {
   topics: Topic[]
   themeTitleById?: Record<number, string>
@@ -37,10 +39,30 @@ function TopicCardGrid({
   onSetAct,
 }: Props) {
   const [editingId, setEditingId] = useState<number | null>(null)
+  const [search, setSearch] = useState('')
+
+  const query = search.trim().toLowerCase()
+  const shownTopics =
+    query === ''
+      ? topics
+      : topics.filter(
+          (t) => t.title.toLowerCase().includes(query) || t.summary.toLowerCase().includes(query)
+        )
 
   return (
-    <div className="card-grid">
-      {topics.map((topic) => {
+    <div>
+      {topics.length > SEARCH_THRESHOLD && (
+        <input
+          className="topic-search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={`Search these ${topics.length} topics…`}
+          aria-label="Search topics"
+        />
+      )}
+      {query !== '' && shownTopics.length === 0 && <p className="hbar-hint">No topics match "{search}".</p>}
+      <div className="card-grid">
+      {shownTopics.map((topic) => {
         if (editingId === topic.id) {
           return (
             <CardEditForm
@@ -121,6 +143,7 @@ function TopicCardGrid({
           </div>
         )
       })}
+      </div>
     </div>
   )
 }
