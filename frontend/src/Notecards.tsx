@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import CardEditForm from './CardEditForm'
-import Sidekick from './Sidekick'
 import TopicCardGrid, { type Topic } from './TopicCardGrid'
 import './Notecards.css'
 
@@ -51,7 +50,6 @@ function Notecards({
     const isUnassigned = selected === UNASSIGNED
     const theme = isUnassigned ? null : themes.find((t) => t.id === selected)
     const shownTopics = isUnassigned ? unassignedTopics : topics.filter((t) => t.theme_id === selected)
-    const activeTopics = shownTopics.filter((t) => !t.excluded)
 
     return (
       <div className="notecards">
@@ -68,7 +66,6 @@ function Notecards({
           removeLabel="Remove from theme"
           onSetAct={onSetAct}
         />
-        <Sidekick topics={activeTopics} />
       </div>
     )
   }

@@ -134,6 +134,48 @@ with a shadow; a subplot's Structure bar is visibly thinner with smaller
 text, right next to it in the same session for direct comparison. All 39
 backend tests pass (1 new); frontend type-checks clean.
 
+**Iteration 7** — done: Sidekick moved to the right column as a single
+chat interface for everything (Center Column TODO — fixed). Resolved the
+open design question — "what does 'everything' mean when nothing is
+selected" — by reading the request literally: "for everything" means not
+scoped to a narrow selection at all, not "whichever selection currently
+wins." The three previous instances (Plot Viewer act, Notecards theme
+detail, Subplot detail), each scoped to whatever was selected in that one
+spot, are gone; there's now exactly one `<Sidekick>`, always visible at the
+top of the right column above Encoding Rules, scoped to every active topic
+in the loaded document regardless of what's selected anywhere else. This
+is a real, deliberate narrowing of capability, not a pure win: you can no
+longer ask a question scoped tightly to just one act or one theme the way
+you could before — the tradeoff the request asked for. `Sidekick` gained an
+empty state ("Load a document...") for when nothing is loaded, since it's
+now always rendered instead of conditionally appearing only when something
+was selected. Verified live end-to-end against the real backend: loaded
+document.docx, confirmed exactly one `.sidekick-input` exists on the page
+(before and after selecting a Plot Viewer act, proving the old per-section
+instances are gone, not just hidden), asked "Who is the protagonist?" and
+got a real LLM answer back citing Felicia Martin. Frontend-only change;
+all 39 backend tests pass untouched.
+
+Right Column TODOs remain blocked: "encoding rules display-only" and "AI
+sidekick manages it" both depend on giving the sidekick's LLM call
+tool-use/write access to the encoding-rules endpoints — today
+`sidekick.llm.answer_question` only ever reads topics context and returns
+prose, it has no function-calling loop. That is a backend AI-capability
+build (tool definitions, multi-turn tool-call handling, execution), not a
+UI change, and deserves its own iteration rather than a rushed bolt-on.
+Making encoding rules read-only *now*, before that exists, would strand
+the user with no way to manage rules at all — a real regression — so it
+was deliberately left alone.
+
+The one item left unstarted from the original TODOs is the
+click-nearest-topic carousel (centered topic + prev/next neighbors, a
+vertical position marker on the Hbar, theme-linked visual grouping, topics
+nested under their theme). It remains a genuinely new interaction pattern
+with seven distinct sub-behaviors specified — the kind of thing that needs
+a mockup or a real back-and-forth to get right, not a best-guess
+implementation that risks shipping something confusing under the banner of
+"improving" it.
+
 ---
 
 ## Layout overview
@@ -179,24 +221,35 @@ backend tests pass (1 new); frontend type-checks clean.
 1. "Plot Viewer" heading, then the Hbar (Opening/Conflict/Climax segments
    sized proportionally to active topic count, plus an "Unassigned" segment
    if any topics have no act), then either a hint line or the selected
-   segment's topic card grid + Sidekick
+   segment's topic card grid
 2. "Notecards" heading, then either the theme card grid (+ "Unassigned
    Topics" card) or a selected theme's back button + summary + topic card
-   grid + Sidekick
+   grid
 3. "Subplots" heading, then either the subplot card grid (+ "New Subplot")
    or a selected subplot's back button + summary + its own recursive
-   three-act Hbar + add-topic control + topic card grid + Sidekick
+   three-act Hbar (rendered smaller than the main Plot Viewer bar) +
+   add-topic control + topic card grid
+
+(Sidekick moved out of the center column in iteration 7 — see the right
+column below.)
 ### Center Column TODOs
 - [x] replace the Hbar with a larger progress bar for the main plot — fixed conservatively in iteration 6: the existing Hbar is now taller (64px) with a subtle shadow rather than being replaced by a new component, since "larger" didn't specify a new shape and the existing proportional-segment interaction (click-to-select) is worth keeping.
 - [x] use smaller progress bars for subplots — fixed alongside the above: `ActHbar` takes a `size` prop, Subplots passes `"small"` (28px, smaller label), giving real visual hierarchy between the main plot and a subplot's structure.
 - [x] Use colors to separate the three act structure, not text i.e "Conflict" — done (see Layout TODOs); applies to both the main Plot Viewer and each Subplot's own structure bar since they share `ActHbar`.
 - [x] onMouseOver displays the page or chapter as a tooltip — fixed in iteration 6: `list_all_topics` resolves each topic's nearest chapter heading or PDF page number; the Hbar's tooltip shows it per topic. Proven by a unit test; not yet confirmed against live analyzed data with real chapters (see iteration 6 log for why).
 - [ ] clicking the Hbar will select the nearest topic (carousel: centered topic + prev/next neighbors, vertical position marker, theme-linked visual grouping, topics nested under their theme the way they nest under the Hbar) — **not started.** This is a large new interaction pattern, not a tweak; needs its own design pass.
-- [ ] Move the AI sidekick to the right column as a single chat interface for everything — **not started.** Today `Sidekick` is instantiated three separate times (Plot Viewer act, Notecards theme, Subplot detail), each scoped to whatever topics are currently selected. Moving to one global instance means deciding what "everything" means when nothing is selected, and threading the currently-selected topics up to wherever it lives. Worth doing deliberately, not as a drive-by move.
+- [x] Move the AI sidekick to the right column as a single chat interface for everything — fixed in iteration 7: one `<Sidekick>` at the top of the right column, scoped to every active topic in the loaded document (not to whatever is currently selected — "for everything" was read literally). Replaces the three per-section instances; asking a question scoped to just one act/theme/subplot is no longer possible, which is the tradeoff the request asked for.
+
+### Right column — Sidekick, Encoding Rules (in that order)
+1. "Sidekick" panel (added iteration 7): a single chat input, always
+   visible, scoped to every active topic in the loaded document; an empty
+   state ("Load a document...") when nothing is loaded
+2. "Encoding Rules" panel: rule card grid + always-visible add/edit form
+   (see S10)
 
 ### Right Column TODOs
 - [ ] Refactor the encoding rule to be a display only — **not started.**
-- [ ] The AI sidekick will manage it — **not started**, blocked on the Sidekick relocation above, and on giving the sidekick's LLM call tool-use access to the encoding-rules endpoints (currently `Sidekick`/`sidekick.llm.answer_question` only ever reads topics, it has no write path).
+- [ ] The AI sidekick will manage it — **not started.** The Sidekick relocation this depended on is done (iteration 7); what's left is giving the sidekick's LLM call tool-use/write access to the encoding-rules endpoints — `sidekick.llm.answer_question` still only ever reads topics and returns prose, it has no function-calling loop. A backend AI-capability build, not a UI change.
 
 ---
 
@@ -236,8 +289,8 @@ column shows, and what the user can actually do.
 
 ### S3 — Plot Viewer: act selected
 - **Trigger:** click an Hbar segment (Opening/Conflict/Climax/Unassigned).
-- **Displayed:** that act's topic card grid + a Sidekick chat scoped to its active topics; a "← Clear selection" button above the grid.
-- **Functionality:** edit/exclude any topic card in place; ask Sidekick questions about this act only; clear the selection to return to the hint state (Gap G3 — fixed).
+- **Displayed:** that act's topic card grid; a "← Clear selection" button above the grid.
+- **Functionality:** edit/exclude any topic card in place; clear the selection to return to the hint state (Gap G3 — fixed). Asking Sidekick about just this act is no longer possible — Sidekick is a single global instance in the right column now (iteration 7).
 
 ### S3 - TODOs
 
@@ -257,7 +310,7 @@ column shows, and what the user can actually do.
 
 ### S6 — Notecards: theme/unassigned detail
 - **Trigger:** clicking a theme card body, or the "Unassigned Topics" card.
-- **Displayed:** "← Themes" back button, theme title (+ summary, unless unassigned), topic card grid, Sidekick scoped to these topics.
+- **Displayed:** "← Themes" back button, theme title (+ summary, unless unassigned), topic card grid.
 - **Functionality:** each topic card is independently editable/excludable in place (`TopicCardGrid`'s own edit state); a topic card also shows "Remove from theme" (not shown for Unassigned, since there's nothing to remove it from) — Gap G6, fixed. Back returns to S4.
 
 ### S6 - TODOs
@@ -278,8 +331,8 @@ column shows, and what the user can actually do.
 
 ### S9 — Subplots: detail
 - **Trigger:** clicking a subplot card.
-- **Displayed:** "← Subplots" back button, title, summary, "Structure" heading with its own recursive three-act Hbar (topics split evenly by chronological order, not LLM-assigned act), "All Topics" heading with an add-topic dropdown (any topic app-wide not already a member) + Add button, then the full topic card grid (with Remove, unlike S6) and a Sidekick scoped to this subplot.
-- **Functionality:** add any topic from any document to this subplot, remove a topic, edit/exclude topics in place, ask Sidekick about this subplot only.
+- **Displayed:** "← Subplots" back button, title, summary, "Structure" heading with its own recursive three-act Hbar (smaller than the main Plot Viewer bar; topics split evenly by chronological order, not LLM-assigned act), "All Topics" heading with an add-topic dropdown (any topic app-wide not already a member) + Add button, then the full topic card grid (with Remove, unlike S6).
+- **Functionality:** add any topic from any document to this subplot (confirmed before removing — Gap G5), remove a topic, edit/exclude topics in place, reassign a topic's act. Asking Sidekick about just this subplot is no longer possible — see S3's note.
 
 ### S9 - TODOs
 
@@ -295,6 +348,12 @@ column shows, and what the user can actually do.
 - **Delete:** blocked behind a native `window.confirm`; no status tag, no undo.
 - **Load:** instant, no status tag.
 - These statuses persist in component state until the next reanalyze/classify of the same document; they are not cleared by navigating away or loading a different document.
+
+### S12 — Sidekick (added iteration 7)
+- **Trigger:** always rendered, at the top of the right column.
+- **Displayed (no document loaded):** "Load a document to ask the sidekick about its topics." — no input.
+- **Displayed (document loaded):** a question input + Ask button, placeholder shows the active topic count; the most recent answer below once asked.
+- **Functionality:** ask a question scoped to every active (non-excluded) topic in the loaded document. Independent of every other selection in the app — selecting an act, a theme, or a subplot elsewhere does not change what Sidekick can see.
 
 ---
 

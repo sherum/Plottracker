@@ -33,6 +33,14 @@ function Sidekick({ topics }: Props) {
     }
   }
 
+  if (topics.length === 0) {
+    return (
+      <div className="sidekick">
+        <p className="hbar-hint">Load a document to ask the sidekick about its topics.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="sidekick">
       <div className="sidekick-input">

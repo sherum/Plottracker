@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import ActHbar, { type HbarBucket } from './ActHbar'
 import CardEditForm from './CardEditForm'
-import Sidekick from './Sidekick'
 import { useToast } from './ToastContext'
 import TopicCardGrid, { type Topic } from './TopicCardGrid'
 import './Notecards.css'
@@ -160,7 +159,6 @@ function Subplots({
           removeLabel="Remove from subplot"
           onToggleExcludeTopic={onToggleExcludeTopic}
         />
-        <Sidekick topics={subplotTopics.filter((t) => !t.excluded)} />
       </div>
     )
   }

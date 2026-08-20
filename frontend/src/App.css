@@ -73,8 +73,17 @@ main {
   text-align: right;
 }
 
+.col-encoding .panel {
+  margin-bottom: 1.5rem;
+}
+
+.col-encoding .panel:last-child {
+  margin-bottom: 0;
+}
+
 .col-encoding .card,
-.col-encoding .ingest-form-row {
+.col-encoding .ingest-form-row,
+.col-encoding .sidekick {
   text-align: left;
 }
 

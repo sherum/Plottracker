@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import Sidekick from './Sidekick'
 import TopicCardGrid, { type Topic } from './TopicCardGrid'
 import './Notecards.css'
 import './PlotViewer.css'
@@ -126,7 +125,6 @@ function ActHbar({
             onToggleExcludeTopic={onToggleExcludeTopic}
             onSetAct={onSetAct}
           />
-          <Sidekick topics={selected.activeTopics} />
         </>
       )}
     </div>

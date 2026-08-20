@@ -4,6 +4,7 @@ import IconButton from './IconButton'
 import IngestForm from './IngestForm'
 import Notecards, { type Selection } from './Notecards'
 import PlotViewer from './PlotViewer'
+import Sidekick from './Sidekick'
 import Subplots, { type Subplot } from './Subplots'
 import { ToastProvider, useToast } from './ToastContext'
 import type { Topic } from './TopicCardGrid'
@@ -336,9 +337,15 @@ function AppContent() {
           </div>
         </div>
 
-        <div className="col col-encoding panel">
-          <h2>Encoding Rules</h2>
-          <EncodingRules rules={encodingRules} onRulesChanged={refetchEncodingRules} />
+        <div className="col col-encoding">
+          <div className="panel">
+            <h2>Sidekick</h2>
+            <Sidekick topics={loadedTopics.filter((t) => !t.excluded)} />
+          </div>
+          <div className="panel">
+            <h2>Encoding Rules</h2>
+            <EncodingRules rules={encodingRules} onRulesChanged={refetchEncodingRules} />
+          </div>
         </div>
       </div>
     </main>
