@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Notecards, { type Selection } from './Notecards'
 import PlotViewer from './PlotViewer'
+import Subplots, { type Subplot } from './Subplots'
 import type { Topic } from './TopicCardGrid'
 import './App.css'
 
@@ -22,6 +23,7 @@ function App() {
   const [documents, setDocuments] = useState<Document[]>([])
   const [themes, setThemes] = useState<Theme[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
+  const [subplots, setSubplots] = useState<Subplot[]>([])
   const [selectedTheme, setSelectedTheme] = useState<Selection>(null)
   const [error, setError] = useState<string | null>(null)
   const notecardsRef = useRef<HTMLDivElement>(null)
@@ -31,11 +33,13 @@ function App() {
       fetch('/documents').then((res) => res.json()),
       fetch('/themes').then((res) => res.json()),
       fetch('/topics').then((res) => res.json()),
+      fetch('/subplots').then((res) => res.json()),
     ])
-      .then(([documentsData, themesData, topicsData]) => {
+      .then(([documentsData, themesData, topicsData, subplotsData]) => {
         setDocuments(documentsData)
         setThemes(themesData)
         setTopics(topicsData)
+        setSubplots(subplotsData)
       })
       .catch(() => setError('Could not reach the backend at http://localhost:8000'))
   }, [])
@@ -43,6 +47,12 @@ function App() {
   function navigateToTheme(themeId: number) {
     setSelectedTheme(themeId)
     notecardsRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  function refetchSubplots() {
+    fetch('/subplots')
+      .then((res) => res.json())
+      .then(setSubplots)
   }
 
   async function updateTopic(id: number, data: { title: string; summary: string }) {
@@ -63,6 +73,11 @@ function App() {
     })
     const updated = await response.json()
     setThemes((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
+  }
+
+  async function promoteTheme(themeId: number) {
+    await fetch(`/themes/${themeId}/promote`, { method: 'POST' })
+    refetchSubplots()
   }
 
   if (error) {
@@ -102,7 +117,13 @@ function App() {
           onSelect={setSelectedTheme}
           onUpdateTopic={updateTopic}
           onUpdateTheme={updateTheme}
+          onPromoteTheme={promoteTheme}
         />
+      </section>
+
+      <section>
+        <h2>Subplots</h2>
+        <Subplots subplots={subplots} allTopics={topics} onUpdateTopic={updateTopic} onSubplotsChanged={refetchSubplots} />
       </section>
     </main>
   )

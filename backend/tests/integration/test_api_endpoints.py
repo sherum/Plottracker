@@ -91,3 +91,24 @@ def test_analyze_document_creates_topics_and_themes(client, tmp_path, monkeypatc
     assert patch_theme_response.status_code == 200
     assert patch_theme_response.json()["title"] == "Journey (revised)"
     assert client.get("/themes").json()[0]["summary"] == "Updated theme summary."
+
+    promote_response = client.post(f"/themes/{theme_id}/promote")
+    assert promote_response.status_code == 200
+    subplot = promote_response.json()
+    assert subplot["theme_id"] == theme_id
+    assert subplot["topic_count"] == 1
+
+    subplots = client.get("/subplots").json()
+    assert subplots[0]["id"] == subplot["id"]
+
+    manual_subplot = client.post("/subplots", json={"title": "Author's Subplot", "summary": "Manual."}).json()
+    assert manual_subplot["topic_count"] == 0
+
+    add_response = client.post(f"/subplots/{manual_subplot['id']}/topics", json={"topic_id": topic_id})
+    assert add_response.status_code == 200
+    assert add_response.json()["topic_count"] == 1
+    assert client.get(f"/subplots/{manual_subplot['id']}/topics").json()[0]["id"] == topic_id
+
+    remove_response = client.delete(f"/subplots/{manual_subplot['id']}/topics/{topic_id}")
+    assert remove_response.status_code == 200
+    assert remove_response.json()["topic_count"] == 0

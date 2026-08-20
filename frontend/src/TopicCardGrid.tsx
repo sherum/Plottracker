@@ -17,9 +17,10 @@ interface Props {
   themeTitleById?: Record<number, string>
   onThemeClick?: (themeId: number) => void
   onUpdateTopic: (id: number, data: { title: string; summary: string }) => void
+  onRemoveTopic?: (id: number) => void
 }
 
-function TopicCardGrid({ topics, themeTitleById, onThemeClick, onUpdateTopic }: Props) {
+function TopicCardGrid({ topics, themeTitleById, onThemeClick, onUpdateTopic, onRemoveTopic }: Props) {
   const [editingId, setEditingId] = useState<number | null>(null)
 
   return (
@@ -45,9 +46,20 @@ function TopicCardGrid({ topics, themeTitleById, onThemeClick, onUpdateTopic }: 
           <div className="card" key={topic.id}>
             <div className="card-header">
               <h4>{topic.title}</h4>
-              <button className="edit-btn" onClick={() => setEditingId(topic.id)} aria-label="Edit topic">
-                Edit
-              </button>
+              <div className="card-header-actions">
+                <button className="edit-btn" onClick={() => setEditingId(topic.id)} aria-label="Edit topic">
+                  Edit
+                </button>
+                {onRemoveTopic && (
+                  <button
+                    className="edit-btn"
+                    onClick={() => onRemoveTopic(topic.id)}
+                    aria-label="Remove topic from subplot"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
             </div>
             <p>{topic.summary}</p>
             <div className="card-tags">

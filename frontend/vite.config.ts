@@ -9,6 +9,7 @@ export default defineConfig({
       '/documents': 'http://localhost:8000',
       '/themes': 'http://localhost:8000',
       '/topics': 'http://localhost:8000',
+      '/subplots': 'http://localhost:8000',
       '/ingest': 'http://localhost:8000',
       '/health': 'http://localhost:8000',
     },

@@ -19,9 +19,10 @@ interface Props {
   onSelect: (selection: Selection) => void
   onUpdateTopic: (id: number, data: { title: string; summary: string }) => void
   onUpdateTheme: (id: number, data: { title: string; summary: string }) => void
+  onPromoteTheme: (themeId: number) => void
 }
 
-function Notecards({ themes, topics, selected, onSelect, onUpdateTopic, onUpdateTheme }: Props) {
+function Notecards({ themes, topics, selected, onSelect, onUpdateTopic, onUpdateTheme, onPromoteTheme }: Props) {
   const [editingThemeId, setEditingThemeId] = useState<number | null>(null)
   const unassignedTopics = topics.filter((t) => t.theme_id === null)
 
@@ -65,16 +66,28 @@ function Notecards({ themes, topics, selected, onSelect, onUpdateTopic, onUpdate
             <div className="card clickable" key={theme.id} onClick={() => onSelect(theme.id)}>
               <div className="card-header">
                 <h4>{theme.title}</h4>
-                <button
-                  className="edit-btn"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setEditingThemeId(theme.id)
-                  }}
-                  aria-label="Edit theme"
-                >
-                  Edit
-                </button>
+                <div className="card-header-actions">
+                  <button
+                    className="edit-btn"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setEditingThemeId(theme.id)
+                    }}
+                    aria-label="Edit theme"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="edit-btn"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onPromoteTheme(theme.id)
+                    }}
+                    aria-label="Promote theme to subplot"
+                  >
+                    Promote
+                  </button>
+                </div>
               </div>
               <p>{theme.summary}</p>
               <span className="tag">{topics.filter((t) => t.theme_id === theme.id).length} topics</span>

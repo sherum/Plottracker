@@ -57,3 +57,17 @@ CREATE TABLE IF NOT EXISTS topics (
 
 CREATE INDEX IF NOT EXISTS idx_topics_document_sequence
     ON topics(document_id, sequence_index);
+
+CREATE TABLE IF NOT EXISTS subplots (
+    id INTEGER PRIMARY KEY,
+    theme_id INTEGER REFERENCES themes(id),
+    title TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS subplot_topics (
+    subplot_id INTEGER NOT NULL REFERENCES subplots(id),
+    topic_id INTEGER NOT NULL REFERENCES topics(id),
+    PRIMARY KEY (subplot_id, topic_id)
+);
