@@ -11,6 +11,33 @@ Source of truth: `frontend/src/App.tsx` and the components it renders
 (`IngestForm`, `Notecards`, `PlotViewer`/`ActHbar`, `Subplots`, `EncodingRules`,
 `TopicCardGrid`, `CardEditForm`, `Sidekick`, `IconButton`).
 
+## Status (end of iteration 9, session paused here)
+
+Every TODO and Gap below is now one of three things: done, partially done
+with the remainder clearly scoped, or deliberately not attempted with a
+specific reason recorded next to it — not a vague "later." Nine iterations
+closed every item that had a safe, checkable answer. Two are left
+unstarted on purpose, each declined more than once rather than guessed at:
+
+- **The click-nearest-topic carousel** (Center Column TODOs) — a genuinely
+  new interaction pattern with seven distinct sub-behaviors that would
+  replace the current click-a-segment-see-a-grid model. One safe slice of
+  it (the hover position marker) shipped in iteration 8; the rest needs a
+  mockup or a real back-and-forth, not a best guess that risks replacing a
+  working interaction with an untested one.
+- **AI-managed encoding rules** (Right Column TODOs) — blocked on giving
+  the sidekick's LLM call actual tool-use/write access, which is a backend
+  AI-capability build (tool schemas, multi-turn function-calling, safe
+  execution boundaries around a model taking destructive actions on data
+  encoding classification depends on) — not a UI change, and not something
+  to improvise without real safety consideration.
+
+If picking this back up: start with those two. Everything else here is
+either finished or has a documented reason it isn't. Re-run
+`uv run pytest -q` (backend, 39 passing) and `npx tsc --noEmit` (frontend)
+before making changes, to confirm the baseline this summary describes is
+still accurate.
+
 ## Progress log
 
 **Iteration 1** — done: CSS custom-property color palette (`--color-opening`/
