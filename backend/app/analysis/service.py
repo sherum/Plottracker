@@ -11,6 +11,8 @@ def analyze_document(conn: sqlite3.Connection, document_id: int) -> dict:
 
     result = llm.extract_topics_and_themes(segments)
 
+    repository.exclude_topics_for_document(conn, document_id)
+
     topic_ids = [
         repository.insert_topic(
             conn,

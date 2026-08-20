@@ -56,6 +56,47 @@ def test_analyze_document_stores_topics_and_themes(db_conn, monkeypatch):
     assert all(t["theme_id"] == themes[0]["id"] for t in topics)
 
 
+def test_reanalyze_excludes_old_topics_instead_of_duplicating(db_conn, monkeypatch):
+    document_id, segment_ids = _make_document_with_segments(db_conn)
+
+    first_result = AnalysisResult(
+        topics=[
+            TopicOut(
+                segment_start_id=segment_ids[0],
+                segment_end_id=segment_ids[0],
+                title="Departure (first pass)",
+                summary="The hero leaves home.",
+                act="opening",
+            )
+        ],
+        themes=[],
+    )
+    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments: first_result)
+    service.analyze_document(db_conn, document_id)
+
+    second_result = AnalysisResult(
+        topics=[
+            TopicOut(
+                segment_start_id=segment_ids[0],
+                segment_end_id=segment_ids[0],
+                title="Departure (revised pass)",
+                summary="The hero leaves home, reluctantly.",
+                act="opening",
+            )
+        ],
+        themes=[],
+    )
+    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments: second_result)
+    service.analyze_document(db_conn, document_id)
+
+    topics = repository.list_topics(db_conn, document_id)
+    assert len(topics) == 2
+    first_pass = next(t for t in topics if t["title"] == "Departure (first pass)")
+    second_pass = next(t for t in topics if t["title"] == "Departure (revised pass)")
+    assert first_pass["excluded"] == 1
+    assert second_pass["excluded"] == 0
+
+
 def test_analyze_document_without_segments_raises(db_conn):
     document_id = repository.insert_document(
         db_conn,

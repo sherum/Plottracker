@@ -35,6 +35,16 @@ def patch_topic(topic_id: int, request: NotecardUpdate, conn: sqlite3.Connection
     return repository.update_topic(conn, topic_id, title=request.title, summary=request.summary)
 
 
+@router.post("/topics/{topic_id}/exclude")
+def exclude_topic(topic_id: int, conn: sqlite3.Connection = Depends(get_db)) -> dict:
+    return repository.set_topic_excluded(conn, topic_id, True)
+
+
+@router.post("/topics/{topic_id}/include")
+def include_topic(topic_id: int, conn: sqlite3.Connection = Depends(get_db)) -> dict:
+    return repository.set_topic_excluded(conn, topic_id, False)
+
+
 @router.get("/themes")
 def get_themes(conn: sqlite3.Connection = Depends(get_db)) -> list[dict]:
     return repository.list_themes(conn)
@@ -43,3 +53,13 @@ def get_themes(conn: sqlite3.Connection = Depends(get_db)) -> list[dict]:
 @router.patch("/themes/{theme_id}")
 def patch_theme(theme_id: int, request: NotecardUpdate, conn: sqlite3.Connection = Depends(get_db)) -> dict:
     return repository.update_theme(conn, theme_id, title=request.title, summary=request.summary)
+
+
+@router.post("/themes/{theme_id}/exclude")
+def exclude_theme(theme_id: int, conn: sqlite3.Connection = Depends(get_db)) -> dict:
+    return repository.set_theme_excluded(conn, theme_id, True)
+
+
+@router.post("/themes/{theme_id}/include")
+def include_theme(theme_id: int, conn: sqlite3.Connection = Depends(get_db)) -> dict:
+    return repository.set_theme_excluded(conn, theme_id, False)

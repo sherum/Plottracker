@@ -18,9 +18,10 @@ interface Props {
   allTopics: Topic[]
   onUpdateTopic: (id: number, data: { title: string; summary: string }) => void
   onSubplotsChanged: () => void
+  onToggleExcludeTopic: (id: number, excluded: boolean) => void
 }
 
-function Subplots({ subplots, allTopics, onUpdateTopic, onSubplotsChanged }: Props) {
+function Subplots({ subplots, allTopics, onUpdateTopic, onSubplotsChanged, onToggleExcludeTopic }: Props) {
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [subplotTopics, setSubplotTopics] = useState<Topic[]>([])
   const [addTopicId, setAddTopicId] = useState('')
@@ -30,7 +31,7 @@ function Subplots({ subplots, allTopics, onUpdateTopic, onSubplotsChanged }: Pro
     if (selectedId === null) return
     fetch(`/subplots/${selectedId}/topics`)
       .then((res) => res.json())
-      .then(setSubplotTopics)
+      .then((data: Topic[]) => setSubplotTopics(data.map((t) => ({ ...t, excluded: Boolean(t.excluded) }))))
   }, [selectedId, subplots])
 
   async function createSubplot(data: { title: string; summary: string }) {
@@ -85,8 +86,13 @@ function Subplots({ subplots, allTopics, onUpdateTopic, onSubplotsChanged }: Pro
           </button>
         </div>
 
-        <TopicCardGrid topics={subplotTopics} onUpdateTopic={onUpdateTopic} onRemoveTopic={removeTopic} />
-        <Sidekick topics={subplotTopics} />
+        <TopicCardGrid
+          topics={subplotTopics}
+          onUpdateTopic={onUpdateTopic}
+          onRemoveTopic={removeTopic}
+          onToggleExcludeTopic={onToggleExcludeTopic}
+        />
+        <Sidekick topics={subplotTopics.filter((t) => !t.excluded)} />
       </div>
     )
   }

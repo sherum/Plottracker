@@ -24,6 +24,7 @@ interface Props {
   themes: Theme[]
   onThemeClick: (themeId: number) => void
   onUpdateTopic: (id: number, data: { title: string; summary: string }) => void
+  onToggleExcludeTopic: (id: number, excluded: boolean) => void
 }
 
 function segmentWidths(counts: number[]): number[] {
@@ -35,13 +36,14 @@ function segmentWidths(counts: number[]): number[] {
   return raw.map((w) => (w / rawTotal) * 100)
 }
 
-function PlotViewer({ topics, themes, onThemeClick, onUpdateTopic }: Props) {
+function PlotViewer({ topics, themes, onThemeClick, onUpdateTopic, onToggleExcludeTopic }: Props) {
   const [selectedAct, setSelectedAct] = useState<ActKey | 'unassigned' | null>(null)
   const themeTitleById = Object.fromEntries(themes.map((t) => [t.id, t.title]))
 
   const actTopics = ACTS.map((act) => topics.filter((t) => t.act === act.key))
+  const actTopicsActive = actTopics.map((ts) => ts.filter((t) => !t.excluded))
   const unassignedTopics = topics.filter((t) => t.act === null)
-  const widths = segmentWidths(actTopics.map((t) => t.length))
+  const widths = segmentWidths(actTopicsActive.map((t) => t.length))
 
   const shownTopics =
     selectedAct === null
@@ -49,6 +51,7 @@ function PlotViewer({ topics, themes, onThemeClick, onUpdateTopic }: Props) {
       : selectedAct === 'unassigned'
         ? unassignedTopics
         : actTopics[ACTS.findIndex((a) => a.key === selectedAct)]
+  const activeShownTopics = shownTopics.filter((t) => !t.excluded)
 
   return (
     <div className="notecards">
@@ -64,12 +67,12 @@ function PlotViewer({ topics, themes, onThemeClick, onUpdateTopic }: Props) {
             <div className="hbar-tooltip">
               <strong>{act.label}</strong>
               <ul>
-                {actTopics[i].slice(0, 5).map((t) => (
+                {actTopicsActive[i].slice(0, 5).map((t) => (
                   <li key={t.id}>{t.title}</li>
                 ))}
               </ul>
-              {actTopics[i].length === 0 && <span>No topics yet</span>}
-              {actTopics[i].length > 5 && <span>+{actTopics[i].length - 5} more</span>}
+              {actTopicsActive[i].length === 0 && <span>No topics yet</span>}
+              {actTopicsActive[i].length > 5 && <span>+{actTopicsActive[i].length - 5} more</span>}
             </div>
           </div>
         ))}
@@ -100,8 +103,9 @@ function PlotViewer({ topics, themes, onThemeClick, onUpdateTopic }: Props) {
             themeTitleById={themeTitleById}
             onThemeClick={onThemeClick}
             onUpdateTopic={onUpdateTopic}
+            onToggleExcludeTopic={onToggleExcludeTopic}
           />
-          <Sidekick topics={shownTopics} />
+          <Sidekick topics={activeShownTopics} />
         </>
       )}
     </div>

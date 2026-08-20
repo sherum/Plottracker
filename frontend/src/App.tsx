@@ -17,6 +17,12 @@ interface Theme {
   id: number
   title: string
   summary: string
+  excluded: boolean
+}
+
+// SQLite stores booleans as 0/1 and the API returns them as raw JSON numbers.
+function normalizeExcluded<T extends { excluded: unknown }>(row: T): T & { excluded: boolean } {
+  return { ...row, excluded: Boolean(row.excluded) }
 }
 
 function App() {
@@ -26,6 +32,7 @@ function App() {
   const [subplots, setSubplots] = useState<Subplot[]>([])
   const [selectedTheme, setSelectedTheme] = useState<Selection>(null)
   const [error, setError] = useState<string | null>(null)
+  const [analyzing, setAnalyzing] = useState<Record<number, string>>({})
   const notecardsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -37,8 +44,8 @@ function App() {
     ])
       .then(([documentsData, themesData, topicsData, subplotsData]) => {
         setDocuments(documentsData)
-        setThemes(themesData)
-        setTopics(topicsData)
+        setThemes(themesData.map(normalizeExcluded))
+        setTopics(topicsData.map(normalizeExcluded))
         setSubplots(subplotsData)
       })
       .catch(() => setError('Could not reach the backend at http://localhost:8000'))
@@ -55,13 +62,22 @@ function App() {
       .then(setSubplots)
   }
 
+  function refetchTopicsAndThemes() {
+    Promise.all([fetch('/themes').then((res) => res.json()), fetch('/topics').then((res) => res.json())]).then(
+      ([themesData, topicsData]) => {
+        setThemes(themesData.map(normalizeExcluded))
+        setTopics(topicsData.map(normalizeExcluded))
+      }
+    )
+  }
+
   async function updateTopic(id: number, data: { title: string; summary: string }) {
     const response = await fetch(`/topics/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     })
-    const updated = await response.json()
+    const updated = normalizeExcluded(await response.json())
     setTopics((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
   }
 
@@ -71,13 +87,36 @@ function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     })
-    const updated = await response.json()
+    const updated = normalizeExcluded(await response.json())
     setThemes((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
   }
 
   async function promoteTheme(themeId: number) {
     await fetch(`/themes/${themeId}/promote`, { method: 'POST' })
     refetchSubplots()
+  }
+
+  async function toggleExcludeTopic(id: number, excluded: boolean) {
+    const response = await fetch(`/topics/${id}/${excluded ? 'exclude' : 'include'}`, { method: 'POST' })
+    const updated = normalizeExcluded(await response.json())
+    setTopics((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
+  }
+
+  async function toggleExcludeTheme(id: number, excluded: boolean) {
+    const response = await fetch(`/themes/${id}/${excluded ? 'exclude' : 'include'}`, { method: 'POST' })
+    const updated = normalizeExcluded(await response.json())
+    setThemes((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
+  }
+
+  async function reanalyzeDocument(id: number) {
+    setAnalyzing((prev) => ({ ...prev, [id]: 'Analyzing…' }))
+    const response = await fetch(`/documents/${id}/analyze`, { method: 'POST' })
+    const result = await response.json()
+    setAnalyzing((prev) => ({
+      ...prev,
+      [id]: `Done: ${result.topics_created} topics, ${result.themes_created} themes created`,
+    }))
+    refetchTopicsAndThemes()
   }
 
   if (error) {
@@ -96,7 +135,11 @@ function App() {
           <ul>
             {documents.map((doc) => (
               <li key={doc.id}>
-                {doc.filename} <span className="tag">{doc.role}</span>
+                {doc.filename} <span className="tag">{doc.role}</span>{' '}
+                <button className="edit-btn" onClick={() => reanalyzeDocument(doc.id)}>
+                  Reanalyze
+                </button>
+                {analyzing[doc.id] && <span className="tag"> {analyzing[doc.id]}</span>}
               </li>
             ))}
           </ul>
@@ -105,7 +148,13 @@ function App() {
 
       <section>
         <h2>Plot Viewer</h2>
-        <PlotViewer topics={topics} themes={themes} onThemeClick={navigateToTheme} onUpdateTopic={updateTopic} />
+        <PlotViewer
+          topics={topics}
+          themes={themes}
+          onThemeClick={navigateToTheme}
+          onUpdateTopic={updateTopic}
+          onToggleExcludeTopic={toggleExcludeTopic}
+        />
       </section>
 
       <section ref={notecardsRef}>
@@ -118,12 +167,20 @@ function App() {
           onUpdateTopic={updateTopic}
           onUpdateTheme={updateTheme}
           onPromoteTheme={promoteTheme}
+          onToggleExcludeTopic={toggleExcludeTopic}
+          onToggleExcludeTheme={toggleExcludeTheme}
         />
       </section>
 
       <section>
         <h2>Subplots</h2>
-        <Subplots subplots={subplots} allTopics={topics} onUpdateTopic={updateTopic} onSubplotsChanged={refetchSubplots} />
+        <Subplots
+          subplots={subplots}
+          allTopics={topics}
+          onUpdateTopic={updateTopic}
+          onSubplotsChanged={refetchSubplots}
+          onToggleExcludeTopic={toggleExcludeTopic}
+        />
       </section>
     </main>
   )

@@ -49,3 +49,17 @@ def test_ask_scopes_context_to_given_topic_ids(db_conn, monkeypatch):
     assert captured["question"] == "What happens first?"
     assert [t["title"] for t in captured["topics"]] == ["First topic"]
     assert [t["id"] for t in captured["themes"]] == [theme_id]
+
+
+def test_ask_omits_excluded_topics_even_when_explicitly_requested(db_conn, monkeypatch):
+    theme_id, topic_ids = _make_document_with_topics(db_conn)
+    repository.set_topic_excluded(db_conn, topic_ids[0], True)
+
+    captured = {}
+    monkeypatch.setattr(
+        llm, "answer_question", lambda question, topics, themes: captured.update(topics=topics) or "answer"
+    )
+
+    service.ask(db_conn, "What happens first?", [topic_ids[0], topic_ids[1]])
+
+    assert [t["id"] for t in captured["topics"]] == [topic_ids[1]]

@@ -118,3 +118,24 @@ def test_analyze_document_creates_topics_and_themes(client, tmp_path, monkeypatc
     ask_response = client.post("/sidekick/ask", json={"question": "Why?", "topic_ids": [topic_id]})
     assert ask_response.status_code == 200
     assert ask_response.json() == {"answer": "Because reasons."}
+
+    exclude_response = client.post(f"/topics/{topic_id}/exclude")
+    assert exclude_response.status_code == 200
+    assert exclude_response.json()["excluded"] == 1
+
+    captured = {}
+    monkeypatch.setattr(
+        sidekick_llm,
+        "answer_question",
+        lambda question, topics, themes: captured.update(topics=topics) or "n/a",
+    )
+    client.post("/sidekick/ask", json={"question": "Why?", "topic_ids": [topic_id]})
+    assert captured["topics"] == []
+
+    include_response = client.post(f"/topics/{topic_id}/include")
+    assert include_response.status_code == 200
+    assert include_response.json()["excluded"] == 0
+
+    exclude_theme_response = client.post(f"/themes/{theme_id}/exclude")
+    assert exclude_theme_response.status_code == 200
+    assert exclude_theme_response.json()["excluded"] == 1

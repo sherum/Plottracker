@@ -10,6 +10,7 @@ export interface Topic {
   summary: string
   document_filename: string
   sequence_index: number
+  excluded: boolean
 }
 
 interface Props {
@@ -18,9 +19,17 @@ interface Props {
   onThemeClick?: (themeId: number) => void
   onUpdateTopic: (id: number, data: { title: string; summary: string }) => void
   onRemoveTopic?: (id: number) => void
+  onToggleExcludeTopic: (id: number, excluded: boolean) => void
 }
 
-function TopicCardGrid({ topics, themeTitleById, onThemeClick, onUpdateTopic, onRemoveTopic }: Props) {
+function TopicCardGrid({
+  topics,
+  themeTitleById,
+  onThemeClick,
+  onUpdateTopic,
+  onRemoveTopic,
+  onToggleExcludeTopic,
+}: Props) {
   const [editingId, setEditingId] = useState<number | null>(null)
 
   return (
@@ -43,12 +52,19 @@ function TopicCardGrid({ topics, themeTitleById, onThemeClick, onUpdateTopic, on
 
         const themeTitle = topic.theme_id !== null ? themeTitleById?.[topic.theme_id] : undefined
         return (
-          <div className="card" key={topic.id}>
+          <div className={`card${topic.excluded ? ' excluded' : ''}`} key={topic.id}>
             <div className="card-header">
               <h4>{topic.title}</h4>
               <div className="card-header-actions">
                 <button className="edit-btn" onClick={() => setEditingId(topic.id)} aria-label="Edit topic">
                   Edit
+                </button>
+                <button
+                  className="edit-btn"
+                  onClick={() => onToggleExcludeTopic(topic.id, !topic.excluded)}
+                  aria-label={topic.excluded ? 'Include topic' : 'Exclude topic'}
+                >
+                  {topic.excluded ? 'Include' : 'Exclude'}
                 </button>
                 {onRemoveTopic && (
                   <button
@@ -63,6 +79,7 @@ function TopicCardGrid({ topics, themeTitleById, onThemeClick, onUpdateTopic, on
             </div>
             <p>{topic.summary}</p>
             <div className="card-tags">
+              {topic.excluded && <span className="tag">Excluded</span>}
               <span className="tag">{topic.document_filename}</span>
               {themeTitle && (
                 <span

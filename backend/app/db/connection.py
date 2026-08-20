@@ -20,10 +20,17 @@ def get_connection(db_path: Path | str | None = None) -> sqlite3.Connection:
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
-    columns = {row[1] for row in conn.execute("PRAGMA table_info(topics)")}
-    if "act" not in columns:
+    topic_columns = {row[1] for row in conn.execute("PRAGMA table_info(topics)")}
+    if "act" not in topic_columns:
         conn.execute("ALTER TABLE topics ADD COLUMN act TEXT CHECK (act IN ('opening', 'conflict', 'climax'))")
-        conn.commit()
+    if "excluded" not in topic_columns:
+        conn.execute("ALTER TABLE topics ADD COLUMN excluded INTEGER NOT NULL DEFAULT 0")
+
+    theme_columns = {row[1] for row in conn.execute("PRAGMA table_info(themes)")}
+    if "excluded" not in theme_columns:
+        conn.execute("ALTER TABLE themes ADD COLUMN excluded INTEGER NOT NULL DEFAULT 0")
+
+    conn.commit()
 
 
 def get_db() -> Iterator[sqlite3.Connection]:

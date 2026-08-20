@@ -8,6 +8,7 @@ interface Theme {
   id: number
   title: string
   summary: string
+  excluded: boolean
 }
 
 export const UNASSIGNED = 'unassigned'
@@ -21,9 +22,21 @@ interface Props {
   onUpdateTopic: (id: number, data: { title: string; summary: string }) => void
   onUpdateTheme: (id: number, data: { title: string; summary: string }) => void
   onPromoteTheme: (themeId: number) => void
+  onToggleExcludeTopic: (id: number, excluded: boolean) => void
+  onToggleExcludeTheme: (id: number, excluded: boolean) => void
 }
 
-function Notecards({ themes, topics, selected, onSelect, onUpdateTopic, onUpdateTheme, onPromoteTheme }: Props) {
+function Notecards({
+  themes,
+  topics,
+  selected,
+  onSelect,
+  onUpdateTopic,
+  onUpdateTheme,
+  onPromoteTheme,
+  onToggleExcludeTopic,
+  onToggleExcludeTheme,
+}: Props) {
   const [editingThemeId, setEditingThemeId] = useState<number | null>(null)
   const unassignedTopics = topics.filter((t) => t.theme_id === null)
 
@@ -31,6 +44,7 @@ function Notecards({ themes, topics, selected, onSelect, onUpdateTopic, onUpdate
     const isUnassigned = selected === UNASSIGNED
     const theme = isUnassigned ? null : themes.find((t) => t.id === selected)
     const shownTopics = isUnassigned ? unassignedTopics : topics.filter((t) => t.theme_id === selected)
+    const activeTopics = shownTopics.filter((t) => !t.excluded)
 
     return (
       <div className="notecards">
@@ -39,8 +53,12 @@ function Notecards({ themes, topics, selected, onSelect, onUpdateTopic, onUpdate
         </button>
         <h3>{isUnassigned ? 'Unassigned Topics' : theme?.title}</h3>
         {!isUnassigned && <p className="theme-summary">{theme?.summary}</p>}
-        <TopicCardGrid topics={shownTopics} onUpdateTopic={onUpdateTopic} />
-        <Sidekick topics={shownTopics} />
+        <TopicCardGrid
+          topics={shownTopics}
+          onUpdateTopic={onUpdateTopic}
+          onToggleExcludeTopic={onToggleExcludeTopic}
+        />
+        <Sidekick topics={activeTopics} />
       </div>
     )
   }
@@ -64,8 +82,13 @@ function Notecards({ themes, topics, selected, onSelect, onUpdateTopic, onUpdate
             )
           }
 
+          const activeTopicCount = topics.filter((t) => t.theme_id === theme.id && !t.excluded).length
           return (
-            <div className="card clickable" key={theme.id} onClick={() => onSelect(theme.id)}>
+            <div
+              className={`card clickable${theme.excluded ? ' excluded' : ''}`}
+              key={theme.id}
+              onClick={() => onSelect(theme.id)}
+            >
               <div className="card-header">
                 <h4>{theme.title}</h4>
                 <div className="card-header-actions">
@@ -83,6 +106,16 @@ function Notecards({ themes, topics, selected, onSelect, onUpdateTopic, onUpdate
                     className="edit-btn"
                     onClick={(e) => {
                       e.stopPropagation()
+                      onToggleExcludeTheme(theme.id, !theme.excluded)
+                    }}
+                    aria-label={theme.excluded ? 'Include theme' : 'Exclude theme'}
+                  >
+                    {theme.excluded ? 'Include' : 'Exclude'}
+                  </button>
+                  <button
+                    className="edit-btn"
+                    onClick={(e) => {
+                      e.stopPropagation()
                       onPromoteTheme(theme.id)
                     }}
                     aria-label="Promote theme to subplot"
@@ -92,7 +125,10 @@ function Notecards({ themes, topics, selected, onSelect, onUpdateTopic, onUpdate
                 </div>
               </div>
               <p>{theme.summary}</p>
-              <span className="tag">{topics.filter((t) => t.theme_id === theme.id).length} topics</span>
+              <div className="card-tags">
+                {theme.excluded && <span className="tag">Excluded</span>}
+                <span className="tag">{activeTopicCount} topics</span>
+              </div>
             </div>
           )
         })}
@@ -100,7 +136,7 @@ function Notecards({ themes, topics, selected, onSelect, onUpdateTopic, onUpdate
           <div className="card clickable" onClick={() => onSelect(UNASSIGNED)}>
             <h4>Unassigned Topics</h4>
             <p>Topics not yet grouped into a theme.</p>
-            <span className="tag">{unassignedTopics.length} topics</span>
+            <span className="tag">{unassignedTopics.filter((t) => !t.excluded).length} topics</span>
           </div>
         )}
       </div>

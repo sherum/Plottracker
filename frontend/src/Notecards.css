@@ -18,6 +18,11 @@
   border-color: #888;
 }
 
+.card.excluded {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
 .card h4 {
   margin: 0 0 0.4rem;
 }
