@@ -27,6 +27,10 @@ def test_ingest_and_query_documents(client, tmp_path):
     segments = segments_response.json()
     assert [s["text"] for s in segments] == ["First paragraph.", "Second paragraph."]
 
+    delete_response = client.delete(f"/documents/{documents[0]['id']}")
+    assert delete_response.status_code == 200
+    assert client.get("/documents").json() == []
+
 
 def test_ingest_missing_folder_returns_400(client, tmp_path):
     response = client.post("/ingest", json={"folder_path": str(tmp_path / "nope"), "role": "draft_script"})

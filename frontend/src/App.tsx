@@ -144,6 +144,14 @@ function App() {
     setClassifying((prev) => ({ ...prev, [id]: `Tagged ${result.tagged} segments` }))
   }
 
+  async function deleteDocument(id: number, filename: string) {
+    if (!window.confirm(`Delete "${filename}" and all its segments, topics, and subplot memberships?`)) return
+    await fetch(`/documents/${id}`, { method: 'DELETE' })
+    refetchDocuments()
+    refetchTopicsAndThemes()
+    refetchSubplots()
+  }
+
   if (error) {
     return <p className="error">{error}</p>
   }
@@ -167,6 +175,9 @@ function App() {
                 </button>{' '}
                 <button className="edit-btn" onClick={() => classifyDocument(doc.id)}>
                   Classify Encoding
+                </button>{' '}
+                <button className="edit-btn" onClick={() => deleteDocument(doc.id, doc.filename)}>
+                  Delete
                 </button>
                 {analyzing[doc.id] && <span className="tag"> {analyzing[doc.id]}</span>}
                 {classifying[doc.id] && <span className="tag"> {classifying[doc.id]}</span>}

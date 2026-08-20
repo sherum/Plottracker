@@ -73,6 +73,21 @@ def list_documents(conn: sqlite3.Connection) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+def delete_document(conn: sqlite3.Connection, document_id: int) -> None:
+    conn.execute(
+        "DELETE FROM subplot_topics WHERE topic_id IN (SELECT id FROM topics WHERE document_id = ?)",
+        (document_id,),
+    )
+    conn.execute("DELETE FROM topics WHERE document_id = ?", (document_id,))
+    conn.execute(
+        "DELETE FROM segment_styles WHERE segment_id IN (SELECT id FROM segments WHERE document_id = ?)",
+        (document_id,),
+    )
+    conn.execute("DELETE FROM segments WHERE document_id = ?", (document_id,))
+    conn.execute("DELETE FROM documents WHERE id = ?", (document_id,))
+    conn.commit()
+
+
 def insert_topic(
     conn: sqlite3.Connection,
     *,
