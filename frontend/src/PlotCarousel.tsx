@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import CardEditForm from './CardEditForm'
 import StatusIcon from './StatusIcon'
 import type { Topic } from './TopicCardGrid'
@@ -11,13 +11,25 @@ interface Theme {
   excluded: boolean
 }
 
+export interface TopicSelection {
+  subplotId: number
+  subplotTitle: string
+  selectedTopicIds: Set<number>
+}
+
 interface Props {
   topics: Topic[]
   themes: Theme[]
   currentTopicId: number | null
+  currentThemeId: number | null
   onNavigateTopic: (topicId: number) => void
+  onNavigateTheme: (themeId: number) => void
   onUpdateTopic: (id: number, data: { title: string; summary: string }) => void
   onUpdateTheme: (id: number, data: { title: string; summary: string }) => void
+  onPreviewTopic?: (topicId: number | null, mode: 'theme' | 'topic') => void
+  selection?: TopicSelection | null
+  onToggleTopicSelection?: (topicId: number) => void
+  onCancelSelection?: () => void
 }
 
 function wrap(index: number, length: number): number {
@@ -25,9 +37,21 @@ function wrap(index: number, length: number): number {
   return ((index % length) + length) % length
 }
 
-function PlotCarousel({ topics, themes, currentTopicId, onNavigateTopic, onUpdateTopic, onUpdateTheme }: Props) {
+function PlotCarousel({
+  topics,
+  themes,
+  currentTopicId,
+  currentThemeId,
+  onNavigateTopic,
+  onNavigateTheme,
+  onUpdateTopic,
+  onUpdateTheme,
+  onPreviewTopic,
+  selection,
+  onToggleTopicSelection,
+  onCancelSelection,
+}: Props) {
   const [view, setView] = useState<'topic' | 'theme'>('topic')
-  const [themeIndex, setThemeIndex] = useState(0)
   const [editing, setEditing] = useState(false)
 
   const orderedTopics = [...topics].sort((a, b) => a.sequence_index - b.sequence_index)
@@ -36,6 +60,17 @@ function PlotCarousel({ topics, themes, currentTopicId, onNavigateTopic, onUpdat
     0,
     orderedTopics.findIndex((t) => t.id === currentTopicId)
   )
+  const themeIndex = Math.max(
+    0,
+    themes.findIndex((t) => t.id === currentThemeId)
+  )
+  const currentTopicIdInView = orderedTopics[topicIndex]?.id ?? null
+
+  // The preview always shows the current topic in Topic View; Theme View is hover-driven only.
+  useEffect(() => {
+    onPreviewTopic?.(view === 'topic' ? currentTopicIdInView : null, view)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, currentTopicIdInView])
 
   function jumpToTopic(topicId: number) {
     onNavigateTopic(topicId)
@@ -54,6 +89,19 @@ function PlotCarousel({ topics, themes, currentTopicId, onNavigateTopic, onUpdat
 
   return (
     <div className="plot-carousel">
+      {selection && (
+        <div className="selection-banner">
+          <span>
+            Selecting topics for “{selection.subplotTitle}” — {selection.selectedTopicIds.size} selected. Type “done”
+            in the sidekick when finished.
+          </span>
+          {onCancelSelection && (
+            <button className="selection-cancel" onClick={onCancelSelection}>
+              Cancel
+            </button>
+          )}
+        </div>
+      )}
       <ViewToggle view={view} onChange={setView} />
 
       {view === 'topic' ? (
@@ -72,13 +120,15 @@ function PlotCarousel({ topics, themes, currentTopicId, onNavigateTopic, onUpdat
             setEditing(false)
           }}
           themeTitleById={themeTitleById}
+          selection={selection}
+          onToggleTopicSelection={onToggleTopicSelection}
         />
       ) : (
         <ThemeView
           themes={themes}
           themeIndex={wrap(themeIndex, themes.length)}
           onNavigate={(i) => {
-            setThemeIndex(wrap(i, themes.length))
+            if (themes[wrap(i, themes.length)]) onNavigateTheme(themes[wrap(i, themes.length)].id)
             setEditing(false)
           }}
           editing={editing}
@@ -92,6 +142,9 @@ function PlotCarousel({ topics, themes, currentTopicId, onNavigateTopic, onUpdat
           }}
           topics={topics}
           onTopicIconClick={jumpToTopic}
+          onPreviewTopic={onPreviewTopic}
+          selection={selection}
+          onToggleTopicSelection={onToggleTopicSelection}
         />
       )}
     </div>
@@ -128,6 +181,8 @@ interface TopicViewProps {
   onCancelEdit: () => void
   onSave: (data: { title: string; summary: string }) => void
   themeTitleById: Record<number, string>
+  selection?: TopicSelection | null
+  onToggleTopicSelection?: (topicId: number) => void
 }
 
 function TopicView({
@@ -139,11 +194,14 @@ function TopicView({
   onCancelEdit,
   onSave,
   themeTitleById,
+  selection,
+  onToggleTopicSelection,
 }: TopicViewProps) {
   const current = orderedTopics[topicIndex]
   const previous = orderedTopics[wrap(topicIndex - 1, orderedTopics.length)]
   const next = orderedTopics[wrap(topicIndex + 1, orderedTopics.length)]
   const single = orderedTopics.length === 1
+  const currentSelected = selection?.selectedTopicIds.has(current.id) ?? false
 
   return (
     <>
@@ -152,8 +210,16 @@ function TopicView({
           <span className="carousel-tile-label">Previous</span>
           <TileContent topic={previous} themeTitleById={themeTitleById} />
         </button>
-        <div className="carousel-tile carousel-tile-current">
-          <span className="carousel-tile-label">Current Topic</span>
+        <div
+          className={`carousel-tile carousel-tile-current${selection ? ' selectable' : ''}${currentSelected ? ' selected' : ''}`}
+          onClick={selection ? () => onToggleTopicSelection?.(current.id) : undefined}
+          role={selection ? 'checkbox' : undefined}
+          aria-checked={selection ? currentSelected : undefined}
+        >
+          <span className="carousel-tile-label">
+            {selection && <span className={`select-checkbox${currentSelected ? ' checked' : ''}`} />}
+            Current Topic
+          </span>
           <TileContent topic={current} themeTitleById={themeTitleById} />
         </div>
         <button className="carousel-tile" onClick={() => onNavigate(topicIndex + 1)} disabled={single}>
@@ -215,6 +281,9 @@ interface ThemeViewProps {
   onSave: (data: { title: string; summary: string }) => void
   topics: Topic[]
   onTopicIconClick: (topicId: number) => void
+  onPreviewTopic?: (topicId: number | null, mode: 'theme' | 'topic') => void
+  selection?: TopicSelection | null
+  onToggleTopicSelection?: (topicId: number) => void
 }
 
 function ThemeView({
@@ -227,6 +296,9 @@ function ThemeView({
   onSave,
   topics,
   onTopicIconClick,
+  onPreviewTopic,
+  selection,
+  onToggleTopicSelection,
 }: ThemeViewProps) {
   if (themes.length === 0) {
     return <p className="hbar-hint">No themes yet. Themes appear here once topics are grouped into them.</p>
@@ -277,13 +349,19 @@ function ThemeView({
           {themeTopics.length === 0 && <p className="hbar-hint">No topics in this theme yet.</p>}
           {themeTopics.map((topic) => {
             const actClass = topic.act ? ` card-act-${topic.act}` : ''
+            const selected = selection?.selectedTopicIds.has(topic.id) ?? false
             return (
               <button
                 key={topic.id}
-                className={`carousel-topic-icon${actClass}`}
-                onClick={() => onTopicIconClick(topic.id)}
+                className={`carousel-topic-icon${actClass}${selection ? ' selectable' : ''}${selected ? ' selected' : ''}`}
+                onClick={() => (selection ? onToggleTopicSelection?.(topic.id) : onTopicIconClick(topic.id))}
+                onMouseEnter={() => onPreviewTopic?.(topic.id, 'theme')}
+                onMouseLeave={() => onPreviewTopic?.(null, 'theme')}
                 title={topic.title}
+                role={selection ? 'checkbox' : undefined}
+                aria-checked={selection ? selected : undefined}
               >
+                {selection && <span className={`select-checkbox${selected ? ' checked' : ''}`} />}
                 {topic.excluded && <StatusIcon icon="excluded" label="Excluded" />}
                 <span className="carousel-topic-icon-title">{topic.title}</span>
               </button>

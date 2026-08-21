@@ -4,6 +4,55 @@
   gap: 0.75rem;
 }
 
+.selection-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 10%, canvas);
+  font-size: 0.85em;
+}
+
+.selection-cancel {
+  flex-shrink: 0;
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+  border: 1px solid #888;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.select-checkbox {
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  margin-right: 0.35em;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  vertical-align: -0.1em;
+}
+
+.select-checkbox.checked {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.carousel-tile-current.selectable,
+.carousel-topic-icon.selectable {
+  cursor: pointer;
+}
+
+.carousel-tile-current.selected,
+.carousel-topic-icon.selected {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 15%, canvas);
+}
+
 .carousel-toggle {
   display: flex;
   gap: 0.4rem;

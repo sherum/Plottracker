@@ -52,6 +52,27 @@ def test_promote_theme_to_subplot_tool(db_conn):
     assert result["topic_count"] == 1
 
 
+def test_create_subplot_from_theme_tool_does_not_carry_topics(db_conn):
+    _, theme_id = _make_topic_and_theme(db_conn)
+
+    result = execute_tool(db_conn, "create_subplot_from_theme", {"theme_id": theme_id, "title": "Custom Name"})
+
+    assert result["title"] == "Custom Name"
+    assert result["theme_id"] == theme_id
+    assert result["topic_count"] == 0
+
+
+def test_add_then_remove_topic_from_subplot_tools(db_conn):
+    topic_id, theme_id = _make_topic_and_theme(db_conn)
+    subplot_id = repository.insert_subplot(db_conn, title="A Subplot", summary="Summary.", theme_id=theme_id)
+
+    added = execute_tool(db_conn, "add_topic_to_subplot", {"subplot_id": subplot_id, "topic_id": topic_id})
+    assert added["topic_count"] == 1
+
+    removed = execute_tool(db_conn, "remove_topic_from_subplot", {"subplot_id": subplot_id, "topic_id": topic_id})
+    assert removed["topic_count"] == 0
+
+
 def test_remove_topic_from_theme_tool(db_conn):
     topic_id, theme_id = _make_topic_and_theme(db_conn)
 

@@ -54,3 +54,69 @@ def test_manual_subplot_add_and_remove_topic(db_conn):
 
     repository.remove_topic_from_subplot(db_conn, subplot_id, topic_ids[1])
     assert repository.get_subplot(db_conn, subplot_id)["topic_count"] == 0
+
+
+def test_create_named_subplot_from_theme_has_no_topics(db_conn):
+    _, theme_id, _ = _make_document_with_topics(db_conn)
+
+    subplot_id = repository.create_named_subplot_from_theme(db_conn, theme_id, "My Subplot")
+
+    subplot = repository.get_subplot(db_conn, subplot_id)
+    assert subplot["title"] == "My Subplot"
+    assert subplot["theme_id"] == theme_id
+    assert subplot["topic_count"] == 0
+
+
+def test_list_subplots_scoped_to_document(db_conn):
+    document_id, theme_id, _ = _make_document_with_topics(db_conn)
+    subplot_id = repository.promote_theme_to_subplot(db_conn, theme_id)
+
+    other_document_id = repository.insert_document(
+        db_conn,
+        role="draft_script",
+        source_path="/tmp/chapter2.txt",
+        filename="chapter2.txt",
+        source_type="txt",
+        content_hash="hash2",
+    )
+
+    assert [s["id"] for s in repository.list_subplots(db_conn, document_id)] == [subplot_id]
+    assert repository.list_subplots(db_conn, other_document_id) == []
+    assert [s["id"] for s in repository.list_subplots(db_conn)] == [subplot_id]
+
+
+def test_list_subplots_scoped_to_document_includes_empty_named_subplot(db_conn):
+    document_id, theme_id, _ = _make_document_with_topics(db_conn)
+    subplot_id = repository.create_named_subplot_from_theme(db_conn, theme_id, "Empty Subplot")
+
+    scoped = repository.list_subplots(db_conn, document_id)
+
+    assert [s["id"] for s in scoped] == [subplot_id]
+
+
+def test_get_topic_source_text_joins_segments_in_range(db_conn):
+    document_id = repository.insert_document(
+        db_conn,
+        role="draft_script",
+        source_path="/tmp/chapter1.txt",
+        filename="chapter1.txt",
+        source_type="txt",
+        content_hash="hash",
+    )
+    seg1 = repository.insert_segment(db_conn, document_id=document_id, sequence_index=0, text="First.")
+    seg2 = repository.insert_segment(db_conn, document_id=document_id, sequence_index=1, text="Second.")
+    seg3 = repository.insert_segment(db_conn, document_id=document_id, sequence_index=2, text="Third.")
+    topic_id = repository.insert_topic(
+        db_conn,
+        document_id=document_id,
+        sequence_index=0,
+        title="A Topic",
+        summary="Summary.",
+        segment_start_id=seg1,
+        segment_end_id=seg2,
+    )
+
+    text = repository.get_topic_source_text(db_conn, topic_id)
+
+    assert text == "First.\n\nSecond."
+    assert "Third." not in text

@@ -1,7 +1,30 @@
 import sqlite3
 
 from app.analysis import llm
+from app.analysis.models import AnalysisResult, TopicOut
 from app.db import repository
+
+
+def _is_heading(segment: dict) -> bool:
+    return any(style["style_kind"] == "heading" for style in segment["styles"])
+
+
+def _trim_trailing_chapter_headings(result: AnalysisResult, segments: list[dict]) -> AnalysisResult:
+    """A topic's segment_end_id must never be the next chapter's heading line."""
+    position_by_id = {s["id"]: i for i, s in enumerate(segments)}
+
+    def trim(topic: TopicOut) -> TopicOut:
+        if topic.segment_end_id == topic.segment_start_id:
+            return topic
+        end_segment = segments[position_by_id[topic.segment_end_id]]
+        if not _is_heading(end_segment):
+            return topic
+        end_position = position_by_id[topic.segment_end_id]
+        if end_position == 0:
+            return topic
+        return topic.model_copy(update={"segment_end_id": segments[end_position - 1]["id"]})
+
+    return result.model_copy(update={"topics": [trim(topic) for topic in result.topics]})
 
 
 def analyze_document(conn: sqlite3.Connection, document_id: int) -> dict:
@@ -10,6 +33,7 @@ def analyze_document(conn: sqlite3.Connection, document_id: int) -> dict:
         raise ValueError(f"document {document_id} has no segments")
 
     result = llm.extract_topics_and_themes(segments)
+    result = _trim_trailing_chapter_headings(result, segments)
 
     repository.exclude_topics_for_document(conn, document_id)
 

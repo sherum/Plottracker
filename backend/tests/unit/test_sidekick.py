@@ -35,21 +35,30 @@ def test_ask_scopes_context_to_given_topic_ids(db_conn, monkeypatch):
 
     captured = {}
 
-    def fake_answer_question(conn, question, topics, themes, encoding_rules):
+    def fake_answer_question(
+        conn, question, topics, themes, encoding_rules, subplots, current_topic_id=None, current_theme_id=None
+    ):
         captured["question"] = question
         captured["topics"] = topics
         captured["themes"] = themes
-        return "The answer.", []
+        captured["current_topic_id"] = current_topic_id
+        captured["current_theme_id"] = current_theme_id
+        return "The answer.", [], None
 
     monkeypatch.setattr(llm, "answer_question", fake_answer_question)
 
-    answer, actions = service.ask(db_conn, "What happens first?", [topic_ids[0]])
+    answer, actions, created_subplot_id = service.ask(
+        db_conn, "What happens first?", [topic_ids[0]], current_topic_id=topic_ids[0], current_theme_id=theme_id
+    )
 
     assert answer == "The answer."
     assert actions == []
+    assert created_subplot_id is None
     assert captured["question"] == "What happens first?"
     assert [t["title"] for t in captured["topics"]] == ["First topic"]
     assert [t["id"] for t in captured["themes"]] == [theme_id]
+    assert captured["current_topic_id"] == topic_ids[0]
+    assert captured["current_theme_id"] == theme_id
 
 
 def test_ask_omits_excluded_topics_even_when_explicitly_requested(db_conn, monkeypatch):
@@ -60,7 +69,11 @@ def test_ask_omits_excluded_topics_even_when_explicitly_requested(db_conn, monke
     monkeypatch.setattr(
         llm,
         "answer_question",
-        lambda conn, question, topics, themes, encoding_rules: (captured.update(topics=topics) or "answer", []),
+        lambda conn, question, topics, themes, encoding_rules, subplots, **kwargs: (
+            captured.update(topics=topics) or "answer",
+            [],
+            None,
+        ),
     )
 
     service.ask(db_conn, "What happens first?", [topic_ids[0], topic_ids[1]])
@@ -115,10 +128,11 @@ def test_answer_question_executes_tool_call_then_returns_final_answer(db_conn, m
 
     monkeypatch.setattr(llm.litellm, "completion", fake_completion)
 
-    answer, actions = llm.answer_question(db_conn, "Exclude the first topic", [], [], [])
+    answer, actions, created_subplot_id = llm.answer_question(db_conn, "Exclude the first topic", [], [], [], [])
 
     assert answer == "Done, I excluded that topic."
     assert actions == ["set_topic_excluded"]
+    assert created_subplot_id is None
     assert repository.get_topics_by_ids(db_conn, [topic_id]) == []  # excluded topics are filtered out
 
 
@@ -127,7 +141,52 @@ def test_answer_question_no_tool_call_returns_answer_directly(db_conn, monkeypat
         llm.litellm, "completion", lambda model, messages, tools: _FakeResponse(_FakeMessage(content="Just an answer."))
     )
 
-    answer, actions = llm.answer_question(db_conn, "What is this story about?", [], [], [])
+    answer, actions, created_subplot_id = llm.answer_question(db_conn, "What is this story about?", [], [], [], [])
 
     assert answer == "Just an answer."
     assert actions == []
+    assert created_subplot_id is None
+
+
+def test_answer_question_captures_created_subplot_id_from_tool_call(db_conn, monkeypatch):
+    theme_id = repository.insert_theme(db_conn, title="A Theme", summary="Summary.")
+
+    responses = [
+        _FakeResponse(
+            _FakeMessage(
+                tool_calls=[
+                    _FakeToolCall(
+                        "call_1",
+                        "create_subplot_from_theme",
+                        f'{{"theme_id": {theme_id}, "title": "New Subplot"}}',
+                    )
+                ]
+            )
+        ),
+        _FakeResponse(_FakeMessage(content="Created it. Now select topics.", tool_calls=None)),
+    ]
+
+    monkeypatch.setattr(llm.litellm, "completion", lambda model, messages, tools: responses.pop(0))
+
+    answer, actions, created_subplot_id = llm.answer_question(db_conn, "promote with name New Subplot", [], [], [], [])
+
+    assert actions == ["create_subplot_from_theme"]
+    assert created_subplot_id is not None
+    assert repository.get_subplot(db_conn, created_subplot_id)["title"] == "New Subplot"
+
+
+def test_build_context_includes_subplots_and_current_ids():
+    subplots = [{"id": 5, "theme_id": 2, "title": "The Rivalry", "topic_count": 3}]
+
+    context = llm._build_context([], [], [], subplots, current_topic_id=7, current_theme_id=2)
+
+    assert "Subplot (id=5, theme_id=2): The Rivalry - 3 topics" in context
+    assert "Current topic: id=7" in context
+    assert "Current theme: id=2" in context
+
+
+def test_build_context_omits_current_lines_when_not_given():
+    context = llm._build_context([], [], [], [], current_topic_id=None, current_theme_id=None)
+
+    assert "Current topic" not in context
+    assert "Current theme" not in context

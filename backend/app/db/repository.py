@@ -265,7 +265,7 @@ def get_subplot(conn: sqlite3.Connection, subplot_id: int) -> dict:
     return dict(row)
 
 
-def list_subplots(conn: sqlite3.Connection) -> list[dict]:
+def list_subplots(conn: sqlite3.Connection, document_id: int | None = None) -> list[dict]:
     rows = conn.execute(
         """
         SELECT subplots.*, themes.title AS theme_title,
@@ -276,8 +276,21 @@ def list_subplots(conn: sqlite3.Connection) -> list[dict]:
                ) AS topic_count
         FROM subplots
         LEFT JOIN themes ON themes.id = subplots.theme_id
+        WHERE (
+            ? IS NULL
+            OR EXISTS (
+                SELECT 1 FROM subplot_topics
+                JOIN topics ON topics.id = subplot_topics.topic_id
+                WHERE subplot_topics.subplot_id = subplots.id AND topics.document_id = ?
+            )
+            OR EXISTS (
+                SELECT 1 FROM topics
+                WHERE topics.theme_id = subplots.theme_id AND topics.document_id = ?
+            )
+        )
         ORDER BY subplots.id
-        """
+        """,
+        (document_id, document_id, document_id),
     ).fetchall()
     return [dict(row) for row in rows]
 
@@ -320,6 +333,12 @@ def promote_theme_to_subplot(conn: sqlite3.Connection, theme_id: int) -> int:
     for row in topic_rows:
         add_topic_to_subplot(conn, subplot_id, row["id"])
     return subplot_id
+
+
+def create_named_subplot_from_theme(conn: sqlite3.Connection, theme_id: int, title: str) -> int:
+    theme = conn.execute("SELECT * FROM themes WHERE id = ?", (theme_id,)).fetchone()
+    summary = theme["summary"] if theme else ""
+    return insert_subplot(conn, title=title, summary=summary, theme_id=theme_id)
 
 
 def insert_encoding_rule(
@@ -385,6 +404,23 @@ def clear_semantic_styles_for_document(conn: sqlite3.Connection, document_id: in
         (document_id,),
     )
     conn.commit()
+
+
+def get_topic_source_text(conn: sqlite3.Connection, topic_id: int) -> str:
+    rows = conn.execute(
+        """
+        SELECT s.text
+        FROM segments s
+        JOIN topics t ON t.document_id = s.document_id
+        WHERE t.id = ?
+          AND s.sequence_index BETWEEN
+              (SELECT sequence_index FROM segments WHERE id = t.segment_start_id)
+              AND (SELECT sequence_index FROM segments WHERE id = t.segment_end_id)
+        ORDER BY s.sequence_index
+        """,
+        (topic_id,),
+    ).fetchall()
+    return "\n\n".join(row["text"] for row in rows)
 
 
 def get_segments(conn: sqlite3.Connection, document_id: int) -> list[dict]:

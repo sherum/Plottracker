@@ -60,6 +60,11 @@ def set_topic_act(topic_id: int, request: TopicActUpdate, conn: sqlite3.Connecti
     return repository.set_topic_act(conn, topic_id, request.act)
 
 
+@router.get("/topics/{topic_id}/source-text")
+def get_topic_source_text(topic_id: int, conn: sqlite3.Connection = Depends(get_db)) -> dict:
+    return {"text": repository.get_topic_source_text(conn, topic_id)}
+
+
 @router.get("/themes")
 def get_themes(conn: sqlite3.Connection = Depends(get_db)) -> list[dict]:
     return repository.list_themes(conn)

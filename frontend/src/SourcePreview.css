@@ -1,0 +1,16 @@
+.source-preview {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 160px;
+  font: inherit;
+  background: canvas;
+  color: canvastext;
+  border: 1px solid #888;
+  border-radius: 6px;
+  padding: 0.6rem;
+  resize: vertical;
+}
+
+.source-preview::placeholder {
+  color: #888;
+}

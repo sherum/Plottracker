@@ -19,13 +19,18 @@ class TopicRef(BaseModel):
 
 
 @router.get("/subplots")
-def list_subplots(conn: sqlite3.Connection = Depends(get_db)) -> list[dict]:
-    return repository.list_subplots(conn)
+def list_subplots(document_id: int | None = None, conn: sqlite3.Connection = Depends(get_db)) -> list[dict]:
+    return repository.list_subplots(conn, document_id)
 
 
 @router.post("/subplots")
 def create_subplot(request: SubplotCreate, conn: sqlite3.Connection = Depends(get_db)) -> dict:
     subplot_id = repository.insert_subplot(conn, title=request.title, summary=request.summary)
+    return repository.get_subplot(conn, subplot_id)
+
+
+@router.get("/subplots/{subplot_id}")
+def get_subplot(subplot_id: int, conn: sqlite3.Connection = Depends(get_db)) -> dict:
     return repository.get_subplot(conn, subplot_id)
 
 

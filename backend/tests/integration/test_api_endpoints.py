@@ -1,5 +1,6 @@
 from app.analysis import llm
 from app.analysis.models import AnalysisResult, ThemeOut, TopicOut
+from app.db import repository
 from app.ingest import service as ingest_service
 from app.sidekick import llm as sidekick_llm
 
@@ -8,6 +9,43 @@ def test_health(client):
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_list_subplots_document_id_query_param(client, db_conn):
+    document_id = repository.insert_document(
+        db_conn,
+        role="draft_script",
+        source_path="/tmp/chapter1.txt",
+        filename="chapter1.txt",
+        source_type="txt",
+        content_hash="hash",
+    )
+    segment_id = repository.insert_segment(db_conn, document_id=document_id, sequence_index=0, text="Text.")
+    theme_id = repository.insert_theme(db_conn, title="A Theme", summary="Summary.")
+    topic_id = repository.insert_topic(
+        db_conn,
+        document_id=document_id,
+        sequence_index=0,
+        title="A Topic",
+        summary="Summary.",
+        segment_start_id=segment_id,
+        segment_end_id=segment_id,
+    )
+    subplot_id = repository.insert_subplot(db_conn, title="A Subplot", summary="Summary.", theme_id=theme_id)
+    repository.add_topic_to_subplot(db_conn, subplot_id, topic_id)
+
+    other_document_id = repository.insert_document(
+        db_conn,
+        role="draft_script",
+        source_path="/tmp/chapter2.txt",
+        filename="chapter2.txt",
+        source_type="txt",
+        content_hash="hash2",
+    )
+
+    assert [s["id"] for s in client.get(f"/subplots?document_id={document_id}").json()] == [subplot_id]
+    assert client.get(f"/subplots?document_id={other_document_id}").json() == []
+    assert [s["id"] for s in client.get("/subplots").json()] == [subplot_id]
 
 
 def test_ingest_and_query_documents(client, tmp_path):
@@ -149,11 +187,20 @@ def test_analyze_document_creates_topics_and_themes(client, tmp_path, monkeypatc
     assert remove_response.json()["topic_count"] == 0
 
     monkeypatch.setattr(
-        sidekick_llm, "answer_question", lambda conn, question, topics, themes, encoding_rules: ("Because reasons.", [])
+        sidekick_llm,
+        "answer_question",
+        lambda conn, question, topics, themes, encoding_rules, subplots, **kwargs: ("Because reasons.", [], None),
     )
-    ask_response = client.post("/sidekick/ask", json={"question": "Why?", "topic_ids": [topic_id]})
+    ask_response = client.post(
+        "/sidekick/ask",
+        json={"question": "Why?", "topic_ids": [topic_id], "current_topic_id": topic_id, "current_theme_id": theme_id},
+    )
     assert ask_response.status_code == 200
-    assert ask_response.json() == {"answer": "Because reasons.", "actions": []}
+    assert ask_response.json() == {"answer": "Because reasons.", "actions": [], "created_subplot_id": None}
+
+    source_text_response = client.get(f"/topics/{topic_id}/source-text")
+    assert source_text_response.status_code == 200
+    assert source_text_response.json() == {"text": "The hero leaves home."}
 
     exclude_response = client.post(f"/topics/{topic_id}/exclude")
     assert exclude_response.status_code == 200
@@ -163,7 +210,11 @@ def test_analyze_document_creates_topics_and_themes(client, tmp_path, monkeypatc
     monkeypatch.setattr(
         sidekick_llm,
         "answer_question",
-        lambda conn, question, topics, themes, encoding_rules: (captured.update(topics=topics) or "n/a", []),
+        lambda conn, question, topics, themes, encoding_rules, subplots, **kwargs: (
+            captured.update(topics=topics) or "n/a",
+            [],
+            None,
+        ),
     )
     client.post("/sidekick/ask", json={"question": "Why?", "topic_ids": [topic_id]})
     assert captured["topics"] == []

@@ -1,0 +1,27 @@
+.subplot-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.subplot-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.subplot-bar-label {
+  flex: 0 0 auto;
+  width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85em;
+  color: #888;
+}
+
+.subplot-bar-row .hbar {
+  flex: 1;
+  min-width: 0;
+}
