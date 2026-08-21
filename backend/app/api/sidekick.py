@@ -16,9 +16,10 @@ class AskRequest(BaseModel):
 
 class AskResponse(BaseModel):
     answer: str
+    actions: list[str]
 
 
 @router.post("/sidekick/ask")
 def ask_sidekick(request: AskRequest, conn: sqlite3.Connection = Depends(get_db)) -> AskResponse:
-    answer = ask(conn, request.question, request.topic_ids)
-    return AskResponse(answer=answer)
+    answer, actions = ask(conn, request.question, request.topic_ids)
+    return AskResponse(answer=answer, actions=actions)

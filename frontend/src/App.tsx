@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import EncodingRules, { type EncodingRule } from './EncodingRules'
+import HbarVisual, { type HbarBucket } from './HbarVisual'
 import IconButton from './IconButton'
 import IngestForm from './IngestForm'
-import Notecards, { type Selection } from './Notecards'
-import PlotViewer from './PlotViewer'
+import PlotCarousel from './PlotCarousel'
 import Sidekick from './Sidekick'
 import Subplots, { type Subplot } from './Subplots'
 import { ToastProvider, useToast } from './ToastContext'
@@ -25,9 +25,35 @@ interface Theme {
   excluded: boolean
 }
 
+const ACTS = [
+  { key: 'opening', label: 'Opening' },
+  { key: 'conflict', label: 'Conflict' },
+  { key: 'climax', label: 'Climax' },
+] as const
+
 // SQLite stores booleans as 0/1 and the API returns them as raw JSON numbers.
 function normalizeExcluded<T extends { excluded: unknown }>(row: T): T & { excluded: boolean } {
   return { ...row, excluded: Boolean(row.excluded) }
+}
+
+function buildActBuckets(topics: Topic[]): { buckets: HbarBucket[]; extraBucket: HbarBucket } {
+  const buckets: HbarBucket[] = ACTS.map((act) => {
+    const bucketTopics = topics.filter((t) => t.act === act.key)
+    return {
+      key: act.key,
+      label: act.label,
+      topics: bucketTopics,
+      activeTopics: bucketTopics.filter((t) => !t.excluded),
+    }
+  })
+  const unassignedTopics = topics.filter((t) => t.act === null)
+  const extraBucket: HbarBucket = {
+    key: 'unassigned',
+    label: 'Unassigned',
+    topics: unassignedTopics,
+    activeTopics: unassignedTopics.filter((t) => !t.excluded),
+  }
+  return { buckets, extraBucket }
 }
 
 function App() {
@@ -44,14 +70,13 @@ function AppContent() {
   const [topics, setTopics] = useState<Topic[]>([])
   const [subplots, setSubplots] = useState<Subplot[]>([])
   const [encodingRules, setEncodingRules] = useState<EncodingRule[]>([])
-  const [selectedTheme, setSelectedTheme] = useState<Selection>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [analyzing, setAnalyzing] = useState<Record<number, string>>({})
   const [classifying, setClassifying] = useState<Record<number, string>>({})
   const [loadedDocument, setLoadedDocument] = useState<Document | null>(null)
   const [documentsCollapsed, setDocumentsCollapsed] = useState(false)
-  const notecardsRef = useRef<HTMLDivElement>(null)
+  const [currentTopicId, setCurrentTopicId] = useState<number | null>(null)
   const { showError } = useToast()
 
   useEffect(() => {
@@ -73,11 +98,6 @@ function AppContent() {
       .finally(() => setLoading(false))
   }, [])
 
-  function navigateToTheme(themeId: number) {
-    setSelectedTheme(themeId)
-    notecardsRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
   function refetchDocuments() {
     fetch('/documents')
       .then((res) => res.json())
@@ -97,6 +117,18 @@ function AppContent() {
         setTopics(topicsData.map(normalizeExcluded))
       }
     )
+  }
+
+  function refetchEncodingRules() {
+    fetch('/encoding-rules')
+      .then((res) => res.json())
+      .then(setEncodingRules)
+  }
+
+  function refetchAfterSidekickAction() {
+    refetchTopicsAndThemes()
+    refetchSubplots()
+    refetchEncodingRules()
   }
 
   async function updateTopic(id: number, data: { title: string; summary: string }) {
@@ -129,16 +161,6 @@ function AppContent() {
     }
   }
 
-  async function promoteTheme(themeId: number) {
-    try {
-      const response = await fetch(`/themes/${themeId}/promote`, { method: 'POST' })
-      if (!response.ok) throw new Error()
-      refetchSubplots()
-    } catch {
-      showError('Could not promote the theme to a subplot. Please try again.')
-    }
-  }
-
   async function toggleExcludeTopic(id: number, excluded: boolean) {
     try {
       const response = await fetch(`/topics/${id}/${excluded ? 'exclude' : 'include'}`, { method: 'POST' })
@@ -147,43 +169,6 @@ function AppContent() {
       setTopics((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
     } catch {
       showError(`Could not ${excluded ? 'exclude' : 'include'} the topic. Please try again.`)
-    }
-  }
-
-  async function toggleExcludeTheme(id: number, excluded: boolean) {
-    try {
-      const response = await fetch(`/themes/${id}/${excluded ? 'exclude' : 'include'}`, { method: 'POST' })
-      if (!response.ok) throw new Error()
-      const updated = normalizeExcluded(await response.json())
-      setThemes((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
-    } catch {
-      showError(`Could not ${excluded ? 'exclude' : 'include'} the theme. Please try again.`)
-    }
-  }
-
-  async function unassignTopicTheme(id: number) {
-    try {
-      const response = await fetch(`/topics/${id}/unassign-theme`, { method: 'POST' })
-      if (!response.ok) throw new Error()
-      const updated = normalizeExcluded(await response.json())
-      setTopics((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
-    } catch {
-      showError('Could not remove the topic from its theme. Please try again.')
-    }
-  }
-
-  async function setTopicAct(id: number, act: 'opening' | 'conflict' | 'climax' | null) {
-    try {
-      const response = await fetch(`/topics/${id}/set-act`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ act }),
-      })
-      if (!response.ok) throw new Error()
-      const updated = normalizeExcluded(await response.json())
-      setTopics((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
-    } catch {
-      showError('Could not move this topic. Please try again.')
     }
   }
 
@@ -202,12 +187,6 @@ function AppContent() {
       setAnalyzing((prev) => ({ ...prev, [id]: '' }))
       showError('Could not analyze this document. Please try again.')
     }
-  }
-
-  function refetchEncodingRules() {
-    fetch('/encoding-rules')
-      .then((res) => res.json())
-      .then(setEncodingRules)
   }
 
   async function classifyDocument(id: number) {
@@ -242,6 +221,31 @@ function AppContent() {
     setDocumentsCollapsed(true)
   }
 
+  const loadedTopics = loadedDocument ? topics.filter((t) => t.document_filename === loadedDocument.filename) : []
+  const loadedThemeIds = new Set(loadedTopics.map((t) => t.theme_id).filter((id): id is number => id !== null))
+  const loadedThemes = loadedDocument ? themes.filter((t) => loadedThemeIds.has(t.id)) : []
+  const orderedLoadedTopics = [...loadedTopics].sort((a, b) => a.sequence_index - b.sequence_index)
+
+  // Keep the current topic pointer valid as the loaded document changes.
+  useEffect(() => {
+    if (orderedLoadedTopics.length === 0) {
+      if (currentTopicId !== null) setCurrentTopicId(null)
+      return
+    }
+    if (!orderedLoadedTopics.some((t) => t.id === currentTopicId)) {
+      setCurrentTopicId(orderedLoadedTopics[0].id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadedDocument, orderedLoadedTopics.length])
+
+  const { buckets, extraBucket } = buildActBuckets(loadedTopics)
+
+  function jumpToAct(actKey: string) {
+    const bucket = buckets.find((b) => b.key === actKey) ?? (extraBucket.key === actKey ? extraBucket : null)
+    const firstTopic = bucket?.topics[0]
+    if (firstTopic) setCurrentTopicId(firstTopic.id)
+  }
+
   if (error) {
     return <p className="error">{error}</p>
   }
@@ -249,10 +253,6 @@ function AppContent() {
   if (loading) {
     return <p className="loading">Loading Genre Writer…</p>
   }
-
-  const loadedTopics = loadedDocument ? topics.filter((t) => t.document_filename === loadedDocument.filename) : []
-  const loadedThemeIds = new Set(loadedTopics.map((t) => t.theme_id).filter((id): id is number => id !== null))
-  const loadedThemes = loadedDocument ? themes.filter((t) => loadedThemeIds.has(t.id)) : []
 
   return (
     <main>
@@ -294,30 +294,17 @@ function AppContent() {
           <div className="col-center-inner">
             <section className="panel">
               <h2>Plot Viewer</h2>
-              <PlotViewer
-                topics={loadedTopics}
-                themes={loadedThemes}
-                onThemeClick={navigateToTheme}
-                onUpdateTopic={updateTopic}
-                onToggleExcludeTopic={toggleExcludeTopic}
-                onSetAct={setTopicAct}
-              />
+              <HbarVisual buckets={buckets} extraBucket={extraBucket} onSegmentClick={jumpToAct} markerTopicId={currentTopicId} />
             </section>
 
-            <section className="panel" ref={notecardsRef}>
-              <h2>Notecards</h2>
-              <Notecards
-                themes={loadedThemes}
+            <section className="panel">
+              <PlotCarousel
                 topics={loadedTopics}
-                selected={selectedTheme}
-                onSelect={setSelectedTheme}
+                themes={loadedThemes}
+                currentTopicId={currentTopicId}
+                onNavigateTopic={setCurrentTopicId}
                 onUpdateTopic={updateTopic}
                 onUpdateTheme={updateTheme}
-                onPromoteTheme={promoteTheme}
-                onToggleExcludeTopic={toggleExcludeTopic}
-                onToggleExcludeTheme={toggleExcludeTheme}
-                onUnassignTheme={unassignTopicTheme}
-                onSetAct={setTopicAct}
               />
             </section>
 
@@ -328,7 +315,6 @@ function AppContent() {
                 subplots={subplots}
                 allTopics={topics}
                 themes={themes}
-                onThemeClick={navigateToTheme}
                 onUpdateTopic={updateTopic}
                 onSubplotsChanged={refetchSubplots}
                 onToggleExcludeTopic={toggleExcludeTopic}
@@ -339,12 +325,12 @@ function AppContent() {
 
         <div className="col col-encoding">
           <div className="panel">
-            <h2>Sidekick</h2>
-            <Sidekick topics={loadedTopics.filter((t) => !t.excluded)} />
+            <h2>Encoding Rules</h2>
+            <EncodingRules rules={encodingRules} />
           </div>
           <div className="panel">
-            <h2>Encoding Rules</h2>
-            <EncodingRules rules={encodingRules} onRulesChanged={refetchEncodingRules} />
+            <h2>Sidekick</h2>
+            <Sidekick topics={loadedTopics.filter((t) => !t.excluded)} onActionsPerformed={refetchAfterSidekickAction} />
           </div>
         </div>
       </div>

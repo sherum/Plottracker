@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import CardEditForm from './CardEditForm'
-import { onActivateKey } from './keyboardActivate'
+import StatusIcon from './StatusIcon'
 import './Notecards.css'
 
 export interface Topic {
@@ -16,8 +16,6 @@ export interface Topic {
   page_number?: number | null
 }
 
-type Act = 'opening' | 'conflict' | 'climax'
-
 const SEARCH_THRESHOLD = 6
 
 interface Props {
@@ -28,7 +26,6 @@ interface Props {
   onRemoveTopic?: (id: number) => void
   removeLabel?: string
   onToggleExcludeTopic: (id: number, excluded: boolean) => void
-  onSetAct?: (id: number, act: Act | null) => void
   onHoverTopic?: (id: number | null) => void
 }
 
@@ -40,7 +37,6 @@ function TopicCardGrid({
   onRemoveTopic,
   removeLabel = 'Remove',
   onToggleExcludeTopic,
-  onSetAct,
   onHoverTopic,
 }: Props) {
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -124,34 +120,17 @@ function TopicCardGrid({
               </div>
             </div>
             <p>{topic.summary}</p>
-            {onSetAct && (
-              <select
-                className={`act-select${actClass}`}
-                value={topic.act ?? ''}
-                onChange={(e) => onSetAct(topic.id, (e.target.value || null) as Act | null)}
-                title="Move this topic to a different act"
-                aria-label="Act"
-              >
-                <option value="">Unassigned</option>
-                <option value="opening">Opening</option>
-                <option value="conflict">Conflict</option>
-                <option value="climax">Climax</option>
-              </select>
-            )}
             <div className="card-tags">
-              {topic.excluded && <span className="tag">Excluded</span>}
+              {topic.excluded && <StatusIcon icon="excluded" label="Excluded" />}
               <span className="tag">{topic.document_filename}</span>
               {themeTitle && (
-                <span
-                  className={onThemeClick ? 'tag tag-link' : 'tag'}
+                <StatusIcon
+                  icon="theme"
+                  label={`Part of theme: ${themeTitle}`}
                   onClick={onThemeClick ? () => onThemeClick(topic.theme_id!) : undefined}
-                  role={onThemeClick ? 'button' : undefined}
-                  tabIndex={onThemeClick ? 0 : undefined}
-                  aria-label={onThemeClick ? `Open theme ${themeTitle}` : undefined}
-                  onKeyDown={onThemeClick ? onActivateKey(() => onThemeClick(topic.theme_id!)) : undefined}
                 >
                   {themeTitle}
-                </span>
+                </StatusIcon>
               )}
             </div>
           </div>

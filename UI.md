@@ -8,37 +8,123 @@ spec for what to change. Keep the structure intact (state template, column
 template, checklist gaps) so an agent can diff future UI behavior against it.
 
 Source of truth: `frontend/src/App.tsx` and the components it renders
-(`IngestForm`, `Notecards`, `PlotViewer`/`ActHbar`, `Subplots`, `EncodingRules`,
-`TopicCardGrid`, `CardEditForm`, `Sidekick`, `IconButton`).
+(`IngestForm`, `PlotCarousel`, `HbarVisual`/`ActHbar`, `Subplots`,
+`EncodingRules`, `TopicCardGrid`, `CardEditForm`, `Sidekick`, `StatusIcon`,
+`IconButton`).
 
-## Status (end of iteration 9, session paused here)
+## Status (post mockup-driven refactor)
 
-Every TODO and Gap below is now one of three things: done, partially done
-with the remainder clearly scoped, or deliberately not attempted with a
-specific reason recorded next to it — not a vague "later." Nine iterations
-closed every item that had a safe, checkable answer. Two are left
-unstarted on purpose, each declined more than once rather than guessed at:
+The two items iteration 9 left open — the topic carousel and AI-managed
+encoding rules — were both explicitly commissioned and built in the
+refactor described in "Iteration 10" below, working from a mockup
+(`UI.png`) the author provided. That refactor replaced the previous
+Notecards + click-a-segment-see-a-grid architecture entirely, so most of
+the Column layout / States / Gaps sections after the progress log describe
+the **current** app; the "Archived history" section preserves iterations
+1-9's log for provenance but describes UI surfaces (`Notecards.tsx`,
+`PlotViewer.tsx`, the old scoped-per-section `Sidekick`, the encoding-rule
+add/edit form) that no longer exist.
 
-- **The click-nearest-topic carousel** (Center Column TODOs) — a genuinely
-  new interaction pattern with seven distinct sub-behaviors that would
-  replace the current click-a-segment-see-a-grid model. One safe slice of
-  it (the hover position marker) shipped in iteration 8; the rest needs a
-  mockup or a real back-and-forth, not a best guess that risks replacing a
-  working interaction with an untested one.
-- **AI-managed encoding rules** (Right Column TODOs) — blocked on giving
-  the sidekick's LLM call actual tool-use/write access, which is a backend
-  AI-capability build (tool schemas, multi-turn function-calling, safe
-  execution boundaries around a model taking destructive actions on data
-  encoding classification depends on) — not a UI change, and not something
-  to improvise without real safety consideration.
+Re-run `uv run pytest -q` (backend) and `npx tsc --noEmit` (frontend)
+before making changes.
 
-If picking this back up: start with those two. Everything else here is
-either finished or has a documented reason it isn't. Re-run
-`uv run pytest -q` (backend, 39 passing) and `npx tsc --noEmit` (frontend)
-before making changes, to confirm the baseline this summary describes is
-still accurate.
+## Iteration 10 — mockup-driven refactor: Sidekick drives the app
 
-## Progress log
+Commissioned directly by the author with a mockup (`UI.png`, described
+below) and explicit instructions, not a self-directed loop iteration.
+Every part was actually built, not deferred:
+
+- **Sidekick tool-calling (backend).** `app/sidekick/tools.py` defines 8
+  bounded tool schemas — `set_topic_excluded`, `set_theme_excluded`,
+  `promote_theme_to_subplot`, `remove_topic_from_theme`, `set_topic_act`,
+  `add_encoding_rule`, `update_encoding_rule`, `delete_encoding_rule` —
+  each mapped straight to an existing, already-tested repository function
+  (no new mutation capability was introduced beyond what buttons already
+  did). `app/sidekick/llm.py` now runs a real multi-round tool-call loop
+  against litellm: call the model with `tools=`, execute any tool calls
+  against the real database, feed results back, repeat up to 4 rounds.
+  `POST /sidekick/ask` now returns `{answer, actions}` so the frontend
+  knows whether to refetch. 17 backend tests cover every tool function
+  individually (including unknown-tool and nonexistent-id error paths)
+  and the full loop with a mocked `litellm.completion`.
+- **Topic/Theme carousel (frontend), replacing Notecards and the old
+  click-a-segment grid.** `PlotCarousel.tsx` is a Topic View / Theme View
+  toggle (blue / orange, matching the mockup) with Previous/Current/Next
+  navigation tiles showing real titles, and a big Editor box below with
+  only Edit → Save/Cancel (`CardEditForm`, unchanged) — no Exclude,
+  Promote, or act-reassignment buttons anywhere in it, since the mockup
+  and the author's instructions moved those to the Sidekick. Theme View
+  additionally shows the theme's topics as a grid of small icon tiles
+  ("Topics icons" in the mockup); clicking one jumps to that topic in
+  Topic View.
+- **`ActHbar` split into `HbarVisual` (pure bar rendering: segments,
+  tooltip, position marker) + `ActHbar` (adds the click-to-select-grid
+  behavior on top).** This let the new carousel reuse the bar visual with
+  its own click behavior (jump the shared "current topic" pointer to that
+  act) while Subplots keeps using `ActHbar` exactly as before, unchanged.
+  The main Plot Viewer bar and the carousel share one `currentTopicId`
+  state lifted to `App.tsx`, so the bar's position marker always points at
+  whatever topic the carousel is showing.
+- **Icons instead of text for status.** `StatusIcon.tsx` (a small
+  inline-SVG tag icon and eye-slash icon) replaced the plain "Excluded"
+  text tag and the underlined theme-name link everywhere topics are shown
+  — `TopicCardGrid` (still used by Subplots) and the new carousel both use
+  it now.
+- **Act-select dropdown removed** from `TopicCardGrid` entirely (and its
+  now-dead CSS deleted) — redundant with the Hbar's own position marker,
+  per the author's explicit instruction. Subplots never used it, so this
+  was a pure subtraction with no follow-on changes needed there.
+- **Encoding Rules is now display-only.** `EncodingRules.tsx` dropped the
+  add/edit/delete form entirely; it renders each rule as a plain pill
+  (matching the mockup). Managing rules now only happens through Sidekick,
+  via the same tool-calling path as everything else.
+- **Right column reordered** to Encoding Rules above Sidekick, matching
+  the mockup (previously Sidekick was on top).
+- **`Notecards.tsx` and `PlotViewer.tsx` deleted** — nothing imports them
+  anymore; their functionality is now `PlotCarousel` + the top `HbarVisual`.
+
+Explicit scoping decisions made along the way, disclosed rather than
+silently assumed:
+
+- **Subplots was left completely unchanged.** The author's instructions
+  named "Plot Viewer, topics and themes in the center column" — Subplots
+  wasn't named, has different (cross-document) scope from everything else
+  in the center column, and still has real working Exclude/Remove buttons
+  the Sidekick doesn't cover. Removing its buttons or folding it into the
+  carousel would have been guessing past what was asked.
+- **The mockup's stacked/nested small bars above the toggle (a tiny
+  three-dot row plus two smaller indented bar groups) were not
+  replicated pixel-for-pixel.** Read as illustrating "smaller bars for
+  recursive/subplot structure" (already true — Subplots' own bar renders
+  at `size="small"`), not as a literal always-visible-summary-of-every-
+  subplot widget, since building that would need a new bulk
+  all-subplots-with-topics endpoint (an N+1 fetch otherwise) — a genuinely
+  separate feature, not implied by the rest of the request. Only the main
+  Plot Viewer bar sits above the toggle now.
+- **Excluded topics stay navigable in the carousel** (shown with the
+  excluded icon) rather than being hidden, matching how `TopicCardGrid`
+  already treated them (dashed/faded, not removed) — consistent with
+  CLAUDE.md's framing of "excluded" as noise removed from *LLM* context,
+  not from the author's own view.
+
+Verified live against the real backend end-to-end, including the
+highest-risk path: loaded a document, navigated Topic View and Theme View,
+confirmed Save/Cancel still works, then asked the Sidekick in plain English
+to exclude a specific topic by name — confirmed via a real LLM tool call
+that it happened (`excluded: 1` in a fresh `/topics` fetch, matching the
+exact topic ID the model reported), confirmed the UI's excluded icon
+appeared without a page reload, then asked it to include the topic again
+and confirmed that too (`excluded: 0`). No console errors at any point.
+49 backend tests pass; frontend type-checks clean.
+
+## Archived history (iterations 1-9, pre-refactor)
+
+Kept for provenance. Describes UI surfaces that no longer exist as of
+"Iteration 10" above (`Notecards.tsx`, `PlotViewer.tsx`, the old
+per-section scoped `Sidekick`, the encoding-rule add/edit form, the
+act-select dropdown). Do not use this section to understand current
+behavior — see the Column layout / States / Gaps sections after it, which
+were rewritten to describe the app as it exists now.
 
 **Iteration 1** — done: CSS custom-property color palette (`--color-opening`/
 `--color-conflict`/`--color-climax`/`--color-accent`); Hbar segments and
@@ -278,200 +364,163 @@ tests pass untouched; frontend type-checks clean.
 
 ---
 
-## Layout overview
+## Layout overview (current)
 
 - Single page, no routing. One `<h1>` above a three-column CSS grid.
 - Grid: Documents (15%) | Center (70%, content capped to 700px and centered
-  inside that column) | Encoding Rules (15%). Column gap scales with viewport
-  (`clamp(1rem, 4vw, 4rem)`).
+  inside that column) | Encoding Rules + Sidekick (15%). Column gap scales
+  with viewport (`clamp(1rem, 4vw, 4rem)`); collapses to one column under
+  900px.
 - `<h1>` reads "Genre Writer" until a document is loaded, then becomes the
-  loaded document's filename. This is the only global state indicator.
-### Layout TODOs
-- [ ] Change to bootstrap layout — **not done.** Implemented the same effect (fluid scaling + narrow-viewport collapse) with native CSS Grid + a `@media (max-width: 900px)` breakpoint instead of pulling in the Bootstrap framework — adding a whole CSS framework as a dependency for one page contradicts this codebase's existing hand-rolled CSS and the project's "don't over-engineer" convention. Revisit only if a real reason for the framework itself (not just its grid) shows up.
-- [x] The app always scales to the screen to retain outside margins or collapses when reduced to smaller formats — fluid `clamp()` gap + percentage columns already scaled; added the `@media (max-width: 900px)` single-column collapse. Not yet verified at an actual narrow browser window (the automation's resize tool wasn't cooperating) — worth a manual check.
-- [x] All buttons are tool tip enabled — `title` attributes added to every button in every component.
-- [~] Component never dangle outside of their parent container's border — added global `box-sizing: border-box` and panel padding; not exhaustively audited. Known remaining risk: `.hbar-tooltip` is centered on its segment and can overflow the panel/viewport near the left/right edges.
-- [x] Containers are padded top and bottom, left and right to make each one distinct — `.panel` class applied to all three columns and each center-column section.
-- [x] Containers can use tool tips — panels don't have their own tooltip, but every actionable element inside them does.
-- [x] The full color pallet will be used to visually link related elements at a glance — `--color-opening/conflict/climax` tie Hbar segments to `TopicCardGrid` card borders by act. Themes/subplots don't have their own color coding yet (would need a deterministic hash-to-color scheme — noted as a possible follow-up, not started).
+  loaded document's filename.
+- Every column/section is wrapped in a `.panel` (bordered, padded) for
+  visual separation; every actionable element has a `title` tooltip and is
+  keyboard-reachable (`role="button"` + `tabIndex` + Enter/Space where it
+  isn't already a native button).
 
 ---
 
 ## Column layout (top to bottom)
 
 ### Left column — Documents
-1. "Documents" heading
-2. Ingest form: native file picker (multi-select, .txt/.md/.docx/.pdf), role
-   select (`draft_script`/`story_note`), Ingest button (only rendered once
-   files are selected)
-3. Document list, inside a native `<details>` accordion (open by default;
-   loading a document auto-collapses it): per document —
-   filename, role tag, then four icon buttons (Load, Reanalyze, Classify
-   Encoding, Delete), then a transient status tag if Reanalyze or Classify
-   Encoding is in flight/just finished
-### Left Column TODOs
-- [x] Use an accordion component, remove the hide/show — replaced the button + `documentsCollapsed` toggle with native `<details>/<summary>`. `documentsCollapsed` state kept (renamed use) only so loading a document can still auto-collapse the list; the manual button is gone.
-- [x] onHover on a button shows tool tip with its name — done app-wide, not just this column.
-- [x] onMouseOver changes the document title css to give a visual clue that it has the mouse focus — filename underlines and recolors on row hover.
-- [x] replace the text box, selector and ingest with a standard file dialog — fixed in iteration 4: `IngestForm.tsx` now uses `<input type="file" multiple>`, uploading to a new `POST /ingest/upload` endpoint that reuses the existing single-file ingest pipeline.
-- [x] The ingest button appears after a file is selected — fixed alongside the above; the button is conditionally rendered, not just disabled.
-- [x] center and justify all elements in the left column — `.col-documents` is centered; ingest inputs/selects/buttons stretch full width; doc-action icons are centered per row.
+Unchanged from the archived history: native multi-file picker (Ingest
+button only appears once files are chosen), a `<details>` accordion
+document list (auto-collapses on Load), four icon buttons per document
+(Load, Reanalyze, Classify Encoding, Delete), the loaded row highlighted.
 
-### Center column — Plot Viewer, Notecards, Subplots (in that order)
-1. "Plot Viewer" heading, then the Hbar (Opening/Conflict/Climax segments
-   sized proportionally to active topic count, plus an "Unassigned" segment
-   if any topics have no act), then either a hint line or the selected
-   segment's topic card grid
-2. "Notecards" heading, then either the theme card grid (+ "Unassigned
-   Topics" card) or a selected theme's back button + summary + topic card
-   grid
-3. "Subplots" heading, then either the subplot card grid (+ "New Subplot")
-   or a selected subplot's back button + summary + its own recursive
-   three-act Hbar (rendered smaller than the main Plot Viewer bar) +
-   add-topic control + topic card grid
+### Center column — Plot Viewer, then the Topic/Theme carousel, then Subplots
+1. **"Plot Viewer" heading** + the main Hbar (`HbarVisual`, `size="large"`):
+   Opening/Conflict/Climax segments sized proportionally to active topic
+   count (+ an "Unassigned" segment if any topics have no act), a tooltip
+   listing that segment's topics on hover, and a vertical position marker
+   showing where the carousel's current topic sits. Clicking a segment
+   jumps the shared current-topic pointer to that act's first topic — it
+   no longer opens a grid underneath itself; the carousel below is what
+   displays topics now.
+2. **`PlotCarousel`** (no heading of its own — the Topic View / Theme View
+   toggle is the header): see States S1-S4 below for the two modes.
+3. **"Subplots" heading** — completely unchanged from the archived
+   history: global (all documents) hint, "+ New Subplot", subplot card
+   grid, and a detail view with its own small `ActHbar` (`size="small"`),
+   add-topic control, and `TopicCardGrid` (Exclude/Remove buttons still
+   present here — Subplots was explicitly out of scope for the
+   Sidekick-drives-everything change; see "Iteration 10" above).
 
-(Sidekick moved out of the center column in iteration 7 — see the right
-column below.)
-### Center Column TODOs
-- [x] replace the Hbar with a larger progress bar for the main plot — fixed conservatively in iteration 6: the existing Hbar is now taller (64px) with a subtle shadow rather than being replaced by a new component, since "larger" didn't specify a new shape and the existing proportional-segment interaction (click-to-select) is worth keeping.
-- [x] use smaller progress bars for subplots — fixed alongside the above: `ActHbar` takes a `size` prop, Subplots passes `"small"` (28px, smaller label), giving real visual hierarchy between the main plot and a subplot's structure.
-- [x] Use colors to separate the three act structure, not text i.e "Conflict" — done (see Layout TODOs); applies to both the main Plot Viewer and each Subplot's own structure bar since they share `ActHbar`.
-- [x] onMouseOver displays the page or chapter as a tooltip — fixed in iteration 6: `list_all_topics` resolves each topic's nearest chapter heading or PDF page number; the Hbar's tooltip shows it per topic. Proven by a unit test; not yet confirmed against live analyzed data with real chapters (see iteration 6 log for why).
-- [~] clicking the Hbar will select the nearest topic (carousel: centered topic + prev/next neighbors, vertical position marker, theme-linked visual grouping, topics nested under their theme the way they nest under the Hbar) — **partial.** The vertical position marker is done (iteration 8): hovering a topic card draws a line on the Hbar at that topic's position. The centered/prev/next carousel itself, and theme-linked visual grouping, are still unstarted — replacing the current click-a-segment-see-a-grid interaction with a one-topic-at-a-time carousel is a large new interaction pattern, not a tweak, and needs its own design pass rather than a guess.
-- [x] Move the AI sidekick to the right column as a single chat interface for everything — fixed in iteration 7: one `<Sidekick>` at the top of the right column, scoped to every active topic in the loaded document (not to whatever is currently selected — "for everything" was read literally). Replaces the three per-section instances; asking a question scoped to just one act/theme/subplot is no longer possible, which is the tradeoff the request asked for.
-
-### Right column — Sidekick, Encoding Rules (in that order)
-1. "Sidekick" panel (added iteration 7): a single chat input, always
-   visible, scoped to every active topic in the loaded document; an empty
-   state ("Load a document...") when nothing is loaded
-2. "Encoding Rules" panel: rule card grid + always-visible add/edit form
-   (see S10)
-
-### Right Column TODOs
-- [ ] Refactor the encoding rule to be a display only — **not started.**
-- [ ] The AI sidekick will manage it — **not started.** The Sidekick relocation this depended on is done (iteration 7); what's left is giving the sidekick's LLM call tool-use/write access to the encoding-rules endpoints — `sidekick.llm.answer_question` still only ever reads topics and returns prose, it has no function-calling loop. A backend AI-capability build, not a UI change.
+### Right column — Encoding Rules, then Sidekick
+1. **"Encoding Rules" heading** + a plain list of rule pills (label or
+   description text in a rounded pill). No buttons, no form — display
+   only.
+2. **"Sidekick" heading** + `Sidekick`: an answer area (shows the most
+   recent answer, or a hint about what it can do) and a question input +
+   Ask button, always visible regardless of what's loaded.
 
 ---
 
 ## States
 
-Each state below follows the same template: what triggers it, what each
-column shows, and what the user can actually do.
-
 ### S0 — Backend unreachable (error)
-- **Trigger:** the initial `Promise.all` fetch of documents/themes/topics/subplots/encoding-rules fails.
-- **Displayed:** the entire three-column layout is replaced by one line of red text. No columns, no title.
-- **Functionality:** none. No retry button; only a page refresh recovers.
+Unchanged: the whole layout is replaced by one line of red text.
 
-### S1 — No document loaded (initial state)
-- **Trigger:** app just loaded, or the loaded document was just deleted.
-- **Title:** "Genre Writer".
-- **Left:** ingest form + full document list, functional.
-- **Center:** Plot Viewer shows three empty act buckets (no topics, hint text only); Notecards shows an empty-state message (Gap G9 — fixed); Subplots shows **all** subplots across all documents (not scoped to "no document loaded" — see Gap G1).
-- **Right:** unaffected by document state; always shows all encoding rules.
-- **Functionality:** ingest, load/reanalyze/classify/delete any document, manage encoding rules, browse/create subplots. Plot Viewer and Notecards have nothing to show yet.
-
-### S1 TODOs
-- 
+### S1 — No document loaded
+- **Center:** main Hbar shows three empty buckets; `PlotCarousel` shows
+  "Load a document and analyze it to browse its topics and themes here."
+  (with the Topic/Theme toggle still visible, non-functional); Subplots is
+  fully functional (global scope, unaffected by document state).
+- **Right:** Encoding Rules always shows all rules; Sidekick shows "Load a
+  document, then ask the sidekick to look up, change, or organize anything
+  in it."
 
 ### S2 — Document loaded
-- **Trigger:** user clicks the Load icon on a document row.
-- **Effect:** title becomes the filename; Documents list auto-collapses (`documentsCollapsed = true`).
-- **Center:** Plot Viewer and Notecards now filter to topics/themes whose `document_filename` matches the loaded document.
-- **Right / Subplots:** unchanged — still global, not filtered to the loaded document (Gap G1).
-- **Functionality:** same as S1 plus the center column now has real content to browse.
-### S2 - TODOs
-- [x] Tool Tips — done app-wide, see Layout TODOs.
+- **Trigger:** Load icon on a document row.
+- **Effect:** title becomes the filename; Documents list auto-collapses;
+  the carousel's current-topic pointer resets to the new document's first
+  topic (by `sequence_index`).
+- Main Hbar and `PlotCarousel` now show this document's topics/themes.
+  Subplots stays global/unaffected (unchanged from before).
 
-### S2a — Documents list shown/hidden
-- **Trigger:** the Show/Hide button next to "Documents".
-- Independent of S1/S2 — toggling does not affect `loadedDocument`. Hidden state keeps the ingest form visible, hides only the `<ul>`.
+### S3 — Carousel: Topic View (default)
+- **Displayed:** Previous / Current / Next tiles (real topic titles, act
+  color, theme/excluded `StatusIcon`s) with the current tile visually
+  emphasized; below, an Editor box showing the current topic's title,
+  summary, and status icons, plus a single **Edit** button.
+- **Functionality:** click a Previous/Next tile (or use the main Hbar) to
+  move the current-topic pointer; click Edit to enter S5. Nothing else —
+  excluding, promoting, unassigning from a theme, and reassigning act all
+  moved to the Sidekick (see S6).
 
-### S3 — Plot Viewer: act selected
-- **Trigger:** click an Hbar segment (Opening/Conflict/Climax/Unassigned).
-- **Displayed:** that act's topic card grid; a "← Clear selection" button above the grid.
-- **Functionality:** edit/exclude any topic card in place; clear the selection to return to the hint state (Gap G3 — fixed). Asking Sidekick about just this act is no longer possible — Sidekick is a single global instance in the right column now (iteration 7).
+### S4 — Carousel: Theme View
+- **Trigger:** the "Theme View" toggle button.
+- **Displayed:** Previous / Current / Next theme tiles; below, a
+  two-column row — the Current Theme Editor (title, summary, Edit button)
+  on the left, a grid of that theme's topics-as-icons on the right (each a
+  small tile with the excluded icon if applicable and a truncated title).
+- **Functionality:** navigate themes; click Edit to enter S5 (theme
+  variant); click any topic icon to jump straight to it in Topic View
+  (S3), switching the toggle automatically.
 
-### S3 - TODOs
+### S5 — Carousel: editing (topic or theme)
+- **Trigger:** the Edit button in either view's Editor box.
+- **Displayed:** the Editor box's content is replaced by `CardEditForm` —
+  title input, summary textarea, **Save** and **Cancel** buttons. Kept
+  exactly as before per explicit instruction; this is the only mutation
+  still reachable through a direct UI control rather than the Sidekick.
+- **Functionality:** Save (PATCH) or Cancel, returning to S3/S4.
 
-### S4 — Notecards: theme list (default)
-- **Trigger:** default view, or navigating back from a theme/unassigned detail.
-- **Displayed:** grid of theme cards (title, summary, active topic count, Edit/Exclude/Promote), plus an "Unassigned Topics" card if any topic has no theme.
-- **Functionality:** edit a theme inline (→ S5), exclude/include a theme, promote a theme to a subplot, click a card to open its detail (→ S6).
+### S6 — Sidekick drives everything else
+- **Trigger:** typing a request and clicking Ask (or Enter).
+- **Request scope:** every active (non-excluded) topic in the loaded
+  document is sent as context, plus every encoding rule (rules are
+  global, not document-scoped). The model can still act on an excluded
+  topic if the user names its ID directly, since excluded topics are
+  filtered out of context but tool execution doesn't re-check membership.
+- **What it can do:** answer questions about the given topics/themes/
+  rules in prose, or call one of 8 tools — exclude/include a topic or
+  theme, remove a topic from its theme, promote a theme to a subplot,
+  reassign a topic's act, add/edit/delete an encoding rule. Each tool maps
+  directly to an existing, already-tested repository function.
+- **Effect on the rest of the UI:** the response includes `actions: string[]`
+  (which tools ran, if any); the frontend refetches topics, themes,
+  subplots, and encoding rules whenever `actions.length > 0`, so the
+  carousel/Hbar/Encoding Rules panel reflect the change without a reload.
+- **Functionality it deliberately does not have:** editing a title/summary
+  (that stays a direct UI action, S5) or anything touching Subplots or
+  document ingest/analysis (out of scope, see "Iteration 10" above).
 
-### S4 - TODOs
-
-### S5 — Notecards: theme editing
-- **Trigger:** Edit button on a theme card.
-- **Displayed:** that card is replaced in place by `CardEditForm` (title input, summary textarea, Save/Cancel).
-- **Functionality:** save (PATCH the theme) or cancel back to S4.
-
-### S5 - TODOs
-
-### S6 — Notecards: theme/unassigned detail
-- **Trigger:** clicking a theme card body, or the "Unassigned Topics" card.
-- **Displayed:** "← Themes" back button, theme title (+ summary, unless unassigned), topic card grid.
-- **Functionality:** each topic card is independently editable/excludable in place (`TopicCardGrid`'s own edit state); a topic card also shows "Remove from theme" (not shown for Unassigned, since there's nothing to remove it from) — Gap G6, fixed. Back returns to S4.
-
-### S6 - TODOs
-
-### S7 — Subplots: list (default)
-- **Trigger:** default view, or navigating back from a subplot detail.
-- **Displayed:** "+ New Subplot" control, grid of subplot cards (title, summary, topic count, source theme tag if promoted).
-- **Functionality:** start creating a subplot (→ S8), click a card to open its detail (→ S9).
-
-### S7 - TODOs
-
-### S8 — Subplots: creating
-- **Trigger:** "+ New Subplot".
-- **Displayed:** `CardEditForm` in place of the "+ New Subplot" button.
-- **Functionality:** save (POST a new subplot, returns to S7) or cancel.
-
-### S8 - TODOs
-
-### S9 — Subplots: detail
-- **Trigger:** clicking a subplot card.
-- **Displayed:** "← Subplots" back button, title, summary, "Structure" heading with its own recursive three-act Hbar (smaller than the main Plot Viewer bar; topics split evenly by chronological order, not LLM-assigned act), "All Topics" heading with an add-topic dropdown (any topic app-wide not already a member) + Add button, then the full topic card grid (with Remove, unlike S6).
-- **Functionality:** add any topic from any document to this subplot (confirmed before removing — Gap G5), remove a topic, edit/exclude topics in place, reassign a topic's act. Asking Sidekick about just this subplot is no longer possible — see S3's note.
-
-### S9 - TODOs
-
-### S10 — Encoding Rules (single state, no navigation)
-- **Displayed:** rule card grid + always-visible add-rule form.
-- **Functionality:** add a rule (style_kind, block_length, position, label, description), edit a rule in place via the same form (Gap G7, fixed), delete a rule. Not scoped to any document — rules are global and only take effect when a document's Classify Encoding is run.
-
-### S10 - TODOs
-
-### S11 — Document row async status (transient, per document)
-- **Reanalyze:** button click → "Analyzing…" tag → "Done: X topics, Y themes created".
-- **Classify Encoding:** button click → "Classifying…" tag → "Tagged N segments".
-- **Delete:** blocked behind a native `window.confirm`; no status tag, no undo.
-- **Load:** instant, no status tag.
-- These statuses persist in component state until the next reanalyze/classify of the same document; they are not cleared by navigating away or loading a different document.
-
-### S12 — Sidekick (added iteration 7)
-- **Trigger:** always rendered, at the top of the right column.
-- **Displayed (no document loaded):** "Load a document to ask the sidekick about its topics." — no input.
-- **Displayed (document loaded):** a question input + Ask button, placeholder shows the active topic count; the most recent answer below once asked.
-- **Functionality:** ask a question scoped to every active (non-excluded) topic in the loaded document. Independent of every other selection in the app — selecting an act, a theme, or a subplot elsewhere does not change what Sidekick can see.
+### S7 — Document row async status (transient, per document)
+Unchanged: Reanalyze/Classify Encoding show an inline "…ing" then result
+tag; Delete is confirmed; Load is instant.
 
 ---
 
-## Gaps / implied missing functionality
+## Gaps / implied missing functionality (current)
 
-Not yet built, but implied by the states above. Each is independent — pick
-any subset to hand to the MCP agent.
+Most gaps from the archived history were about UI surfaces (Notecards,
+per-section Sidekick, the encoding-rule form) that no longer exist, so
+they're not restated here. What's still true or newly true:
 
-- [x] **G1 — Subplots isn't scoped to the loaded document.** Resolved by making the scope explicit: a "Subplots span all documents, not just the loaded one" hint now sits under the heading. Deliberately not filtered — subplots can legitimately mix topics from multiple documents (the add-topic dropdown in subplot detail already draws from every document), so hiding subplots that reference other documents would hide real membership, not noise.
-- [x] **G2 — No visual indicator of which document is loaded, inside the Documents list itself.** Fixed: the loaded row now gets an accent border + tinted background (`.documents-list li.loaded`).
-- [x] **G3 — Plot Viewer has no back/deselect control.** Fixed: added a "← Clear selection" button in `ActHbar`, shown whenever a segment is selected.
-- [x] **G4 — No error handling on any mutation.** Fixed: a shared `ToastContext` shows a dismissible error banner on any failed fetch, wired into every mutation in `App.tsx`, `Subplots.tsx`, `EncodingRules.tsx`, and `Sidekick.tsx`. Verified by forcing a 500 response and confirming the toast renders.
-- [x] **G5 — Delete is the only destructive action with a confirmation.** Fixed: deleting an encoding rule and removing a topic from a subplot now confirm first, same pattern as document delete. Verified the confirm fires with the correct label and a cancel leaves the rule in place.
-- [x] **G6 — No "remove topic from theme" action.** Fixed: a "Remove from theme" button now appears on topic cards inside Notecards' theme detail view (not shown for "Unassigned Topics", since there's no theme to remove from), calling a new `POST /topics/{id}/unassign-theme` endpoint. Verified the topic disappears from the theme's grid immediately.
-- [x] **G7 — Encoding rules can't be edited.** Fixed: an Edit button per rule card opens the same form used to add one, PATCHing instead of POSTing.
-- [x] **G8 — No manual act reassignment.** Fixed: topic cards in Plot Viewer and Notecards now have an act `<select>` (Opening/Conflict/Climax/Unassigned) that calls the new set-act endpoint. Not wired into Subplots' topic grid — its structure bar buckets by chronological order, not `topic.act`, so the control would have no visible effect there.
-- [x] **G9 — Inconsistent empty-state messaging.** Fixed: Notecards now shows a hint matching Plot Viewer/Subplots when there's nothing to display.
-- [x] **G10 — No loading state for the initial page fetch.** Fixed: a `loading` state renders "Loading Genre Writer…" until the initial `Promise.all` settles (success or failure), instead of an empty shell.
-- [x] **G11 — No responsive/narrow-viewport layout.** Fixed and verified: `.layout` collapses to one column under 900px; confirmed live at a 700px viewport — Documents, Plot Viewer, Notecards, and Subplots stack cleanly with no overflow.
-- [~] **G12 — No search or pagination.** Partially fixed: `TopicCardGrid` and Notecards' theme list now show a search filter once they pass 6 items (covers Plot Viewer, Notecards, and Subplots' topic grids in one change, since they share `TopicCardGrid`). Documents, Subplots, and Encoding Rules still have no search and nothing has pagination — none of those lists are large enough yet to need it.
-- [x] **G13 — No keyboard access to clickable cards, tags, or Hbar segments** (found and fixed in iteration 9). Six spots across `ActHbar`, `Notecards`, `Subplots`, and `TopicCardGrid` were div/span `onClick` handlers with no `tabIndex`/`role`/keyboard handler — a keyboard-only user could not open a theme, subplot, or act, or follow a theme link, anywhere in the app. Fixed with a shared `onActivateKey` helper (Enter/Space) plus `role="button"`, `tabIndex`, `aria-label`, and a visible `:focus-visible` ring. Not fully ARIA-clean: theme/subplot cards still nest their own action buttons inside an outer `role="button"`, which is discouraged — a proper fix means restructuring those cards, not attempted here.
+- [ ] **The stacked/nested mini-bars from the mockup aren't rendered as an
+  always-visible summary of every subplot.** Only Subplots' own detail
+  view shows its small bar (unchanged from before). Building an
+  always-visible row of per-subplot bars needs a new bulk endpoint
+  (today, a subplot's topics are only fetched on demand when you open its
+  detail) — see "Iteration 10" above for the full reasoning.
+- [ ] **No conversation history in Sidekick.** Each ask is a fresh
+  request; there's no follow-up context from a previous question in the
+  same session, so "and also exclude the next one" wouldn't know what
+  "the next one" refers to without repeating it.
+- [ ] **No confirmation before a Sidekick tool call executes.** Direct UI
+  actions like document delete or encoding-rule delete (when that existed)
+  asked first; a Sidekick-driven exclude/promote/delete-rule happens
+  immediately based on the model's own judgment of what was asked. Given
+  every tool maps to a reversible-ish action (nothing hard-deletes data
+  except `delete_encoding_rule`, which only removes a rule definition, not
+  any classified content), this was accepted as a reasonable tradeoff for
+  a natural-language interface, not an oversight — but worth revisiting if
+  it causes real friction.
+- [ ] **Subplots' own topic grid still has Exclude/Remove buttons and no
+  Sidekick integration**, since it was explicitly out of scope for this
+  refactor. Whether that's a permanent split or should eventually match
+  the rest of the app is an open product question, not a bug.
+- [ ] **G12 (old) — search/pagination** — unchanged from before: search
+  exists on `TopicCardGrid` (used by Subplots) above 6 items; the new
+  carousel doesn't need it (it shows one topic/theme at a time by design).

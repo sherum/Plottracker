@@ -148,10 +148,12 @@ def test_analyze_document_creates_topics_and_themes(client, tmp_path, monkeypatc
     assert remove_response.status_code == 200
     assert remove_response.json()["topic_count"] == 0
 
-    monkeypatch.setattr(sidekick_llm, "answer_question", lambda question, topics, themes: "Because reasons.")
+    monkeypatch.setattr(
+        sidekick_llm, "answer_question", lambda conn, question, topics, themes, encoding_rules: ("Because reasons.", [])
+    )
     ask_response = client.post("/sidekick/ask", json={"question": "Why?", "topic_ids": [topic_id]})
     assert ask_response.status_code == 200
-    assert ask_response.json() == {"answer": "Because reasons."}
+    assert ask_response.json() == {"answer": "Because reasons.", "actions": []}
 
     exclude_response = client.post(f"/topics/{topic_id}/exclude")
     assert exclude_response.status_code == 200
@@ -161,7 +163,7 @@ def test_analyze_document_creates_topics_and_themes(client, tmp_path, monkeypatc
     monkeypatch.setattr(
         sidekick_llm,
         "answer_question",
-        lambda question, topics, themes: captured.update(topics=topics) or "n/a",
+        lambda conn, question, topics, themes, encoding_rules: (captured.update(topics=topics) or "n/a", []),
     )
     client.post("/sidekick/ask", json={"question": "Why?", "topic_ids": [topic_id]})
     assert captured["topics"] == []

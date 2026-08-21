@@ -24,7 +24,7 @@ interface Props {
   subplots: Subplot[]
   allTopics: Topic[]
   themes: Theme[]
-  onThemeClick: (themeId: number) => void
+  onThemeClick?: (themeId: number) => void
   onUpdateTopic: (id: number, data: { title: string; summary: string }) => void
   onSubplotsChanged: () => void
   onToggleExcludeTopic: (id: number, excluded: boolean) => void

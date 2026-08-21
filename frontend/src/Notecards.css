@@ -32,8 +32,7 @@
   border-color: #888;
 }
 
-.card.clickable:focus-visible,
-.tag-link:focus-visible {
+.card.clickable:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
@@ -60,32 +59,6 @@
   border-left: 4px solid var(--color-climax);
 }
 
-.act-select {
-  display: block;
-  margin: 0 0 0.5rem;
-  font: inherit;
-  font-size: 0.8em;
-  background: canvas;
-  color: canvastext;
-  border: 1px solid #888;
-  border-radius: 4px;
-  padding: 0.2rem 0.4rem;
-}
-
-.act-select.card-act-opening {
-  border-color: var(--color-opening);
-  color: var(--color-opening);
-}
-
-.act-select.card-act-conflict {
-  border-color: var(--color-conflict);
-  color: var(--color-conflict);
-}
-
-.act-select.card-act-climax {
-  border-color: var(--color-climax);
-  color: var(--color-climax);
-}
 
 .card h4 {
   margin: 0 0 0.4rem;
@@ -116,11 +89,6 @@
   display: flex;
   gap: 0.4rem;
   flex-wrap: wrap;
-}
-
-.tag-link {
-  cursor: pointer;
-  text-decoration: underline;
 }
 
 .card-header {

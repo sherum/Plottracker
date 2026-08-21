@@ -5,9 +5,10 @@ import './Sidekick.css'
 
 interface Props {
   topics: Topic[]
+  onActionsPerformed?: () => void
 }
 
-function Sidekick({ topics }: Props) {
+function Sidekick({ topics, onActionsPerformed }: Props) {
   const [question, setQuestion] = useState('')
   const [answer, setAnswer] = useState<string | null>(null)
   const [asking, setAsking] = useState(false)
@@ -26,6 +27,8 @@ function Sidekick({ topics }: Props) {
       if (!response.ok) throw new Error()
       const data = await response.json()
       setAnswer(data.answer)
+      setQuestion('')
+      if (data.actions?.length > 0) onActionsPerformed?.()
     } catch {
       showError('The sidekick could not answer that. Please try again.')
     } finally {
@@ -33,28 +36,30 @@ function Sidekick({ topics }: Props) {
     }
   }
 
-  if (topics.length === 0) {
-    return (
-      <div className="sidekick">
-        <p className="hbar-hint">Load a document to ask the sidekick about its topics.</p>
-      </div>
-    )
-  }
-
   return (
     <div className="sidekick">
+      <div className="sidekick-answer-area">
+        {answer ? (
+          <p className="sidekick-answer">{answer}</p>
+        ) : (
+          <p className="hbar-hint">
+            {topics.length === 0
+              ? 'Load a document, then ask the sidekick to look up, change, or organize anything in it.'
+              : `Ask about these ${topics.length} topic${topics.length === 1 ? '' : 's'}, or ask the sidekick to change something.`}
+          </p>
+        )}
+      </div>
       <div className="sidekick-input">
         <input
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && ask()}
-          placeholder={`Ask about these ${topics.length} topic${topics.length === 1 ? '' : 's'}…`}
+          placeholder="Ask me anything…"
         />
         <button onClick={ask} disabled={asking || !question.trim()} title="Ask the AI sidekick">
           {asking ? 'Asking…' : 'Ask'}
         </button>
       </div>
-      {answer && <p className="sidekick-answer">{answer}</p>}
     </div>
   )
 }

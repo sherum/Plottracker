@@ -83,7 +83,8 @@ main {
 
 .col-encoding .card,
 .col-encoding .ingest-form-row,
-.col-encoding .sidekick {
+.col-encoding .sidekick,
+.col-encoding .notecards {
   text-align: left;
 }
 
@@ -94,6 +95,30 @@ main {
 .tag {
   color: #666;
   font-size: 0.85em;
+}
+
+.status-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #666;
+  font-size: 0.85em;
+}
+
+.status-icon-link {
+  cursor: pointer;
+  color: inherit;
+  text-decoration: underline;
+}
+
+.status-icon-link:hover,
+.status-icon-link:focus-visible {
+  color: var(--color-accent);
+}
+
+.status-icon-link:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 .documents-list {
