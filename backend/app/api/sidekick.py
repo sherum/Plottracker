@@ -14,21 +14,31 @@ class AskRequest(BaseModel):
     topic_ids: list[int]
     current_topic_id: int | None = None
     current_theme_id: int | None = None
+    add_target_subplot_id: int | None = None
+    add_target_is_new: bool = False
 
 
 class AskResponse(BaseModel):
     answer: str
     actions: list[str]
     created_subplot_id: int | None = None
+    filtered_topic_ids: list[int] | None = None
 
 
 @router.post("/sidekick/ask")
 def ask_sidekick(request: AskRequest, conn: sqlite3.Connection = Depends(get_db)) -> AskResponse:
-    answer, actions, created_subplot_id = ask(
+    answer, actions, created_subplot_id, filtered_topic_ids = ask(
         conn,
         request.question,
         request.topic_ids,
         current_topic_id=request.current_topic_id,
         current_theme_id=request.current_theme_id,
+        add_target_subplot_id=request.add_target_subplot_id,
+        add_target_is_new=request.add_target_is_new,
     )
-    return AskResponse(answer=answer, actions=actions, created_subplot_id=created_subplot_id)
+    return AskResponse(
+        answer=answer,
+        actions=actions,
+        created_subplot_id=created_subplot_id,
+        filtered_topic_ids=filtered_topic_ids,
+    )

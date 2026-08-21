@@ -1,4 +1,4 @@
-type IconName = 'load' | 'reanalyze' | 'classify' | 'delete'
+type IconName = 'load' | 'reanalyze' | 'classify' | 'delete' | 'add' | 'remove'
 
 const PATHS: Record<IconName, JSX.Element> = {
   load: (
@@ -25,17 +25,34 @@ const PATHS: Record<IconName, JSX.Element> = {
       <path d="M4.5 4.5 5.2 13a1 1 0 0 0 1 .9h3.6a1 1 0 0 0 1-.9l.7-8.5" />
     </>
   ),
+  add: (
+    <>
+      <path d="M8 3v10M3 8h10" />
+    </>
+  ),
+  remove: (
+    <>
+      <path d="M3 8h10" />
+    </>
+  ),
 }
 
 interface Props {
   icon: IconName
   label: string
   onClick: () => void
+  active?: boolean
 }
 
-function IconButton({ icon, label, onClick }: Props) {
+function IconButton({ icon, label, onClick, active = false }: Props) {
   return (
-    <button className="icon-btn" onClick={onClick} aria-label={label} title={label}>
+    <button
+      className={`icon-btn${active ? ' active' : ''}`}
+      onClick={onClick}
+      aria-label={label}
+      aria-pressed={active}
+      title={label}
+    >
       <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
         {PATHS[icon]}
       </svg>

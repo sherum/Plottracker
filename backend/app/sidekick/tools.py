@@ -98,6 +98,37 @@ TOOL_SCHEMAS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "delete_subplot",
+            "description": "Permanently delete a subplot (its topic memberships too, not the topics themselves).",
+            "parameters": {
+                "type": "object",
+                "properties": {"subplot_id": {"type": "integer"}},
+                "required": ["subplot_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "filter_topics",
+            "description": (
+                "Report which topics (from the context above) match a filter the author described, e.g. "
+                "'unassigned topics', 'topics in subplot X', 'topics starting with Q'. This does not change "
+                "anything - it just tells the app which topic ids to show the author so they can pick from "
+                "them. Pass the ids of every topic that matches."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "topic_ids": {"type": "array", "items": {"type": "integer"}},
+                },
+                "required": ["topic_ids"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "remove_topic_from_theme",
             "description": "Unassign a topic from its theme, without excluding it.",
             "parameters": {
@@ -206,6 +237,15 @@ def _remove_topic_from_subplot(conn: sqlite3.Connection, args: dict) -> Any:
     return repository.get_subplot(conn, args["subplot_id"])
 
 
+def _delete_subplot(conn: sqlite3.Connection, args: dict) -> Any:
+    repository.delete_subplot(conn, args["subplot_id"])
+    return {"deleted": args["subplot_id"]}
+
+
+def _filter_topics(conn: sqlite3.Connection, args: dict) -> Any:
+    return repository.get_topics_by_ids(conn, args["topic_ids"])
+
+
 def _remove_topic_from_theme(conn: sqlite3.Connection, args: dict) -> Any:
     return repository.unassign_topic_theme(conn, args["topic_id"])
 
@@ -251,6 +291,8 @@ TOOL_FUNCTIONS: dict[str, Callable[[sqlite3.Connection, dict], Any]] = {
     "create_subplot_from_theme": _create_subplot_from_theme,
     "add_topic_to_subplot": _add_topic_to_subplot,
     "remove_topic_from_subplot": _remove_topic_from_subplot,
+    "delete_subplot": _delete_subplot,
+    "filter_topics": _filter_topics,
     "remove_topic_from_theme": _remove_topic_from_theme,
     "set_topic_act": _set_topic_act,
     "add_encoding_rule": _add_encoding_rule,

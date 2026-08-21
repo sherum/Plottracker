@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { buildActBuckets } from './actBuckets'
 import HbarVisual from './HbarVisual'
+import IconButton from './IconButton'
 import type { Topic } from './TopicCardGrid'
 import './SubplotBars.css'
 
@@ -20,9 +21,22 @@ interface Props {
   refreshToken: number
   currentTopicId: number | null
   onNavigateTopic: (topicId: number) => void
+  addTargetSubplotId: number | null
+  deleteTargetIds: Set<number>
+  onClickAdd: (subplotId: number) => void
+  onToggleDelete: (subplotId: number) => void
 }
 
-function SubplotBars({ documentId, refreshToken, currentTopicId, onNavigateTopic }: Props) {
+function SubplotBars({
+  documentId,
+  refreshToken,
+  currentTopicId,
+  onNavigateTopic,
+  addTargetSubplotId,
+  deleteTargetIds,
+  onClickAdd,
+  onToggleDelete,
+}: Props) {
   const [subplots, setSubplots] = useState<SubplotWithTopics[]>([])
 
   useEffect(() => {
@@ -85,6 +99,18 @@ function SubplotBars({ documentId, refreshToken, currentTopicId, onNavigateTopic
               onSegmentClick={(actKey) => jumpToAct(subplot, actKey)}
               markerTopicId={currentTopicId}
               size="small"
+            />
+            <IconButton
+              icon="add"
+              label={`Add topics to ${subplot.title}`}
+              active={addTargetSubplotId === subplot.id}
+              onClick={() => onClickAdd(subplot.id)}
+            />
+            <IconButton
+              icon="remove"
+              label={`Mark ${subplot.title} for deletion`}
+              active={deleteTargetIds.has(subplot.id)}
+              onClick={() => onToggleDelete(subplot.id)}
             />
           </div>
         )

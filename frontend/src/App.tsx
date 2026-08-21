@@ -9,6 +9,7 @@ import Sidekick from './Sidekick'
 import SourcePreview from './SourcePreview'
 import SubplotBars from './SubplotBars'
 import { ToastProvider, useToast } from './ToastContext'
+import TopicChecklist from './TopicChecklist'
 import type { Topic } from './TopicCardGrid'
 import './App.css'
 
@@ -61,7 +62,19 @@ function AppContent() {
     subplotTitle: string
     selectedTopicIds: Set<number>
   } | null>(null)
+  const [addTarget, setAddTarget] = useState<{ type: 'subplot'; subplotId: number } | { type: 'new' } | null>(null)
+  const [addTargetTitle, setAddTargetTitle] = useState<string | null>(null)
+  const [deleteTargetIds, setDeleteTargetIds] = useState<Set<number>>(new Set())
+  const [filteredSelection, setFilteredSelection] = useState<{
+    topicIds: number[]
+    selectedTopicIds: Set<number>
+  } | null>(null)
   const { showError } = useToast()
+
+  function handlePreviewTopic(topicId: number | null, mode: 'theme' | 'topic') {
+    setPreviewTopicId(topicId)
+    setPreviewMode(mode)
+  }
 
   useEffect(() => {
     Promise.all([
@@ -148,6 +161,119 @@ function AppContent() {
 
   function cancelSubplotSelection() {
     setSubplotSelection(null)
+  }
+
+  async function toggleAddTargetSubplot(subplotId: number) {
+    if (addTarget?.type === 'subplot' && addTarget.subplotId === subplotId) {
+      setAddTarget(null)
+      setAddTargetTitle(null)
+      setFilteredSelection(null)
+      return
+    }
+    setAddTarget({ type: 'subplot', subplotId })
+    setFilteredSelection(null)
+    try {
+      const response = await fetch(`/subplots/${subplotId}`)
+      if (!response.ok) throw new Error()
+      const subplot = await response.json()
+      setAddTargetTitle(subplot.title)
+    } catch {
+      setAddTargetTitle(null)
+    }
+  }
+
+  function toggleAddTargetNew() {
+    if (addTarget?.type === 'new') {
+      setAddTarget(null)
+      setAddTargetTitle(null)
+      setFilteredSelection(null)
+      return
+    }
+    setAddTarget({ type: 'new' })
+    setAddTargetTitle(null)
+    setFilteredSelection(null)
+  }
+
+  function cancelAdd() {
+    setAddTarget(null)
+    setAddTargetTitle(null)
+    setFilteredSelection(null)
+  }
+
+  function toggleDeleteTarget(subplotId: number) {
+    setDeleteTargetIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(subplotId)) next.delete(subplotId)
+      else next.add(subplotId)
+      return next
+    })
+  }
+
+  function handleFilteredTopics(topicIds: number[]) {
+    setFilteredSelection({ topicIds, selectedTopicIds: new Set() })
+  }
+
+  function toggleFilteredTopicSelection(topicId: number) {
+    setFilteredSelection((prev) => {
+      if (!prev) return prev
+      const next = new Set(prev.selectedTopicIds)
+      if (next.has(topicId)) next.delete(topicId)
+      else next.add(topicId)
+      return { ...prev, selectedTopicIds: next }
+    })
+  }
+
+  async function finishAddFlow(): Promise<{ count: number; title: string }> {
+    if (!addTarget || !filteredSelection) return { count: 0, title: '' }
+    const topicIds = [...filteredSelection.selectedTopicIds]
+    let subplotId: number
+    let title: string
+
+    if (addTarget.type === 'new') {
+      const name = window.prompt('Name this new subplot:')
+      if (!name) return { count: 0, title: '' }
+      try {
+        const response = await fetch('/subplots', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: name, summary: '' }),
+        })
+        if (!response.ok) throw new Error()
+        const subplot = await response.json()
+        subplotId = subplot.id
+        title = subplot.title
+      } catch {
+        showError('Could not create the new subplot. Please try again.')
+        return { count: 0, title: '' }
+      }
+    } else {
+      subplotId = addTarget.subplotId
+      title = addTargetTitle ?? 'the subplot'
+    }
+
+    await Promise.all(
+      topicIds.map((topicId) =>
+        fetch(`/subplots/${subplotId}/topics`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ topic_id: topicId }),
+        })
+      )
+    )
+    setAddTarget(null)
+    setAddTargetTitle(null)
+    setFilteredSelection(null)
+    setSubplotRefreshToken((n) => n + 1)
+    return { count: topicIds.length, title }
+  }
+
+  async function finishDeleteFlow(): Promise<{ count: number }> {
+    const ids = [...deleteTargetIds]
+    if (ids.length === 0) return { count: 0 }
+    await Promise.all(ids.map((id) => fetch(`/subplots/${id}`, { method: 'DELETE' })))
+    setDeleteTargetIds(new Set())
+    setSubplotRefreshToken((n) => n + 1)
+    return { count: ids.length }
   }
 
   async function updateTopic(id: number, data: { title: string; summary: string }) {
@@ -315,14 +441,50 @@ function AppContent() {
           <div className="col-center-inner">
             <section className="panel">
               <h2>Plot Viewer</h2>
-              <HbarVisual buckets={buckets} extraBucket={extraBucket} onSegmentClick={jumpToAct} markerTopicId={currentTopicId} />
+              <div className="main-plot-row">
+                <HbarVisual buckets={buckets} extraBucket={extraBucket} onSegmentClick={jumpToAct} markerTopicId={currentTopicId} />
+                <IconButton
+                  icon="add"
+                  label="Add topics to a new subplot"
+                  active={addTarget?.type === 'new'}
+                  onClick={toggleAddTargetNew}
+                />
+              </div>
               <SubplotBars
                 documentId={loadedDocument?.id ?? null}
                 refreshToken={subplotRefreshToken}
                 currentTopicId={currentTopicId}
                 onNavigateTopic={setCurrentTopicId}
+                addTargetSubplotId={addTarget?.type === 'subplot' ? addTarget.subplotId : null}
+                deleteTargetIds={deleteTargetIds}
+                onClickAdd={toggleAddTargetSubplot}
+                onToggleDelete={toggleDeleteTarget}
               />
             </section>
+
+            {addTarget && (
+              <section className="panel">
+                <div className="selection-banner">
+                  <span>
+                    Adding topics to {addTarget.type === 'new' ? 'a new subplot' : `“${addTargetTitle ?? '…'}”`}.
+                    {filteredSelection
+                      ? ` ${filteredSelection.selectedTopicIds.size} of ${filteredSelection.topicIds.length} selected. Type “move them” in the sidekick when ready.`
+                      : ' Ask the sidekick to filter topics, e.g. “unassigned topics” or “topics starting with Q”.'}
+                  </span>
+                  <button className="selection-cancel" onClick={cancelAdd}>
+                    Cancel
+                  </button>
+                </div>
+                {filteredSelection && (
+                  <TopicChecklist
+                    topics={loadedTopics.filter((t) => filteredSelection.topicIds.includes(t.id))}
+                    selectedTopicIds={filteredSelection.selectedTopicIds}
+                    onToggle={toggleFilteredTopicSelection}
+                    onPreviewTopic={handlePreviewTopic}
+                  />
+                )}
+              </section>
+            )}
 
             <section className="panel">
               <PlotCarousel
@@ -334,10 +496,7 @@ function AppContent() {
                 onNavigateTheme={setCurrentThemeId}
                 onUpdateTopic={updateTopic}
                 onUpdateTheme={updateTheme}
-                onPreviewTopic={(topicId, mode) => {
-                  setPreviewTopicId(topicId)
-                  setPreviewMode(mode)
-                }}
+                onPreviewTopic={handlePreviewTopic}
                 selection={subplotSelection}
                 onToggleTopicSelection={toggleTopicSelection}
                 onCancelSelection={cancelSubplotSelection}
@@ -369,6 +528,13 @@ function AppContent() {
               onSubplotCreated={handleSubplotCreated}
               selection={subplotSelection}
               onFinishSelection={finishSubplotSelection}
+              addTargetSubplotId={addTarget?.type === 'subplot' ? addTarget.subplotId : null}
+              addTargetIsNew={addTarget?.type === 'new'}
+              onFilteredTopics={handleFilteredTopics}
+              filteredSelectionActive={filteredSelection !== null}
+              onFinishAdd={finishAddFlow}
+              deleteTargetCount={deleteTargetIds.size}
+              onFinishDelete={finishDeleteFlow}
             />
           </div>
         </div>

@@ -186,6 +186,23 @@ main {
   border-color: canvastext;
 }
 
+.icon-btn.active {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 20%, canvas);
+  color: var(--color-accent);
+}
+
+.main-plot-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.main-plot-row .hbar {
+  flex: 1;
+  min-width: 0;
+}
+
 .documents-accordion summary {
   cursor: pointer;
   font-weight: 600;

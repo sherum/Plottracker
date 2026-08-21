@@ -311,6 +311,19 @@ def remove_topic_from_subplot(conn: sqlite3.Connection, subplot_id: int, topic_i
     conn.commit()
 
 
+def delete_subplot(conn: sqlite3.Connection, subplot_id: int) -> None:
+    conn.execute("DELETE FROM subplot_topics WHERE subplot_id = ?", (subplot_id,))
+    conn.execute("DELETE FROM subplots WHERE id = ?", (subplot_id,))
+    conn.commit()
+
+
+def list_subplot_topic_ids(conn: sqlite3.Connection, subplot_id: int) -> list[int]:
+    rows = conn.execute(
+        "SELECT topic_id FROM subplot_topics WHERE subplot_id = ?", (subplot_id,)
+    ).fetchall()
+    return [row["topic_id"] for row in rows]
+
+
 def list_subplot_topics(conn: sqlite3.Connection, subplot_id: int) -> list[dict]:
     rows = conn.execute(
         """

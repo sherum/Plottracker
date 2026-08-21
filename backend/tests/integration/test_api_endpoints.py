@@ -186,17 +186,32 @@ def test_analyze_document_creates_topics_and_themes(client, tmp_path, monkeypatc
     assert remove_response.status_code == 200
     assert remove_response.json()["topic_count"] == 0
 
+    delete_subplot_response = client.delete(f"/subplots/{manual_subplot['id']}")
+    assert delete_subplot_response.status_code == 200
+    assert delete_subplot_response.json() == {"deleted": manual_subplot["id"]}
+    assert manual_subplot["id"] not in [s["id"] for s in client.get("/subplots").json()]
+
     monkeypatch.setattr(
         sidekick_llm,
         "answer_question",
-        lambda conn, question, topics, themes, encoding_rules, subplots, **kwargs: ("Because reasons.", [], None),
+        lambda conn, question, topics, themes, encoding_rules, subplots, **kwargs: (
+            "Because reasons.",
+            [],
+            None,
+            None,
+        ),
     )
     ask_response = client.post(
         "/sidekick/ask",
         json={"question": "Why?", "topic_ids": [topic_id], "current_topic_id": topic_id, "current_theme_id": theme_id},
     )
     assert ask_response.status_code == 200
-    assert ask_response.json() == {"answer": "Because reasons.", "actions": [], "created_subplot_id": None}
+    assert ask_response.json() == {
+        "answer": "Because reasons.",
+        "actions": [],
+        "created_subplot_id": None,
+        "filtered_topic_ids": None,
+    }
 
     source_text_response = client.get(f"/topics/{topic_id}/source-text")
     assert source_text_response.status_code == 200
@@ -213,6 +228,7 @@ def test_analyze_document_creates_topics_and_themes(client, tmp_path, monkeypatc
         lambda conn, question, topics, themes, encoding_rules, subplots, **kwargs: (
             captured.update(topics=topics) or "n/a",
             [],
+            None,
             None,
         ),
     )

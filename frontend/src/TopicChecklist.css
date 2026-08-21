@@ -1,0 +1,35 @@
+.topic-checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.topic-checklist-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #888;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.topic-checklist-row.selected {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 15%, canvas);
+}
+
+.topic-checklist-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

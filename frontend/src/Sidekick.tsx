@@ -17,6 +17,13 @@ interface Props {
   onSubplotCreated?: (subplotId: number) => void
   selection?: Selection | null
   onFinishSelection?: () => Promise<{ count: number; title: string }>
+  addTargetSubplotId?: number | null
+  addTargetIsNew?: boolean
+  onFilteredTopics?: (topicIds: number[]) => void
+  filteredSelectionActive?: boolean
+  onFinishAdd?: () => Promise<{ count: number; title: string }>
+  deleteTargetCount?: number
+  onFinishDelete?: () => Promise<{ count: number }>
 }
 
 function Sidekick({
@@ -27,6 +34,13 @@ function Sidekick({
   onSubplotCreated,
   selection,
   onFinishSelection,
+  addTargetSubplotId,
+  addTargetIsNew,
+  onFilteredTopics,
+  filteredSelectionActive,
+  onFinishAdd,
+  deleteTargetCount = 0,
+  onFinishDelete,
 }: Props) {
   const [question, setQuestion] = useState('')
   const [answer, setAnswer] = useState<string | null>(null)
@@ -52,6 +66,36 @@ function Sidekick({
       return
     }
 
+    if (filteredSelectionActive && onFinishAdd && /^move( them)?[.!]*$/i.test(trimmed)) {
+      setAsking(true)
+      setAnswer(null)
+      try {
+        const { count, title } = await onFinishAdd()
+        setAnswer(count > 0 ? `Added ${count} topic${count === 1 ? '' : 's'} to "${title}".` : 'Nothing was added.')
+        setQuestion('')
+      } catch {
+        showError('Could not move those topics. Please try again.')
+      } finally {
+        setAsking(false)
+      }
+      return
+    }
+
+    if (deleteTargetCount > 0 && onFinishDelete && /^delete( them)?[.!]*$/i.test(trimmed)) {
+      setAsking(true)
+      setAnswer(null)
+      try {
+        const { count } = await onFinishDelete()
+        setAnswer(`Deleted ${count} subplot${count === 1 ? '' : 's'}.`)
+        setQuestion('')
+      } catch {
+        showError('Could not delete those subplots. Please try again.')
+      } finally {
+        setAsking(false)
+      }
+      return
+    }
+
     setAsking(true)
     setAnswer(null)
     try {
@@ -63,6 +107,8 @@ function Sidekick({
           topic_ids: topics.map((t) => t.id),
           current_topic_id: currentTopicId ?? null,
           current_theme_id: currentThemeId ?? null,
+          add_target_subplot_id: addTargetSubplotId ?? null,
+          add_target_is_new: addTargetIsNew ?? false,
         }),
       })
       if (!response.ok) throw new Error()
@@ -71,6 +117,7 @@ function Sidekick({
       setQuestion('')
       if (data.actions?.length > 0) onActionsPerformed?.()
       if (data.created_subplot_id != null) onSubplotCreated?.(data.created_subplot_id)
+      if (data.filtered_topic_ids != null) onFilteredTopics?.(data.filtered_topic_ids)
     } catch {
       showError('The sidekick could not answer that. Please try again.')
     } finally {
@@ -78,30 +125,35 @@ function Sidekick({
     }
   }
 
+  const hint = selection
+    ? `Selecting topics for “${selection.subplotTitle}” — ${selection.selectedTopicIds.size} selected. Toggle topics in the plot viewer, then type “done” below.`
+    : filteredSelectionActive
+      ? 'Select topics from the filtered list, then type “move them” below.'
+      : deleteTargetCount > 0
+        ? `${deleteTargetCount} subplot${deleteTargetCount === 1 ? '' : 's'} marked for deletion. Type “delete them” below, or click − again to unmark.`
+        : topics.length === 0
+          ? 'Load a document, then ask the sidekick to look up, change, or organize anything in it.'
+          : `Ask about these ${topics.length} topic${topics.length === 1 ? '' : 's'}, or ask the sidekick to change something.`
+
+  const placeholder = selection
+    ? 'Type “done” when finished…'
+    : filteredSelectionActive
+      ? 'Type “move them” when ready…'
+      : deleteTargetCount > 0
+        ? 'Type “delete them” to confirm…'
+        : 'Ask me anything…'
+
   return (
     <div className="sidekick">
       <div className="sidekick-answer-area">
-        {answer ? (
-          <p className="sidekick-answer">{answer}</p>
-        ) : selection ? (
-          <p className="hbar-hint">
-            Selecting topics for “{selection.subplotTitle}” — {selection.selectedTopicIds.size} selected. Toggle
-            topics in the plot viewer, then type “done” below.
-          </p>
-        ) : (
-          <p className="hbar-hint">
-            {topics.length === 0
-              ? 'Load a document, then ask the sidekick to look up, change, or organize anything in it.'
-              : `Ask about these ${topics.length} topic${topics.length === 1 ? '' : 's'}, or ask the sidekick to change something.`}
-          </p>
-        )}
+        {answer ? <p className="sidekick-answer">{answer}</p> : <p className="hbar-hint">{hint}</p>}
       </div>
       <div className="sidekick-input">
         <input
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && ask()}
-          placeholder={selection ? 'Type “done” when finished…' : 'Ask me anything…'}
+          placeholder={placeholder}
         />
         <button onClick={ask} disabled={asking || !question.trim()} title="Ask the AI sidekick">
           {asking ? 'Asking…' : 'Ask'}

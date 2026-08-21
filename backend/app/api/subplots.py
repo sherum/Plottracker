@@ -34,6 +34,12 @@ def get_subplot(subplot_id: int, conn: sqlite3.Connection = Depends(get_db)) -> 
     return repository.get_subplot(conn, subplot_id)
 
 
+@router.delete("/subplots/{subplot_id}")
+def delete_subplot(subplot_id: int, conn: sqlite3.Connection = Depends(get_db)) -> dict:
+    repository.delete_subplot(conn, subplot_id)
+    return {"deleted": subplot_id}
+
+
 @router.get("/subplots/{subplot_id}/topics")
 def get_subplot_topics(subplot_id: int, conn: sqlite3.Connection = Depends(get_db)) -> list[dict]:
     return repository.list_subplot_topics(conn, subplot_id)

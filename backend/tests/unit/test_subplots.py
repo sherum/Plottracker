@@ -56,6 +56,18 @@ def test_manual_subplot_add_and_remove_topic(db_conn):
     assert repository.get_subplot(db_conn, subplot_id)["topic_count"] == 0
 
 
+def test_delete_subplot_removes_subplot_and_its_topic_links(db_conn):
+    _, theme_id, topic_ids = _make_document_with_topics(db_conn)
+    subplot_id = repository.promote_theme_to_subplot(db_conn, theme_id)
+
+    assert repository.list_subplot_topic_ids(db_conn, subplot_id) == [topic_ids[0]]
+
+    repository.delete_subplot(db_conn, subplot_id)
+
+    assert subplot_id not in [s["id"] for s in repository.list_subplots(db_conn)]
+    assert repository.list_subplot_topic_ids(db_conn, subplot_id) == []
+
+
 def test_create_named_subplot_from_theme_has_no_topics(db_conn):
     _, theme_id, _ = _make_document_with_topics(db_conn)
 
