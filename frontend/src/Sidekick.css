@@ -5,12 +5,11 @@
 }
 
 .sidekick-answer-area {
+  width: 100%;
+  box-sizing: border-box;
   min-height: 220px;
   max-height: 400px;
   overflow-y: auto;
-  border: 1px solid #888;
-  border-radius: 8px;
-  padding: 0.75rem;
 }
 
 .sidekick-answer-area .hbar-hint {
