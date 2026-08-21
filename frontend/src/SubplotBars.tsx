@@ -18,6 +18,8 @@ interface SubplotWithTopics extends Subplot {
 
 interface Props {
   documentId: number | null
+  storyMode: boolean
+  topicOrderIndex: Map<number, number>
   refreshToken: number
   currentTopicId: number | null
   onNavigateTopic: (topicId: number) => void
@@ -29,6 +31,8 @@ interface Props {
 
 function SubplotBars({
   documentId,
+  storyMode,
+  topicOrderIndex,
   refreshToken,
   currentTopicId,
   onNavigateTopic,
@@ -40,13 +44,15 @@ function SubplotBars({
   const [subplots, setSubplots] = useState<SubplotWithTopics[]>([])
 
   useEffect(() => {
-    if (documentId === null) {
+    if (!storyMode && documentId === null) {
       setSubplots([])
       return
     }
     let cancelled = false
 
-    fetch(`/subplots?document_id=${documentId}`)
+    const listUrl = storyMode ? '/subplots' : `/subplots?document_id=${documentId}`
+
+    fetch(listUrl)
       .then((res) => res.json())
       .then((list: Subplot[]) =>
         Promise.all(
@@ -54,8 +60,11 @@ function SubplotBars({
             fetch(`/subplots/${subplot.id}/topics`)
               .then((res) => res.json())
               .then((topics: Topic[]) => {
-                const sequenceIndexes = topics.map((t) => t.sequence_index)
-                const span = sequenceIndexes.length > 0 ? Math.max(...sequenceIndexes) - Math.min(...sequenceIndexes) : 0
+                // Ranked by each topic's position in the currently displayed
+                // (story- or document-wide) order, since raw sequence_index
+                // is only comparable within a single document.
+                const ranks = topics.map((t) => topicOrderIndex.get(t.id)).filter((r): r is number => r !== undefined)
+                const span = ranks.length > 0 ? Math.max(...ranks) - Math.min(...ranks) : 0
                 return { ...subplot, topics, span }
               })
           )
@@ -73,9 +82,10 @@ function SubplotBars({
     return () => {
       cancelled = true
     }
-  }, [documentId, refreshToken])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentId, storyMode, refreshToken])
 
-  if (documentId === null || subplots.length === 0) return null
+  if (subplots.length === 0) return null
 
   function jumpToAct(subplot: SubplotWithTopics, actKey: string) {
     const { buckets, extraBucket } = buildActBuckets(subplot.topics)

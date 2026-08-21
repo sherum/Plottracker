@@ -256,6 +256,28 @@ def test_analyze_document_creates_topics_and_themes(client, tmp_path, monkeypatc
     assert exclude_theme_response.json()["excluded"] == 1
 
 
+def test_story_order_crud(client, db_conn):
+    doc_a = repository.insert_document(
+        db_conn, role="draft_script", source_path="/tmp/a.txt", filename="a.txt", source_type="txt", content_hash="a"
+    )
+    doc_b = repository.insert_document(
+        db_conn, role="draft_script", source_path="/tmp/b.txt", filename="b.txt", source_type="txt", content_hash="b"
+    )
+
+    assert client.get("/story/documents").json() == []
+
+    put_response = client.put("/story/documents", json={"document_ids": [doc_b, doc_a]})
+    assert put_response.status_code == 200
+    assert [d["id"] for d in put_response.json()] == [doc_b, doc_a]
+
+    get_response = client.get("/story/documents")
+    assert [d["id"] for d in get_response.json()] == [doc_b, doc_a]
+
+    clear_response = client.put("/story/documents", json={"document_ids": []})
+    assert clear_response.status_code == 200
+    assert client.get("/story/documents").json() == []
+
+
 def test_encoding_rule_crud(client):
     create_response = client.post(
         "/encoding-rules",

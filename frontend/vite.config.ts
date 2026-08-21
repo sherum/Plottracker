@@ -7,6 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/documents': 'http://localhost:8000',
+      '/story': 'http://localhost:8000',
       '/themes': 'http://localhost:8000',
       '/topics': 'http://localhost:8000',
       '/subplots': 'http://localhost:8000',

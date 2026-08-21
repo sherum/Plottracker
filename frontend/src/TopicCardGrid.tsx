@@ -14,6 +14,7 @@ export interface Topic {
   excluded: boolean
   chapter_title?: string | null
   page_number?: number | null
+  document_story_position?: number | null
 }
 
 const SEARCH_THRESHOLD = 6

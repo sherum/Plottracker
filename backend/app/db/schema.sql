@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS documents (
     source_type TEXT NOT NULL CHECK (source_type IN ('docx', 'pdf', 'txt', 'md')),
     content_hash TEXT NOT NULL,
     ingested_at TEXT NOT NULL,
-    page_count INTEGER
+    page_count INTEGER,
+    story_position INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS segments (

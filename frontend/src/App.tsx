@@ -43,6 +43,7 @@ function App() {
 
 function AppContent() {
   const [documents, setDocuments] = useState<Document[]>([])
+  const [storyDocuments, setStoryDocuments] = useState<Document[]>([])
   const [themes, setThemes] = useState<Theme[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
   const [encodingRules, setEncodingRules] = useState<EncodingRule[]>([])
@@ -82,12 +83,14 @@ function AppContent() {
       fetch('/themes').then((res) => res.json()),
       fetch('/topics').then((res) => res.json()),
       fetch('/encoding-rules').then((res) => res.json()),
+      fetch('/story/documents').then((res) => res.json()),
     ])
-      .then(([documentsData, themesData, topicsData, encodingRulesData]) => {
+      .then(([documentsData, themesData, topicsData, encodingRulesData, storyDocumentsData]) => {
         setDocuments(documentsData)
         setThemes(themesData.map(normalizeExcluded))
         setTopics(topicsData.map(normalizeExcluded))
         setEncodingRules(encodingRulesData)
+        setStoryDocuments(storyDocumentsData)
       })
       .catch(() => setError('Could not reach the backend at http://localhost:8000'))
       .finally(() => setLoading(false))
@@ -97,6 +100,38 @@ function AppContent() {
     fetch('/documents')
       .then((res) => res.json())
       .then(setDocuments)
+  }
+
+  async function updateStoryOrder(documentIds: number[]) {
+    try {
+      const response = await fetch('/story/documents', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ document_ids: documentIds }),
+      })
+      if (!response.ok) throw new Error()
+      setStoryDocuments(await response.json())
+    } catch {
+      showError('Could not update the story order. Please try again.')
+    }
+  }
+
+  function addToStory(documentId: number) {
+    if (storyDocuments.some((d) => d.id === documentId)) return
+    updateStoryOrder([...storyDocuments.map((d) => d.id), documentId])
+  }
+
+  function removeFromStory(documentId: number) {
+    updateStoryOrder(storyDocuments.filter((d) => d.id !== documentId).map((d) => d.id))
+  }
+
+  function moveStoryDocument(documentId: number, direction: -1 | 1) {
+    const ids = storyDocuments.map((d) => d.id)
+    const index = ids.indexOf(documentId)
+    const target = index + direction
+    if (target < 0 || target >= ids.length) return
+    ;[ids[index], ids[target]] = [ids[target], ids[index]]
+    updateStoryOrder(ids)
   }
 
   function refetchTopicsAndThemes() {
@@ -342,6 +377,7 @@ function AppContent() {
       const response = await fetch(`/documents/${id}`, { method: 'DELETE' })
       if (!response.ok) throw new Error()
       if (loadedDocument?.id === id) setLoadedDocument(null)
+      setStoryDocuments((prev) => prev.filter((d) => d.id !== id))
       refetchDocuments()
       refetchTopicsAndThemes()
     } catch {
@@ -354,38 +390,52 @@ function AppContent() {
     setDocumentsCollapsed(true)
   }
 
+  // Once at least one document is linked into the story, the whole app
+  // switches from viewing a single loaded document to viewing the full,
+  // story-ordered union of every linked document's topics.
+  const inStoryMode = storyDocuments.length > 0
+  const storyFilenames = new Set(storyDocuments.map((d) => d.filename))
+
   const loadedTopics = loadedDocument
     ? topics.filter((t) => t.document_filename === loadedDocument.filename && !t.excluded)
     : []
-  const loadedThemeIds = new Set(loadedTopics.map((t) => t.theme_id).filter((id): id is number => id !== null))
-  const loadedThemes = loadedDocument ? themes.filter((t) => loadedThemeIds.has(t.id)) : []
-  const orderedLoadedTopics = [...loadedTopics].sort((a, b) => a.sequence_index - b.sequence_index)
+  const storyTopics = topics.filter((t) => storyFilenames.has(t.document_filename) && !t.excluded)
+  const effectiveTopics = inStoryMode ? storyTopics : loadedTopics
 
-  // Keep the current topic pointer valid as the loaded document changes.
+  const effectiveThemeIds = new Set(effectiveTopics.map((t) => t.theme_id).filter((id): id is number => id !== null))
+  const effectiveThemes = themes.filter((t) => effectiveThemeIds.has(t.id))
+
+  const orderedEffectiveTopics = [...effectiveTopics].sort(
+    (a, b) =>
+      (a.document_story_position ?? 0) - (b.document_story_position ?? 0) || a.sequence_index - b.sequence_index
+  )
+  const topicOrderIndex = new Map(orderedEffectiveTopics.map((t, i) => [t.id, i]))
+
+  // Keep the current topic pointer valid as the effective topic set changes.
   useEffect(() => {
-    if (orderedLoadedTopics.length === 0) {
+    if (orderedEffectiveTopics.length === 0) {
       if (currentTopicId !== null) setCurrentTopicId(null)
       return
     }
-    if (!orderedLoadedTopics.some((t) => t.id === currentTopicId)) {
-      setCurrentTopicId(orderedLoadedTopics[0].id)
+    if (!orderedEffectiveTopics.some((t) => t.id === currentTopicId)) {
+      setCurrentTopicId(orderedEffectiveTopics[0].id)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadedDocument, orderedLoadedTopics.length])
+  }, [loadedDocument, inStoryMode, orderedEffectiveTopics.length])
 
-  // Keep the current theme pointer valid as the loaded document changes.
+  // Keep the current theme pointer valid as the effective topic set changes.
   useEffect(() => {
-    if (loadedThemes.length === 0) {
+    if (effectiveThemes.length === 0) {
       if (currentThemeId !== null) setCurrentThemeId(null)
       return
     }
-    if (!loadedThemes.some((t) => t.id === currentThemeId)) {
-      setCurrentThemeId(loadedThemes[0].id)
+    if (!effectiveThemes.some((t) => t.id === currentThemeId)) {
+      setCurrentThemeId(effectiveThemes[0].id)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadedDocument, loadedThemes.length])
+  }, [loadedDocument, inStoryMode, effectiveThemes.length])
 
-  const { buckets, extraBucket } = buildActBuckets(loadedTopics)
+  const { buckets, extraBucket } = buildActBuckets(orderedEffectiveTopics)
 
   function jumpToAct(actKey: string) {
     const bucket = buckets.find((b) => b.key === actKey) ?? (extraBucket.key === actKey ? extraBucket : null)
@@ -403,7 +453,7 @@ function AppContent() {
 
   return (
     <main>
-      <h1>{loadedDocument ? loadedDocument.filename : 'Genre Writer'}</h1>
+      <h1>{inStoryMode ? `The Story (${storyDocuments.length} documents)` : loadedDocument ? loadedDocument.filename : 'Genre Writer'}</h1>
 
       <div className="layout">
         <div className="col col-documents panel">
@@ -419,22 +469,57 @@ function AppContent() {
               <p>No documents ingested yet.</p>
             ) : (
               <ul className="documents-list">
-                {documents.map((doc) => (
-                  <li key={doc.id} className={loadedDocument?.id === doc.id ? 'loaded' : undefined}>
-                    <span className="doc-filename">{doc.filename}</span> <span className="tag">{doc.role}</span>
-                    <div className="doc-actions">
-                      <IconButton icon="load" label="Load" onClick={() => loadDocument(doc)} />
-                      <IconButton icon="reanalyze" label="Reanalyze" onClick={() => reanalyzeDocument(doc.id)} />
-                      <IconButton icon="classify" label="Classify Encoding" onClick={() => classifyDocument(doc.id)} />
-                      <IconButton icon="delete" label="Delete" onClick={() => deleteDocument(doc.id, doc.filename)} />
-                    </div>
-                    {analyzing[doc.id] && <span className="tag"> {analyzing[doc.id]}</span>}
-                    {classifying[doc.id] && <span className="tag"> {classifying[doc.id]}</span>}
-                  </li>
-                ))}
+                {documents.map((doc) => {
+                  const inStory = storyDocuments.some((d) => d.id === doc.id)
+                  return (
+                    <li key={doc.id} className={loadedDocument?.id === doc.id ? 'loaded' : undefined}>
+                      <span className="doc-filename">{doc.filename}</span> <span className="tag">{doc.role}</span>
+                      <div className="doc-actions">
+                        <IconButton icon="load" label="Load" onClick={() => loadDocument(doc)} />
+                        <IconButton icon="reanalyze" label="Reanalyze" onClick={() => reanalyzeDocument(doc.id)} />
+                        <IconButton icon="classify" label="Classify Encoding" onClick={() => classifyDocument(doc.id)} />
+                        <IconButton
+                          icon="link"
+                          label={inStory ? 'Remove from story order' : 'Add to story order'}
+                          active={inStory}
+                          onClick={() => (inStory ? removeFromStory(doc.id) : addToStory(doc.id))}
+                        />
+                        <IconButton icon="delete" label="Delete" onClick={() => deleteDocument(doc.id, doc.filename)} />
+                      </div>
+                      {analyzing[doc.id] && <span className="tag"> {analyzing[doc.id]}</span>}
+                      {classifying[doc.id] && <span className="tag"> {classifying[doc.id]}</span>}
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </details>
+
+          {storyDocuments.length > 0 && (
+            <div className="story-order">
+              <h3>Story Order</h3>
+              <ol className="story-order-list">
+                {storyDocuments.map((doc, index) => (
+                  <li key={doc.id}>
+                    <span className="tag">{index + 1}</span> <span className="doc-filename">{doc.filename}</span>
+                    <div className="doc-actions">
+                      <IconButton
+                        icon="up"
+                        label={`Move ${doc.filename} earlier in the story`}
+                        onClick={() => moveStoryDocument(doc.id, -1)}
+                      />
+                      <IconButton
+                        icon="down"
+                        label={`Move ${doc.filename} later in the story`}
+                        onClick={() => moveStoryDocument(doc.id, 1)}
+                      />
+                      <IconButton icon="remove" label={`Remove ${doc.filename} from the story`} onClick={() => removeFromStory(doc.id)} />
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
         </div>
 
         <div className="col col-center">
@@ -452,6 +537,8 @@ function AppContent() {
               </div>
               <SubplotBars
                 documentId={loadedDocument?.id ?? null}
+                storyMode={inStoryMode}
+                topicOrderIndex={topicOrderIndex}
                 refreshToken={subplotRefreshToken}
                 currentTopicId={currentTopicId}
                 onNavigateTopic={setCurrentTopicId}
@@ -477,7 +564,7 @@ function AppContent() {
                 </div>
                 {filteredSelection && (
                   <TopicChecklist
-                    topics={loadedTopics.filter((t) => filteredSelection.topicIds.includes(t.id))}
+                    topics={effectiveTopics.filter((t) => filteredSelection.topicIds.includes(t.id))}
                     selectedTopicIds={filteredSelection.selectedTopicIds}
                     onToggle={toggleFilteredTopicSelection}
                     onPreviewTopic={handlePreviewTopic}
@@ -488,8 +575,8 @@ function AppContent() {
 
             <section className="panel">
               <PlotCarousel
-                topics={loadedTopics}
-                themes={loadedThemes}
+                topics={orderedEffectiveTopics}
+                themes={effectiveThemes}
                 currentTopicId={currentTopicId}
                 currentThemeId={currentThemeId}
                 onNavigateTopic={setCurrentTopicId}
@@ -506,7 +593,7 @@ function AppContent() {
             <section className="panel">
               <h2>Preview</h2>
               <SourcePreview
-                topic={loadedTopics.find((t) => t.id === previewTopicId) ?? null}
+                topic={effectiveTopics.find((t) => t.id === previewTopicId) ?? null}
                 mode={previewMode}
               />
             </section>
@@ -521,7 +608,7 @@ function AppContent() {
           <div className="panelp">
             <h2>Sidekick</h2>
             <Sidekick
-              topics={loadedTopics.filter((t) => !t.excluded)}
+              topics={effectiveTopics}
               currentTopicId={currentTopicId}
               currentThemeId={currentThemeId}
               onActionsPerformed={refetchAfterSidekickAction}

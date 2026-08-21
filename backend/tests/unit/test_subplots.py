@@ -29,6 +29,29 @@ def _make_document_with_topics(db_conn):
     return document_id, theme_id, topic_ids
 
 
+def test_insert_subplot_without_theme_creates_one(db_conn):
+    subplot_id = repository.insert_subplot(db_conn, title="Standalone Subplot", summary="No theme given.")
+
+    subplot = repository.get_subplot(db_conn, subplot_id)
+    assert subplot["theme_id"] is not None
+
+    themes = repository.list_themes(db_conn)
+    theme = next(t for t in themes if t["id"] == subplot["theme_id"])
+    assert theme["title"] == "Standalone Subplot"
+    assert theme["summary"] == "No theme given."
+
+
+def test_insert_subplot_with_theme_reuses_it(db_conn):
+    theme_id = repository.insert_theme(db_conn, title="Existing Theme", summary="Already here.")
+
+    subplot_id = repository.insert_subplot(
+        db_conn, title="Linked Subplot", summary="Uses existing theme.", theme_id=theme_id
+    )
+
+    assert repository.get_subplot(db_conn, subplot_id)["theme_id"] == theme_id
+    assert len(repository.list_themes(db_conn)) == 1
+
+
 def test_promote_theme_to_subplot_copies_its_topics(db_conn):
     _, theme_id, topic_ids = _make_document_with_topics(db_conn)
 
@@ -104,6 +127,94 @@ def test_list_subplots_scoped_to_document_includes_empty_named_subplot(db_conn):
     scoped = repository.list_subplots(db_conn, document_id)
 
     assert [s["id"] for s in scoped] == [subplot_id]
+
+
+def test_set_story_order_assigns_sequential_positions(db_conn):
+    doc_a = repository.insert_document(
+        db_conn, role="draft_script", source_path="/tmp/a.txt", filename="a.txt", source_type="txt", content_hash="a"
+    )
+    doc_b = repository.insert_document(
+        db_conn, role="draft_script", source_path="/tmp/b.txt", filename="b.txt", source_type="txt", content_hash="b"
+    )
+    doc_c = repository.insert_document(
+        db_conn, role="draft_script", source_path="/tmp/c.txt", filename="c.txt", source_type="txt", content_hash="c"
+    )
+
+    repository.set_story_order(db_conn, [doc_c, doc_a])
+
+    story_documents = repository.list_story_documents(db_conn)
+    assert [d["id"] for d in story_documents] == [doc_c, doc_a]
+    assert [d["story_position"] for d in story_documents] == [1, 2]
+
+    doc_b_row = next(d for d in repository.list_documents(db_conn) if d["id"] == doc_b)
+    assert doc_b_row["story_position"] is None
+
+
+def test_set_story_order_can_reorder_and_unlink(db_conn):
+    doc_a = repository.insert_document(
+        db_conn, role="draft_script", source_path="/tmp/a.txt", filename="a.txt", source_type="txt", content_hash="a"
+    )
+    doc_b = repository.insert_document(
+        db_conn, role="draft_script", source_path="/tmp/b.txt", filename="b.txt", source_type="txt", content_hash="b"
+    )
+    repository.set_story_order(db_conn, [doc_a, doc_b])
+
+    repository.set_story_order(db_conn, [doc_b])
+
+    story_documents = repository.list_story_documents(db_conn)
+    assert [d["id"] for d in story_documents] == [doc_b]
+
+
+def test_list_subplot_topics_orders_by_story_position_across_documents(db_conn):
+    doc_later = repository.insert_document(
+        db_conn,
+        role="draft_script",
+        source_path="/tmp/book2.txt",
+        filename="book2.txt",
+        source_type="txt",
+        content_hash="book2",
+    )
+    doc_earlier = repository.insert_document(
+        db_conn,
+        role="draft_script",
+        source_path="/tmp/book1.txt",
+        filename="book1.txt",
+        source_type="txt",
+        content_hash="book1",
+    )
+
+    # doc_later was ingested first (lower id, would sort first by naive document_id
+    # ordering) but belongs later in the story once explicitly ordered.
+    seg_later = repository.insert_segment(db_conn, document_id=doc_later, sequence_index=0, text="Later text.")
+    seg_earlier = repository.insert_segment(db_conn, document_id=doc_earlier, sequence_index=0, text="Earlier text.")
+
+    topic_later = repository.insert_topic(
+        db_conn,
+        document_id=doc_later,
+        sequence_index=0,
+        title="Book 2 topic",
+        summary="s",
+        segment_start_id=seg_later,
+        segment_end_id=seg_later,
+    )
+    topic_earlier = repository.insert_topic(
+        db_conn,
+        document_id=doc_earlier,
+        sequence_index=0,
+        title="Book 1 topic",
+        summary="s",
+        segment_start_id=seg_earlier,
+        segment_end_id=seg_earlier,
+    )
+
+    subplot_id = repository.insert_subplot(db_conn, title="Cross-book subplot", summary="s")
+    repository.add_topic_to_subplot(db_conn, subplot_id, topic_later)
+    repository.add_topic_to_subplot(db_conn, subplot_id, topic_earlier)
+
+    repository.set_story_order(db_conn, [doc_earlier, doc_later])
+
+    ordered = repository.list_subplot_topics(db_conn, subplot_id)
+    assert [t["id"] for t in ordered] == [topic_earlier, topic_later]
 
 
 def test_get_topic_source_text_joins_segments_in_range(db_conn):

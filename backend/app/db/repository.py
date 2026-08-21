@@ -73,6 +73,22 @@ def list_documents(conn: sqlite3.Connection) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+def set_story_order(conn: sqlite3.Connection, document_ids: list[int]) -> None:
+    # Clear first so the partial unique index never sees two documents claim
+    # the same position while positions are being reassigned.
+    conn.execute("UPDATE documents SET story_position = NULL")
+    for position, document_id in enumerate(document_ids, start=1):
+        conn.execute("UPDATE documents SET story_position = ? WHERE id = ?", (position, document_id))
+    conn.commit()
+
+
+def list_story_documents(conn: sqlite3.Connection) -> list[dict]:
+    rows = conn.execute(
+        "SELECT * FROM documents WHERE story_position IS NOT NULL ORDER BY story_position"
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def delete_document(conn: sqlite3.Connection, document_id: int) -> None:
     conn.execute(
         "DELETE FROM subplot_topics WHERE topic_id IN (SELECT id FROM topics WHERE document_id = ?)",
@@ -149,7 +165,7 @@ def list_themes(conn: sqlite3.Connection) -> list[dict]:
 def list_all_topics(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute(
         """
-        SELECT topics.*, documents.filename AS document_filename,
+        SELECT topics.*, documents.filename AS document_filename, documents.story_position AS document_story_position,
             (SELECT page_number FROM segments WHERE id = topics.segment_start_id) AS page_number,
             (
                 SELECT segments.text
@@ -165,7 +181,7 @@ def list_all_topics(conn: sqlite3.Connection) -> list[dict]:
             ) AS chapter_title
         FROM topics
         JOIN documents ON documents.id = topics.document_id
-        ORDER BY topics.document_id, topics.sequence_index
+        ORDER BY (documents.story_position IS NULL), documents.story_position, documents.id, topics.sequence_index
         """
     ).fetchall()
     return [dict(row) for row in rows]
@@ -239,6 +255,10 @@ def exclude_topics_for_document(conn: sqlite3.Connection, document_id: int) -> N
 
 
 def insert_subplot(conn: sqlite3.Connection, *, title: str, summary: str, theme_id: int | None = None) -> int:
+    # Every subplot has its own theme: reuse the one given, or create one from
+    # the subplot's own title/summary so it's never left without one.
+    if theme_id is None:
+        theme_id = insert_theme(conn, title=title, summary=summary)
     cursor = conn.execute(
         "INSERT INTO subplots (theme_id, title, summary, created_at) VALUES (?, ?, ?, ?)",
         (theme_id, title, summary, datetime.now(timezone.utc).isoformat()),
@@ -327,12 +347,12 @@ def list_subplot_topic_ids(conn: sqlite3.Connection, subplot_id: int) -> list[in
 def list_subplot_topics(conn: sqlite3.Connection, subplot_id: int) -> list[dict]:
     rows = conn.execute(
         """
-        SELECT topics.*, documents.filename AS document_filename
+        SELECT topics.*, documents.filename AS document_filename, documents.story_position AS document_story_position
         FROM subplot_topics
         JOIN topics ON topics.id = subplot_topics.topic_id
         JOIN documents ON documents.id = topics.document_id
         WHERE subplot_topics.subplot_id = ?
-        ORDER BY topics.document_id, topics.sequence_index
+        ORDER BY (documents.story_position IS NULL), documents.story_position, documents.id, topics.sequence_index
         """,
         (subplot_id,),
     ).fetchall()

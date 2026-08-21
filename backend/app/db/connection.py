@@ -20,6 +20,14 @@ def get_connection(db_path: Path | str | None = None) -> sqlite3.Connection:
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
+    document_columns = {row[1] for row in conn.execute("PRAGMA table_info(documents)")}
+    if "story_position" not in document_columns:
+        conn.execute("ALTER TABLE documents ADD COLUMN story_position INTEGER")
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_story_position "
+        "ON documents(story_position) WHERE story_position IS NOT NULL"
+    )
+
     topic_columns = {row[1] for row in conn.execute("PRAGMA table_info(topics)")}
     if "act" not in topic_columns:
         conn.execute("ALTER TABLE topics ADD COLUMN act TEXT CHECK (act IN ('opening', 'conflict', 'climax'))")
