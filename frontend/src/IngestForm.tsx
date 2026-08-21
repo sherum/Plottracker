@@ -65,12 +65,12 @@ function IngestForm({ onIngested }: Props) {
           accept=".txt,.md,.docx,.pdf"
           disabled={status === 'loading'}
           onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-          title="Choose one or more manuscript or notes files"
-        />
-        <select value={role} onChange={(e) => setRole(e.target.value as 'draft_script' | 'story_note')}>
-          <option value="draft_script">draft_script</option>
-          <option value="story_note">story_note</option>
-        </select>
+          title=""
+        /> {/*<select value={role} onChange={(e) => setRole(e.target.value as 'draft_script' | 'story_note')}>*/}
+        {/*  <option value="draft_script">draft_script</option>*/}
+        {/*  <option value="story_note">story_note</option>*/}
+        {/*</select>
+       */}
         {files.length > 0 && (
           <button onClick={submit} disabled={status === 'loading'} title="Ingest the selected file(s)">
             {status === 'loading' ? 'Ingesting…' : `Ingest ${files.length} file${files.length === 1 ? '' : 's'}`}

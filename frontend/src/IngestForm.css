@@ -38,7 +38,7 @@
 .ingest-form-row button:disabled {
   border-color: #888;
   color: #888;
-  cursor: default;
+  cursor: pointer;
 }
 
 .ingest-result {

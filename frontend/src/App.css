@@ -20,7 +20,7 @@ main {
 
 .layout {
   display: grid;
-  grid-template-columns: 15% 70% 15%;
+  grid-template-columns: 15% 65% 20%;
   gap: clamp(1rem, 4vw, 4rem);
   align-items: start;
 }
@@ -43,6 +43,13 @@ main {
   border: 1px solid var(--color-border);
   border-radius: 10px;
   background: var(--color-panel);
+  padding: 1.25rem;
+}
+
+.panelp {
+  border: None;
+  border-radius: 10px;
+  background:None;
   padding: 1.25rem;
 }
 
@@ -171,7 +178,7 @@ main {
   border-radius: 4px;
   background: none;
   color: inherit;
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='M1 1 L1 13 L4.5 10.5 L6.5 15 L8.5 14 L6.5 9.5 L11 9.5 Z' fill='white' stroke='black' stroke-width='1'/%3E%3C/svg%3E") 1 1, default;
+  cursor: pointer;
   flex-shrink: 0;
 }
 

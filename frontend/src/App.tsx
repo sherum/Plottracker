@@ -328,7 +328,7 @@ function AppContent() {
             <h2>Encoding Rules</h2>
             <EncodingRules rules={encodingRules} />
           </div>
-          <div className="panel">
+          <div className="panelp">
             <h2>Sidekick</h2>
             <Sidekick topics={loadedTopics.filter((t) => !t.excluded)} onActionsPerformed={refetchAfterSidekickAction} />
           </div>
