@@ -651,7 +651,7 @@ function AppContent() {
 
         <div className="d-none d-lg-block col-lg-1 order-lg-2" />
 
-        <div className="col-12 col-lg-7 order-1 order-lg-3 d-flex flex-column gap-4">
+        <div className="col-12 col-lg-6 order-1 order-lg-3 d-flex flex-column gap-4">
             <div className="card">
               <div className="card-header">
                 <h2 className="h5 mb-0">Plot Viewer</h2>
@@ -744,7 +744,9 @@ function AppContent() {
             </div>
         </div>
 
-        <div className="col-12 col-lg-2 order-3 order-lg-4 d-flex flex-column gap-4">
+        <div className="d-none d-lg-block col-lg-1 order-lg-4" />
+
+        <div className="col-12 col-lg-2 order-3 order-lg-5 d-flex flex-column gap-4 sidebar-panel">
           <div className="card">
             <div className="card-header">
               <h2 className="h5 mb-0">Encoding Rules</h2>
