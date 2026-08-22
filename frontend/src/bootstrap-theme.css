@@ -1,0 +1,17 @@
+/* Bridges Bootstrap's own CSS variables to this app's existing automatic
+   light/dark tokens (App.css), so Bootstrap components (.btn, .card,
+   .form-control, ...) follow the OS color scheme without data-bs-theme. */
+:root {
+  --bs-body-bg: canvas;
+  --bs-body-color: canvastext;
+  --bs-border-color: var(--color-border);
+  --bs-border-color-translucent: var(--color-border);
+  --bs-secondary-bg: var(--color-panel);
+  --bs-tertiary-bg: var(--color-panel);
+  --bs-primary: var(--color-accent);
+  --bs-primary-rgb: 124, 92, 219;
+  --bs-link-color: var(--color-accent);
+  --bs-link-color-rgb: 124, 92, 219;
+  --bs-link-hover-color: var(--color-accent);
+  --bs-link-hover-color-rgb: 124, 92, 219;
+}
