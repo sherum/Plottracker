@@ -72,7 +72,9 @@ function HbarVisual({ buckets, extraBucket, selectedKey = null, onSegmentClick, 
           aria-label={bucket.label}
           onKeyDown={onSegmentClick ? onActivateKey(() => onSegmentClick(bucket.key)) : undefined}
         >
-          <span className="hbar-label">{bucket.label}</span>
+          <span className={`hbar-label${bucket.activeTopics.length === 0 ? ' hbar-label-empty' : ''}`}>
+            {bucket.label}
+          </span>
           <div className="hbar-tooltip">
             <strong>{bucket.label}</strong>
             <ul>

@@ -149,13 +149,15 @@ function Sidekick({
         {answer ? <p className="sidekick-answer">{answer}</p> : <p className="hbar-hint">{hint}</p>}
       </div>
       <div className="sidekick-input">
-        <input
+        <textarea
           className="form-control form-control-sm"
           value={question}
+          rows={6}
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && ask()}
           placeholder={placeholder}
-        />
+        ></textarea>
+      </div>
         <button
           type="button"
           className="btn btn-sm btn-primary"
@@ -166,7 +168,7 @@ function Sidekick({
           {asking ? 'Asking…' : 'Ask'}
         </button>
       </div>
-    </div>
+    // </div>
   )
 }
 
