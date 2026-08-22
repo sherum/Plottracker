@@ -45,7 +45,7 @@ main {
 
 @media (min-width: 992px) {
   .documents-panel {
-    padding-left: 1.5rem;
+    padding-left: min(50px, 5%);
   }
 }
 

@@ -547,7 +547,7 @@ function AppContent() {
       <h1 className="my-4">{inStoryMode ? `The Story (${storyDocuments.length} documents)` : loadedDocument ? loadedDocument.filename : 'Genre Writer'}</h1>
 
       <div className="row g-4">
-        <div className="col-12 col-lg-2 order-2 order-lg-1 d-flex flex-column gap-4 documents-panel">
+        <div className="col-12 col-lg-1 order-2 order-lg-1 d-flex flex-column gap-4 documents-panel">
         <div className="card">
           <div className="card-header">
             <h2 className="h5 mb-0">Documents</h2>
@@ -651,7 +651,7 @@ function AppContent() {
 
         <div className="d-none d-lg-block col-lg-1 order-lg-2" />
 
-        <div className="col-12 col-lg-7 order-1 order-lg-3 d-flex flex-column gap-4">
+        <div className="col-12 col-lg-8 order-1 order-lg-3 d-flex flex-column gap-4">
             <div className="card">
               <div className="card-header">
                 <h2 className="h5 mb-0">Plot Viewer</h2>
