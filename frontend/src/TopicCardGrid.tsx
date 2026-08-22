@@ -55,7 +55,7 @@ function TopicCardGrid({
     <div>
       {topics.length > SEARCH_THRESHOLD && (
         <input
-          className="topic-search"
+          className="form-control form-control-sm topic-search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={`Search these ${topics.length} topics…`}

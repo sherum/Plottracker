@@ -327,8 +327,8 @@ function ThemeView({
         </button>
       </div>
 
-      <div className="carousel-theme-body">
-        <div className="carousel-editor carousel-editor-theme">
+      <div className="carousel-theme-body row g-3">
+        <div className="carousel-editor carousel-editor-theme col-12 col-md-4">
           {editing ? (
             <CardEditForm title={current.title} summary={current.summary} onSave={onSave} onCancel={onCancelEdit} />
           ) : (
@@ -345,7 +345,7 @@ function ThemeView({
           )}
         </div>
 
-        <div className="carousel-topic-icons">
+        <div className="carousel-topic-icons col-12 col-md-8">
           {themeTopics.length === 0 && <p className="hbar-hint">No topics in this theme yet.</p>}
           {themeTopics.map((topic) => {
             const actClass = topic.act ? ` notecard-act-${topic.act}` : ''

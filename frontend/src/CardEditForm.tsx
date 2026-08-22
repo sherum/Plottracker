@@ -13,9 +13,13 @@ function CardEditForm({ title, summary, onSave, onCancel }: Props) {
 
   return (
     <div className="notecard editing">
-      <input className="notecard-input" value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} />
+      <input
+        className="form-control form-control-sm"
+        value={draftTitle}
+        onChange={(e) => setDraftTitle(e.target.value)}
+      />
       <textarea
-        className="notecard-textarea"
+        className="form-control form-control-sm notecard-textarea"
         value={draftSummary}
         onChange={(e) => setDraftSummary(e.target.value)}
       />
