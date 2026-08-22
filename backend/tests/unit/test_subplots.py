@@ -320,6 +320,16 @@ def test_set_main_theme_swaps_flag_and_subplots(db_conn):
     assert topic["theme_id"] == theme_id
 
 
+def test_move_topic_sets_theme_and_act_together(db_conn):
+    _, theme_id, topic_ids = _make_document_with_topics(db_conn)
+    other_theme_id = repository.insert_theme(db_conn, title="Another Theme", summary="Summary.")
+
+    updated = repository.move_topic(db_conn, topic_ids[1], theme_id=other_theme_id, act="climax")
+
+    assert updated["theme_id"] == other_theme_id
+    assert updated["act"] == "climax"
+
+
 def test_set_main_theme_is_a_no_op_when_already_main(db_conn):
     main_theme_id = repository.get_main_theme_id(db_conn)
 

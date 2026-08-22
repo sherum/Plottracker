@@ -348,6 +348,22 @@ function AppContent() {
     }
   }
 
+  async function moveTopic(id: number, themeId: number, act: 'opening' | 'conflict' | 'climax' | null) {
+    try {
+      const response = await fetch(`/topics/${id}/move`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme_id: themeId, act }),
+      })
+      if (!response.ok) throw new Error()
+      const updated = normalizeExcluded(await response.json())
+      setTopics((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
+      setSubplotRefreshToken((n) => n + 1)
+    } catch {
+      showError('Could not move the topic. Please try again.')
+    }
+  }
+
   async function updateTheme(id: number, data: { title: string; summary: string }) {
     try {
       const response = await fetch(`/themes/${id}`, {
@@ -440,6 +456,12 @@ function AppContent() {
 
   const effectiveThemeIds = new Set(effectiveTopics.map((t) => t.theme_id).filter((id): id is number => id !== null))
   const effectiveThemes = themes.filter((t) => effectiveThemeIds.has(t.id))
+
+  const mainThemeId = themes.find((t) => t.is_main)?.id ?? null
+  const mainTheme =
+    (inStoryMode || loadedDocument !== null) && mainThemeId !== null
+      ? { id: mainThemeId, topics: topics.filter((t) => t.theme_id === mainThemeId) }
+      : null
 
   const orderedEffectiveTopics = [...effectiveTopics].sort(
     (a, b) =>
@@ -590,6 +612,8 @@ function AppContent() {
                 deleteTargetIds={deleteTargetIds}
                 onClickAdd={toggleAddTargetSubplot}
                 onToggleDelete={toggleDeleteTarget}
+                mainTheme={mainTheme}
+                onDropTopic={moveTopic}
               />
               </div>
             </div>

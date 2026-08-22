@@ -25,3 +25,8 @@
   flex: 1;
   min-width: 0;
 }
+
+.subplot-bar-row-main .subplot-bar-label {
+  font-weight: 600;
+  color: inherit;
+}

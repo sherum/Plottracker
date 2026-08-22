@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import CardEditForm from './CardEditForm'
+import { TOPIC_DRAG_MIME } from './HbarVisual'
 import IconButton from './IconButton'
 import StatusIcon from './StatusIcon'
 import type { Topic } from './TopicCardGrid'
@@ -410,7 +411,11 @@ function ThemeView({
                           key={topic.id}
                           className={`carousel-topic-icon${selection ? ' selectable' : ''}${selected ? ' selected' : ''}`}
                           draggable={!selection}
-                          onDragStart={() => setDraggingTopicId(topic.id)}
+                          onDragStart={(e) => {
+                            setDraggingTopicId(topic.id)
+                            e.dataTransfer.setData(TOPIC_DRAG_MIME, String(topic.id))
+                            e.dataTransfer.effectAllowed = 'move'
+                          }}
                           onDragEnd={() => {
                             setDraggingTopicId(null)
                             setDragOverAct('none')

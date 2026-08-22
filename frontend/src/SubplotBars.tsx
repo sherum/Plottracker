@@ -7,6 +7,7 @@ import './SubplotBars.css'
 
 interface Subplot {
   id: number
+  theme_id: number
   title: string
   topic_count: number
 }
@@ -27,6 +28,8 @@ interface Props {
   deleteTargetIds: Set<number>
   onClickAdd: (subplotId: number) => void
   onToggleDelete: (subplotId: number) => void
+  mainTheme: { id: number; topics: Topic[] } | null
+  onDropTopic: (topicId: number, themeId: number, act: 'opening' | 'conflict' | 'climax' | null) => void
 }
 
 function SubplotBars({
@@ -40,6 +43,8 @@ function SubplotBars({
   deleteTargetIds,
   onClickAdd,
   onToggleDelete,
+  mainTheme,
+  onDropTopic,
 }: Props) {
   const [subplots, setSubplots] = useState<SubplotWithTopics[]>([])
 
@@ -85,17 +90,38 @@ function SubplotBars({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentId, storyMode, refreshToken])
 
-  if (subplots.length === 0) return null
+  if (subplots.length === 0 && !mainTheme) return null
 
-  function jumpToAct(subplot: SubplotWithTopics, actKey: string) {
-    const { buckets, extraBucket } = buildActBuckets(subplot.topics)
+  function jumpToAct(topics: Topic[], actKey: string) {
+    const { buckets, extraBucket } = buildActBuckets(topics)
     const bucket = buckets.find((b) => b.key === actKey) ?? (extraBucket.key === actKey ? extraBucket : null)
     const firstTopic = bucket?.topics[0]
     if (firstTopic) onNavigateTopic(firstTopic.id)
   }
 
+  function dropOnTheme(themeId: number) {
+    return (topicId: number, actKey: string) => onDropTopic(topicId, themeId, actKey === 'unassigned' ? null : (actKey as 'opening' | 'conflict' | 'climax'))
+  }
+
+  const mainBuckets = mainTheme ? buildActBuckets(mainTheme.topics) : null
+
   return (
     <div className="subplot-bars">
+      {mainTheme && mainBuckets && (
+        <div className="subplot-bar-row subplot-bar-row-main">
+          <span className="subplot-bar-label" title="Main">
+            Main
+          </span>
+          <HbarVisual
+            buckets={mainBuckets.buckets}
+            extraBucket={mainBuckets.extraBucket}
+            onSegmentClick={(actKey) => jumpToAct(mainTheme.topics, actKey)}
+            onDropTopic={dropOnTheme(mainTheme.id)}
+            markerTopicId={currentTopicId}
+            size="small"
+          />
+        </div>
+      )}
       {subplots.map((subplot) => {
         const { buckets, extraBucket } = buildActBuckets(subplot.topics)
         return (
@@ -106,7 +132,8 @@ function SubplotBars({
             <HbarVisual
               buckets={buckets}
               extraBucket={extraBucket}
-              onSegmentClick={(actKey) => jumpToAct(subplot, actKey)}
+              onSegmentClick={(actKey) => jumpToAct(subplot.topics, actKey)}
+              onDropTopic={dropOnTheme(subplot.theme_id)}
               markerTopicId={currentTopicId}
               size="small"
             />

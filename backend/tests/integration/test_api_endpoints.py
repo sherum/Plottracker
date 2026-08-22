@@ -249,6 +249,11 @@ def test_analyze_document_creates_topics_and_themes(client, db_conn, tmp_path, m
     assert clear_act_response.status_code == 200
     assert clear_act_response.json()["act"] is None
 
+    move_response = client.post(f"/topics/{topic_id}/move", json={"theme_id": theme_id, "act": "opening"})
+    assert move_response.status_code == 200
+    assert move_response.json()["theme_id"] == theme_id
+    assert move_response.json()["act"] == "opening"
+
     exclude_theme_response = client.post(f"/themes/{theme_id}/exclude")
     assert exclude_theme_response.status_code == 200
     assert exclude_theme_response.json()["excluded"] == 1

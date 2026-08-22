@@ -20,6 +20,11 @@ class TopicActUpdate(BaseModel):
     act: Literal["opening", "conflict", "climax"] | None
 
 
+class TopicMove(BaseModel):
+    theme_id: int
+    act: Literal["opening", "conflict", "climax"] | None
+
+
 @router.post("/documents/{document_id}/analyze")
 def analyze(document_id: int, conn: sqlite3.Connection = Depends(get_db)) -> dict:
     return analyze_document(conn, document_id)
@@ -58,6 +63,11 @@ def unassign_topic_theme(topic_id: int, conn: sqlite3.Connection = Depends(get_d
 @router.post("/topics/{topic_id}/set-act")
 def set_topic_act(topic_id: int, request: TopicActUpdate, conn: sqlite3.Connection = Depends(get_db)) -> dict:
     return repository.set_topic_act(conn, topic_id, request.act)
+
+
+@router.post("/topics/{topic_id}/move")
+def move_topic(topic_id: int, request: TopicMove, conn: sqlite3.Connection = Depends(get_db)) -> dict:
+    return repository.move_topic(conn, topic_id, theme_id=request.theme_id, act=request.act)
 
 
 @router.get("/topics/{topic_id}/source-text")

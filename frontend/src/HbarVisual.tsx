@@ -1,3 +1,4 @@
+import { useState, type DragEvent } from 'react'
 import { onActivateKey } from './keyboardActivate'
 import type { Topic } from './TopicCardGrid'
 import './PlotViewer.css'
@@ -17,9 +18,12 @@ interface Props {
   extraBucket?: HbarBucket
   selectedKey?: string | null
   onSegmentClick?: (key: string) => void
+  onDropTopic?: (topicId: number, key: string) => void
   markerTopicId?: number | null
   size?: 'large' | 'small'
 }
+
+export const TOPIC_DRAG_MIME = 'application/x-topic-id'
 
 function segmentWidths(counts: number[]): number[] {
   const total = counts.reduce((sum, c) => sum + c, 0)
@@ -47,8 +51,34 @@ function topicLocation(t: Topic): string | null {
   return null
 }
 
-function HbarVisual({ buckets, extraBucket, selectedKey = null, onSegmentClick, markerTopicId, size = 'large' }: Props) {
+function HbarVisual({
+  buckets,
+  extraBucket,
+  selectedKey = null,
+  onSegmentClick,
+  onDropTopic,
+  markerTopicId,
+  size = 'large',
+}: Props) {
+  const [dragOverKey, setDragOverKey] = useState<string | null>(null)
   const widths = segmentWidths(buckets.map((b) => b.activeTopics.length))
+
+  function dropHandlers(key: string) {
+    if (!onDropTopic) return {}
+    return {
+      onDragOver: (e: DragEvent) => {
+        e.preventDefault()
+        setDragOverKey(key)
+      },
+      onDragLeave: () => setDragOverKey((prev) => (prev === key ? null : prev)),
+      onDrop: (e: DragEvent) => {
+        e.preventDefault()
+        setDragOverKey(null)
+        const topicId = Number(e.dataTransfer.getData(TOPIC_DRAG_MIME))
+        if (Number.isFinite(topicId) && topicId > 0) onDropTopic(topicId, key)
+      },
+    }
+  }
 
   const allTopics = [...buckets.flatMap((b) => b.topics), ...(extraBucket?.topics ?? [])].sort(
     (a, b) => a.sequence_index - b.sequence_index
@@ -64,13 +94,14 @@ function HbarVisual({ buckets, extraBucket, selectedKey = null, onSegmentClick, 
       {buckets.map((bucket, i) => (
         <div
           key={bucket.key}
-          className={`hbar-segment ${ACT_COLOR_CLASSES[i % ACT_COLOR_CLASSES.length]}${selectedKey === bucket.key ? ' active' : ''}`}
+          className={`hbar-segment ${ACT_COLOR_CLASSES[i % ACT_COLOR_CLASSES.length]}${selectedKey === bucket.key ? ' active' : ''}${dragOverKey === bucket.key ? ' drag-over' : ''}`}
           style={{ width: `${widths[i]}%` }}
           onClick={onSegmentClick ? () => onSegmentClick(bucket.key) : undefined}
           role={onSegmentClick ? 'button' : undefined}
           tabIndex={onSegmentClick ? 0 : undefined}
           aria-label={bucket.label}
           onKeyDown={onSegmentClick ? onActivateKey(() => onSegmentClick(bucket.key)) : undefined}
+          {...dropHandlers(bucket.key)}
         >
           <span className={`hbar-label${bucket.activeTopics.length === 0 ? ' hbar-label-empty' : ''}`}>
             {bucket.label}
@@ -95,12 +126,13 @@ function HbarVisual({ buckets, extraBucket, selectedKey = null, onSegmentClick, 
       ))}
       {extraBucket && extraBucket.activeTopics.length > 0 && (
         <div
-          className={`hbar-segment hbar-unassigned${selectedKey === extraBucket.key ? ' active' : ''}`}
+          className={`hbar-segment hbar-unassigned${selectedKey === extraBucket.key ? ' active' : ''}${dragOverKey === extraBucket.key ? ' drag-over' : ''}`}
           onClick={onSegmentClick ? () => onSegmentClick(extraBucket.key) : undefined}
           role={onSegmentClick ? 'button' : undefined}
           tabIndex={onSegmentClick ? 0 : undefined}
           aria-label={extraBucket.label}
           onKeyDown={onSegmentClick ? onActivateKey(() => onSegmentClick(extraBucket.key)) : undefined}
+          {...dropHandlers(extraBucket.key)}
         >
           <span className="hbar-label">?</span>
           <div className="hbar-tooltip">
