@@ -364,6 +364,21 @@ function AppContent() {
     }
   }
 
+  async function splitTopic(topicId: number, segmentId: number) {
+    try {
+      const response = await fetch(`/topics/${topicId}/split`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ split_segment_id: segmentId }),
+      })
+      if (!response.ok) throw new Error()
+      refetchTopicsAndThemes()
+      setSubplotRefreshToken((n) => n + 1)
+    } catch {
+      showError('Could not split the topic. Please try again.')
+    }
+  }
+
   async function updateTheme(id: number, data: { title: string; summary: string }) {
     try {
       const response = await fetch(`/themes/${id}`, {
@@ -673,6 +688,7 @@ function AppContent() {
               <SourcePreview
                 topic={effectiveTopics.find((t) => t.id === previewTopicId) ?? null}
                 mode={previewMode}
+                onSplitTopic={splitTopic}
               />
               </div>
             </div>

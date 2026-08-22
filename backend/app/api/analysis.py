@@ -25,6 +25,10 @@ class TopicMove(BaseModel):
     act: Literal["opening", "conflict", "climax"] | None
 
 
+class TopicSplit(BaseModel):
+    split_segment_id: int
+
+
 @router.post("/documents/{document_id}/analyze")
 def analyze(document_id: int, conn: sqlite3.Connection = Depends(get_db)) -> dict:
     return analyze_document(conn, document_id)
@@ -73,6 +77,16 @@ def move_topic(topic_id: int, request: TopicMove, conn: sqlite3.Connection = Dep
 @router.get("/topics/{topic_id}/source-text")
 def get_topic_source_text(topic_id: int, conn: sqlite3.Connection = Depends(get_db)) -> dict:
     return {"text": repository.get_topic_source_text(conn, topic_id)}
+
+
+@router.get("/topics/{topic_id}/segments")
+def get_topic_segments(topic_id: int, conn: sqlite3.Connection = Depends(get_db)) -> list[dict]:
+    return repository.get_topic_segments(conn, topic_id)
+
+
+@router.post("/topics/{topic_id}/split")
+def split_topic(topic_id: int, request: TopicSplit, conn: sqlite3.Connection = Depends(get_db)) -> dict:
+    return repository.split_topic(conn, topic_id, request.split_segment_id)
 
 
 @router.get("/themes")

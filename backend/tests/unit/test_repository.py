@@ -182,6 +182,88 @@ def test_update_encoding_rule_changes_fields(db_conn):
     assert updated["description"] == "Revised."
 
 
+def test_get_topic_segments_returns_ordered_rows_in_range(db_conn):
+    document_id = repository.insert_document(
+        db_conn,
+        role="draft_script",
+        source_path="/tmp/chapter1.txt",
+        filename="chapter1.txt",
+        source_type="txt",
+        content_hash="hash",
+    )
+    seg1 = repository.insert_segment(db_conn, document_id=document_id, sequence_index=0, text="First.")
+    seg2 = repository.insert_segment(db_conn, document_id=document_id, sequence_index=1, text="Second.")
+    repository.insert_segment(db_conn, document_id=document_id, sequence_index=2, text="Third.")
+    topic_id = repository.insert_topic(
+        db_conn,
+        document_id=document_id,
+        theme_id=repository.get_main_theme_id(db_conn),
+        sequence_index=0,
+        title="A Topic",
+        summary="Summary.",
+        segment_start_id=seg1,
+        segment_end_id=seg2,
+    )
+
+    segments = repository.get_topic_segments(db_conn, topic_id)
+
+    assert [s["text"] for s in segments] == ["First.", "Second."]
+
+
+def test_split_topic_divides_segments_and_shifts_sequence(db_conn):
+    document_id = repository.insert_document(
+        db_conn,
+        role="draft_script",
+        source_path="/tmp/chapter1.txt",
+        filename="chapter1.txt",
+        source_type="txt",
+        content_hash="hash",
+    )
+    seg1 = repository.insert_segment(db_conn, document_id=document_id, sequence_index=0, text="First.")
+    seg2 = repository.insert_segment(db_conn, document_id=document_id, sequence_index=1, text="Second.")
+    seg3 = repository.insert_segment(db_conn, document_id=document_id, sequence_index=2, text="Third.")
+    seg4 = repository.insert_segment(db_conn, document_id=document_id, sequence_index=3, text="Fourth.")
+    seg5 = repository.insert_segment(db_conn, document_id=document_id, sequence_index=4, text="Fifth.")
+    theme_id = repository.insert_theme(db_conn, title="A Theme", summary="Summary.")
+    topic_id = repository.insert_topic(
+        db_conn,
+        document_id=document_id,
+        theme_id=theme_id,
+        sequence_index=0,
+        title="Original Topic",
+        summary="Covers a lot of ground.",
+        segment_start_id=seg1,
+        segment_end_id=seg3,
+        act="conflict",
+    )
+    next_topic_id = repository.insert_topic(
+        db_conn,
+        document_id=document_id,
+        theme_id=theme_id,
+        sequence_index=1,
+        title="Next Topic",
+        summary="Summary.",
+        segment_start_id=seg4,
+        segment_end_id=seg5,
+    )
+
+    result = repository.split_topic(db_conn, topic_id, seg2)
+
+    assert result["original"]["segment_start_id"] == seg1
+    assert result["original"]["segment_end_id"] == seg1
+    assert result["original"]["sequence_index"] == 0
+
+    assert result["new"]["segment_start_id"] == seg2
+    assert result["new"]["segment_end_id"] == seg3
+    assert result["new"]["sequence_index"] == 1
+    assert result["new"]["theme_id"] == theme_id
+    assert result["new"]["act"] == "conflict"
+    assert result["new"]["title"] == "Original Topic"
+
+    next_topic = repository.get_topics_by_ids(db_conn, [next_topic_id])[0]
+    assert next_topic["sequence_index"] == 2
+
+
 def test_unassign_topic_theme_moves_topic_to_main(db_conn):
     doc_id = repository.insert_document(
         db_conn,

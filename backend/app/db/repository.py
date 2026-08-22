@@ -503,6 +503,60 @@ def get_topic_source_text(conn: sqlite3.Connection, topic_id: int) -> str:
     return "\n\n".join(row["text"] for row in rows)
 
 
+def get_topic_segments(conn: sqlite3.Connection, topic_id: int) -> list[dict]:
+    rows = conn.execute(
+        """
+        SELECT s.id, s.text, s.sequence_index
+        FROM segments s
+        JOIN topics t ON t.document_id = s.document_id
+        WHERE t.id = ?
+          AND s.sequence_index BETWEEN
+              (SELECT sequence_index FROM segments WHERE id = t.segment_start_id)
+              AND (SELECT sequence_index FROM segments WHERE id = t.segment_end_id)
+        ORDER BY s.sequence_index
+        """,
+        (topic_id,),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def split_topic(conn: sqlite3.Connection, topic_id: int, split_segment_id: int) -> dict:
+    topic = dict(conn.execute("SELECT * FROM topics WHERE id = ?", (topic_id,)).fetchone())
+    split_segment = conn.execute(
+        "SELECT sequence_index FROM segments WHERE id = ?", (split_segment_id,)
+    ).fetchone()
+
+    prev_segment = conn.execute(
+        "SELECT id FROM segments WHERE document_id = ? AND sequence_index < ? ORDER BY sequence_index DESC LIMIT 1",
+        (topic["document_id"], split_segment["sequence_index"]),
+    ).fetchone()
+
+    conn.execute(
+        "UPDATE topics SET sequence_index = sequence_index + 1 WHERE document_id = ? AND sequence_index > ?",
+        (topic["document_id"], topic["sequence_index"]),
+    )
+
+    new_topic_id = insert_topic(
+        conn,
+        document_id=topic["document_id"],
+        theme_id=topic["theme_id"],
+        sequence_index=topic["sequence_index"] + 1,
+        title=topic["title"],
+        summary=topic["summary"],
+        segment_start_id=split_segment_id,
+        segment_end_id=topic["segment_end_id"],
+        act=topic["act"],
+    )
+
+    conn.execute("UPDATE topics SET segment_end_id = ? WHERE id = ?", (prev_segment["id"], topic_id))
+    conn.commit()
+
+    return {
+        "original": dict(conn.execute("SELECT * FROM topics WHERE id = ?", (topic_id,)).fetchone()),
+        "new": dict(conn.execute("SELECT * FROM topics WHERE id = ?", (new_topic_id,)).fetchone()),
+    }
+
+
 def get_segments(conn: sqlite3.Connection, document_id: int) -> list[dict]:
     segment_rows = conn.execute(
         "SELECT * FROM segments WHERE document_id = ? ORDER BY sequence_index",

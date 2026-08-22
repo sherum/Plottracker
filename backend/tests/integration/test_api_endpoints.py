@@ -259,6 +259,43 @@ def test_analyze_document_creates_topics_and_themes(client, db_conn, tmp_path, m
     assert exclude_theme_response.json()["excluded"] == 1
 
 
+def test_split_topic_endpoint(client, db_conn):
+    document_id = repository.insert_document(
+        db_conn,
+        role="draft_script",
+        source_path="/tmp/chapter1.txt",
+        filename="chapter1.txt",
+        source_type="txt",
+        content_hash="hash",
+    )
+    seg1 = repository.insert_segment(db_conn, document_id=document_id, sequence_index=0, text="First.")
+    seg2 = repository.insert_segment(db_conn, document_id=document_id, sequence_index=1, text="Second.")
+    topic_id = repository.insert_topic(
+        db_conn,
+        document_id=document_id,
+        theme_id=repository.get_main_theme_id(db_conn),
+        sequence_index=0,
+        title="A Topic",
+        summary="Summary.",
+        segment_start_id=seg1,
+        segment_end_id=seg2,
+    )
+
+    segments_response = client.get(f"/topics/{topic_id}/segments")
+    assert segments_response.status_code == 200
+    assert [s["text"] for s in segments_response.json()] == ["First.", "Second."]
+
+    split_response = client.post(f"/topics/{topic_id}/split", json={"split_segment_id": seg2})
+    assert split_response.status_code == 200
+    body = split_response.json()
+    assert body["original"]["segment_end_id"] == seg1
+    assert body["new"]["segment_start_id"] == seg2
+    assert body["new"]["sequence_index"] == 1
+
+    topics = client.get(f"/documents/{document_id}/topics").json()
+    assert len(topics) == 2
+
+
 def test_set_main_theme_endpoint(client, db_conn):
     old_main_id = repository.get_main_theme_id(db_conn)
     theme_id = repository.insert_theme(db_conn, title="A Theme", summary="Summary.")
