@@ -73,6 +73,19 @@ def list_documents(conn: sqlite3.Connection) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+def get_document(conn: sqlite3.Connection, document_id: int) -> dict:
+    row = conn.execute("SELECT * FROM documents WHERE id = ?", (document_id,)).fetchone()
+    return dict(row)
+
+
+def update_document_path(conn: sqlite3.Connection, document_id: int, *, filename: str, source_path: str) -> dict:
+    conn.execute(
+        "UPDATE documents SET filename = ?, source_path = ? WHERE id = ?", (filename, source_path, document_id)
+    )
+    conn.commit()
+    return get_document(conn, document_id)
+
+
 def set_story_order(conn: sqlite3.Connection, document_ids: list[int]) -> None:
     # Clear first so the partial unique index never sees two documents claim
     # the same position while positions are being reassigned.

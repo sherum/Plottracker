@@ -59,7 +59,6 @@ function AppContent() {
   const [analyzing, setAnalyzing] = useState<Record<number, string>>({})
   const [classifying, setClassifying] = useState<Record<number, string>>({})
   const [loadedDocument, setLoadedDocument] = useState<Document | null>(null)
-  const [documentsCollapsed, setDocumentsCollapsed] = useState(false)
   const [currentTopicId, setCurrentTopicId] = useState<number | null>(null)
   const [currentThemeId, setCurrentThemeId] = useState<number | null>(null)
   const [previewTopicId, setPreviewTopicId] = useState<number | null>(null)
@@ -73,6 +72,8 @@ function AppContent() {
   const [addTarget, setAddTarget] = useState<{ type: 'subplot'; subplotId: number } | { type: 'new' } | null>(null)
   const [addTargetTitle, setAddTargetTitle] = useState<string | null>(null)
   const [deleteTargetIds, setDeleteTargetIds] = useState<Set<number>>(new Set())
+  const [renamingDocId, setRenamingDocId] = useState<number | null>(null)
+  const [renameValue, setRenameValue] = useState('')
   const [filteredSelection, setFilteredSelection] = useState<{
     topicIds: number[]
     selectedTopicIds: Set<number>
@@ -438,6 +439,24 @@ function AppContent() {
     }
   }
 
+  async function renameDocument(id: number, filename: string) {
+    try {
+      const response = await fetch(`/documents/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename }),
+      })
+      if (!response.ok) throw new Error()
+      const updated = await response.json()
+      setDocuments((prev) => prev.map((d) => (d.id === id ? { ...d, filename: updated.filename } : d)))
+      setStoryDocuments((prev) => prev.map((d) => (d.id === id ? { ...d, filename: updated.filename } : d)))
+      setLoadedDocument((prev) => (prev?.id === id ? { ...prev, filename: updated.filename } : prev))
+      setRenamingDocId(null)
+    } catch {
+      showError('Could not rename this document. Please try again.')
+    }
+  }
+
   async function deleteDocument(id: number, filename: string) {
     if (!window.confirm(`Delete "${filename}" and all its segments, topics, and subplot memberships?`)) return
     try {
@@ -454,7 +473,6 @@ function AppContent() {
 
   function loadDocument(doc: Document) {
     setLoadedDocument(doc)
-    setDocumentsCollapsed(true)
   }
 
   // Once at least one document is linked into the story, the whole app
@@ -536,41 +554,71 @@ function AppContent() {
           </div>
           <div className="card-body">
           <IngestForm onIngested={refetchDocuments} />
-          <details
-            className="documents-accordion"
-            open={!documentsCollapsed}
-            onToggle={(e) => setDocumentsCollapsed(!(e.target as HTMLDetailsElement).open)}
-          >
-            <summary title="Show or hide the document list">Document list ({documents.length})</summary>
-            {documents.length === 0 ? (
-              <p>No documents ingested yet.</p>
-            ) : (
-              <ul className="documents-list">
-                {documents.map((doc) => {
-                  const inStory = storyDocuments.some((d) => d.id === doc.id)
-                  return (
-                    <li key={doc.id} className={loadedDocument?.id === doc.id ? 'loaded' : undefined}>
-                      <span className="doc-filename">{doc.filename}</span> <span className="tag">{doc.role}</span>
-                      <div className="doc-actions">
-                        <IconButton icon="load" label="Load" onClick={() => loadDocument(doc)} />
-                        <IconButton icon="reanalyze" label="Reanalyze" onClick={() => reanalyzeDocument(doc.id)} />
-                        <IconButton icon="classify" label="Classify Encoding" onClick={() => classifyDocument(doc.id)} />
-                        <IconButton
-                          icon="link"
-                          label={inStory ? 'Remove from story order' : 'Add to story order'}
-                          active={inStory}
-                          onClick={() => (inStory ? removeFromStory(doc.id) : addToStory(doc.id))}
+          {documents.length === 0 ? (
+            <p>No documents ingested yet.</p>
+          ) : (
+            <ul className="documents-list">
+              {documents.map((doc) => {
+                const inStory = storyDocuments.some((d) => d.id === doc.id)
+                const isRenaming = renamingDocId === doc.id
+                return (
+                  <li key={doc.id} className={loadedDocument?.id === doc.id ? 'loaded' : undefined}>
+                    {isRenaming ? (
+                      <div className="doc-rename-row">
+                        <input
+                          type="text"
+                          className="form-control form-control-sm"
+                          value={renameValue}
+                          autoFocus
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') renameDocument(doc.id, renameValue.trim())
+                            if (e.key === 'Escape') setRenamingDocId(null)
+                          }}
                         />
-                        <IconButton icon="delete" label="Delete" onClick={() => deleteDocument(doc.id, doc.filename)} />
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-primary"
+                          onClick={() => renameDocument(doc.id, renameValue.trim())}
+                        >
+                          Save
+                        </button>
+                        <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setRenamingDocId(null)}>
+                          Cancel
+                        </button>
                       </div>
-                      {analyzing[doc.id] && <span className="tag"> {analyzing[doc.id]}</span>}
-                      {classifying[doc.id] && <span className="tag"> {classifying[doc.id]}</span>}
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </details>
+                    ) : (
+                      <>
+                        <span className="doc-filename">{doc.filename}</span> <span className="tag">{doc.role}</span>
+                      </>
+                    )}
+                    <div className="doc-actions">
+                      <IconButton icon="load" label="Load" onClick={() => loadDocument(doc)} />
+                      <IconButton
+                        icon="rename"
+                        label="Rename"
+                        onClick={() => {
+                          setRenamingDocId(doc.id)
+                          setRenameValue(doc.filename)
+                        }}
+                      />
+                      <IconButton icon="reanalyze" label="Reanalyze" onClick={() => reanalyzeDocument(doc.id)} />
+                      <IconButton icon="classify" label="Classify Encoding" onClick={() => classifyDocument(doc.id)} />
+                      <IconButton
+                        icon="link"
+                        label={inStory ? 'Remove from story order' : 'Add to story order'}
+                        active={inStory}
+                        onClick={() => (inStory ? removeFromStory(doc.id) : addToStory(doc.id))}
+                      />
+                      <IconButton icon="delete" label="Delete" onClick={() => deleteDocument(doc.id, doc.filename)} />
+                    </div>
+                    {analyzing[doc.id] && <span className="tag"> {analyzing[doc.id]}</span>}
+                    {classifying[doc.id] && <span className="tag"> {classifying[doc.id]}</span>}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
 
           {storyDocuments.length > 0 && (
             <div className="story-order">

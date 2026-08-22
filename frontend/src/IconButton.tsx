@@ -1,4 +1,4 @@
-type IconName = 'load' | 'reanalyze' | 'classify' | 'delete' | 'add' | 'remove' | 'link' | 'up' | 'down' | 'main' | 'split'
+type IconName = 'load' | 'reanalyze' | 'classify' | 'delete' | 'add' | 'remove' | 'link' | 'up' | 'down' | 'main' | 'split' | 'rename'
 
 const ICON_CLASSES: Record<IconName, string> = {
   load: 'bi-box-arrow-in-down',
@@ -12,6 +12,7 @@ const ICON_CLASSES: Record<IconName, string> = {
   down: 'bi-arrow-down',
   main: 'bi-star',
   split: 'bi-scissors',
+  rename: 'bi-pencil',
 }
 
 interface Props {

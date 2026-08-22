@@ -93,6 +93,44 @@ def test_ingest_upload_creates_document(client, tmp_path, monkeypatch):
     assert documents[0]["filename"] == "notes.txt"
 
 
+def test_rename_document_moves_file_and_updates_filename(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(ingest_service, "REPO_ROOT", tmp_path)
+    client.post(
+        "/ingest/upload",
+        files={"file": ("notes.txt", b"First paragraph.\n\nSecond paragraph.", "text/plain")},
+        data={"role": "story_note"},
+    )
+    document_id = client.get("/documents").json()[0]["id"]
+
+    response = client.patch(f"/documents/{document_id}", json={"filename": "renamed.txt"})
+    assert response.status_code == 200
+    assert response.json()["filename"] == "renamed.txt"
+
+    assert not (tmp_path / "story_notes" / "notes.txt").exists()
+    assert (tmp_path / "story_notes" / "renamed.txt").read_text() == "First paragraph.\n\nSecond paragraph."
+    assert client.get("/documents").json()[0]["filename"] == "renamed.txt"
+
+
+def test_rename_document_rejects_name_collision(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(ingest_service, "REPO_ROOT", tmp_path)
+    client.post(
+        "/ingest/upload",
+        files={"file": ("notes.txt", b"Text.", "text/plain")},
+        data={"role": "story_note"},
+    )
+    client.post(
+        "/ingest/upload",
+        files={"file": ("other.txt", b"Other text.", "text/plain")},
+        data={"role": "story_note"},
+    )
+    documents = client.get("/documents").json()
+    notes_id = next(d["id"] for d in documents if d["filename"] == "notes.txt")
+
+    response = client.patch(f"/documents/{notes_id}", json={"filename": "other.txt"})
+
+    assert response.status_code == 400
+
+
 def test_ingest_upload_skips_unsupported_extension(client, tmp_path, monkeypatch):
     monkeypatch.setattr(ingest_service, "REPO_ROOT", tmp_path)
 

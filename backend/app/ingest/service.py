@@ -64,6 +64,22 @@ def upload_and_ingest(conn: sqlite3.Connection, *, filename: str, content: bytes
         return {"ingested": [], "skipped": [], "failed": [{"filename": safe_name, "error": str(exc)}]}
 
 
+def rename_document(conn: sqlite3.Connection, document_id: int, new_filename: str) -> dict:
+    document = repository.get_document(conn, document_id)
+
+    # Strip any path components the client sent, same as upload_and_ingest.
+    safe_name = Path(new_filename).name
+    old_path = Path(document["source_path"])
+    new_path = old_path.parent / safe_name
+
+    if new_path.exists():
+        raise ValueError(f"a file named {safe_name!r} already exists")
+
+    old_path.rename(new_path)
+
+    return repository.update_document_path(conn, document_id, filename=safe_name, source_path=str(new_path))
+
+
 def _ingest_file(conn: sqlite3.Connection, file_path: Path, extractor, role: str) -> None:
     extracted = extractor.extract(file_path)
     content_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()

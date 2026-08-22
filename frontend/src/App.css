@@ -39,6 +39,20 @@ main {
   width: 100%;
 }
 
+.documents-panel {
+  font-size: 0.85rem;
+}
+
+.documents-panel .card-body {
+  padding-left: 0.5rem;
+}
+
+@media (min-width: 992px) {
+  .documents-panel {
+    padding-right: 1.5rem;
+  }
+}
+
 .tag {
   color: #666;
   font-size: 0.85em;
@@ -107,6 +121,11 @@ main {
   margin-top: 0.25rem;
 }
 
+.doc-rename-row {
+  display: flex;
+  gap: 0.3rem;
+}
+
 .main-plot-row {
   display: flex;
   align-items: center;
@@ -140,28 +159,6 @@ main {
   padding: 0.5rem;
   border-radius: 6px;
   background: color-mix(in srgb, canvastext 6%, canvas);
-}
-
-.documents-accordion summary {
-  cursor: pointer;
-  font-weight: 600;
-  padding: 0.4rem 0;
-  list-style: none;
-}
-
-.documents-accordion summary::-webkit-details-marker {
-  display: none;
-}
-
-.documents-accordion summary::before {
-  content: '▸';
-  display: inline-block;
-  margin-right: 0.4rem;
-  transition: transform 0.15s ease;
-}
-
-.documents-accordion[open] summary::before {
-  transform: rotate(90deg);
 }
 
 .error {

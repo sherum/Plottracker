@@ -19,6 +19,40 @@ def test_insert_and_list_documents(db_conn):
     assert documents[0]["source_type"] == "docx"
 
 
+def test_get_document_returns_the_row(db_conn):
+    doc_id = repository.insert_document(
+        db_conn,
+        role="draft_script",
+        source_path="draft_scripts/chapter1.docx",
+        filename="chapter1.docx",
+        source_type="docx",
+        content_hash="abc123",
+    )
+
+    document = repository.get_document(db_conn, doc_id)
+
+    assert document["id"] == doc_id
+    assert document["filename"] == "chapter1.docx"
+
+
+def test_update_document_path_changes_filename_and_source_path(db_conn):
+    doc_id = repository.insert_document(
+        db_conn,
+        role="draft_script",
+        source_path="draft_scripts/chapter1.docx",
+        filename="chapter1.docx",
+        source_type="docx",
+        content_hash="abc123",
+    )
+
+    updated = repository.update_document_path(
+        db_conn, doc_id, filename="renamed.docx", source_path="draft_scripts/renamed.docx"
+    )
+
+    assert updated["filename"] == "renamed.docx"
+    assert updated["source_path"] == "draft_scripts/renamed.docx"
+
+
 def test_segments_ordered_by_sequence_index(db_conn):
     doc_id = repository.insert_document(
         db_conn,
