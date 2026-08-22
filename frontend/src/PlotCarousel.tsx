@@ -29,6 +29,7 @@ interface Props {
   onUpdateTopic: (id: number, data: { title: string; summary: string }) => void
   onUpdateTheme: (id: number, data: { title: string; summary: string }) => void
   onSetMainTheme: (id: number) => void
+  onSetTopicAct: (id: number, act: 'opening' | 'conflict' | 'climax' | null) => void
   onPreviewTopic?: (topicId: number | null, mode: 'theme' | 'topic') => void
   selection?: TopicSelection | null
   onToggleTopicSelection?: (topicId: number) => void
@@ -50,6 +51,7 @@ function PlotCarousel({
   onUpdateTopic,
   onUpdateTheme,
   onSetMainTheme,
+  onSetTopicAct,
   onPreviewTopic,
   selection,
   onToggleTopicSelection,
@@ -149,6 +151,7 @@ function PlotCarousel({
               onSetMainTheme(themes[wrap(themeIndex, themes.length)].id)
             }
           }}
+          onSetTopicAct={onSetTopicAct}
           topics={topics}
           onTopicIconClick={jumpToTopic}
           onPreviewTopic={onPreviewTopic}
@@ -289,12 +292,20 @@ interface ThemeViewProps {
   onCancelEdit: () => void
   onSave: (data: { title: string; summary: string }) => void
   onSetMain: () => void
+  onSetTopicAct: (id: number, act: 'opening' | 'conflict' | 'climax' | null) => void
   topics: Topic[]
   onTopicIconClick: (topicId: number) => void
   onPreviewTopic?: (topicId: number | null, mode: 'theme' | 'topic') => void
   selection?: TopicSelection | null
   onToggleTopicSelection?: (topicId: number) => void
 }
+
+const ACT_ZONES: { act: 'opening' | 'conflict' | 'climax' | null; label: string }[] = [
+  { act: 'opening', label: 'Opening' },
+  { act: 'conflict', label: 'Conflict' },
+  { act: 'climax', label: 'Climax' },
+  { act: null, label: 'Unassigned' },
+]
 
 function ThemeView({
   themes,
@@ -305,12 +316,15 @@ function ThemeView({
   onCancelEdit,
   onSave,
   onSetMain,
+  onSetTopicAct,
   topics,
   onTopicIconClick,
   onPreviewTopic,
   selection,
   onToggleTopicSelection,
 }: ThemeViewProps) {
+  const [draggingTopicId, setDraggingTopicId] = useState<number | null>(null)
+  const [dragOverAct, setDragOverAct] = useState<'opening' | 'conflict' | 'climax' | null | 'none'>('none')
   if (themes.length === 0) {
     return <p className="hbar-hint">No themes yet. Themes appear here once topics are grouped into them.</p>
   }
@@ -365,28 +379,59 @@ function ThemeView({
           )}
         </div>
 
-        <div className="carousel-topic-icons col-12 col-md-8">
+        <div className="carousel-topic-zones col-12 col-md-8">
           {themeTopics.length === 0 && <p className="hbar-hint">No topics in this theme yet.</p>}
-          {themeTopics.map((topic) => {
-            const actClass = topic.act ? ` notecard-act-${topic.act}` : ''
-            const selected = selection?.selectedTopicIds.has(topic.id) ?? false
-            return (
-              <button
-                key={topic.id}
-                className={`carousel-topic-icon${actClass}${selection ? ' selectable' : ''}${selected ? ' selected' : ''}`}
-                onClick={() => (selection ? onToggleTopicSelection?.(topic.id) : onTopicIconClick(topic.id))}
-                onMouseEnter={() => onPreviewTopic?.(topic.id, 'theme')}
-                onMouseLeave={() => onPreviewTopic?.(null, 'theme')}
-                title={topic.title}
-                role={selection ? 'checkbox' : undefined}
-                aria-checked={selection ? selected : undefined}
-              >
-                {selection && <span className={`select-checkbox${selected ? ' checked' : ''}`} />}
-                {topic.excluded && <StatusIcon icon="excluded" label="Excluded" />}
-                <span className="carousel-topic-icon-title">{topic.title}</span>
-              </button>
-            )
-          })}
+          {themeTopics.length > 0 &&
+            ACT_ZONES.map(({ act, label }) => {
+              const zoneTopics = themeTopics.filter((t) => t.act === act)
+              const actClass = act ? ` notecard-act-${act}` : ''
+              return (
+                <div
+                  key={label}
+                  className={`carousel-topic-zone${actClass}${dragOverAct === act ? ' drag-over' : ''}`}
+                  onDragOver={(e) => {
+                    if (draggingTopicId === null) return
+                    e.preventDefault()
+                    setDragOverAct(act ?? null)
+                  }}
+                  onDragLeave={() => setDragOverAct('none')}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    setDragOverAct('none')
+                    if (draggingTopicId !== null) onSetTopicAct(draggingTopicId, act)
+                  }}
+                >
+                  <span className="carousel-topic-zone-label">{label}</span>
+                  <div className="carousel-topic-icons">
+                    {zoneTopics.map((topic) => {
+                      const selected = selection?.selectedTopicIds.has(topic.id) ?? false
+                      return (
+                        <button
+                          key={topic.id}
+                          className={`carousel-topic-icon${selection ? ' selectable' : ''}${selected ? ' selected' : ''}`}
+                          draggable={!selection}
+                          onDragStart={() => setDraggingTopicId(topic.id)}
+                          onDragEnd={() => {
+                            setDraggingTopicId(null)
+                            setDragOverAct('none')
+                          }}
+                          onClick={() => (selection ? onToggleTopicSelection?.(topic.id) : onTopicIconClick(topic.id))}
+                          onMouseEnter={() => onPreviewTopic?.(topic.id, 'theme')}
+                          onMouseLeave={() => onPreviewTopic?.(null, 'theme')}
+                          title={topic.title}
+                          role={selection ? 'checkbox' : undefined}
+                          aria-checked={selection ? selected : undefined}
+                        >
+                          {selection && <span className={`select-checkbox${selected ? ' checked' : ''}`} />}
+                          {topic.excluded && <StatusIcon icon="excluded" label="Excluded" />}
+                          <span className="carousel-topic-icon-title">{topic.title}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
         </div>
       </div>
     </>
