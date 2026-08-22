@@ -15,7 +15,7 @@ interface Props {
 
 function IngestForm({ onIngested }: Props) {
   const [files, setFiles] = useState<File[]>([])
-  const [role, setRole] = useState<'draft_script' | 'story_note'>('draft_script')
+  const [role] = useState<'draft_script' | 'story_note'>('draft_script')
   const [status, setStatus] = useState<'idle' | 'loading'>('idle')
   const [result, setResult] = useState<IngestResult | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)

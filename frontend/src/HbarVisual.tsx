@@ -25,9 +25,20 @@ function segmentWidths(counts: number[]): number[] {
   const total = counts.reduce((sum, c) => sum + c, 0)
   if (total === 0) return counts.map(() => 100 / counts.length)
 
-  const raw = counts.map((c) => Math.max((c / total) * 100, c > 0 ? MIN_SEGMENT_PERCENT : 0))
-  const rawTotal = raw.reduce((sum, w) => sum + w, 0)
-  return raw.map((w) => (w / rawTotal) * 100)
+  // True percentage of topics per act, except acts too small to read/click
+  // are bumped to the floor - and only the other acts give up that width,
+  // so the floor no longer waters down segments that should stay large.
+  const truePercents = counts.map((c) => (c / total) * 100)
+  const needsFloor = truePercents.map((p, i) => counts[i] > 0 && p < MIN_SEGMENT_PERCENT)
+  const flooredTotal = needsFloor.filter(Boolean).length * MIN_SEGMENT_PERCENT
+  const remaining = 100 - flooredTotal
+  const scalableTotal = truePercents.reduce((sum, p, i) => sum + (needsFloor[i] ? 0 : p), 0)
+
+  return truePercents.map((p, i) => {
+    if (needsFloor[i]) return MIN_SEGMENT_PERCENT
+    if (scalableTotal === 0) return 0
+    return (p / scalableTotal) * remaining
+  })
 }
 
 function topicLocation(t: Topic): string | null {

@@ -30,6 +30,27 @@ def _make_document_with_topics(db_conn):
     return theme_id, topic_ids
 
 
+def test_ask_includes_empty_theme_with_no_topics_yet(db_conn, monkeypatch):
+    _, topic_ids = _make_document_with_topics(db_conn)
+    empty_theme_id = repository.insert_theme(db_conn, title="Brand New Theme", summary="No topics yet.")
+
+    captured = {}
+    monkeypatch.setattr(
+        llm,
+        "answer_question",
+        lambda conn, question, topics, themes, encoding_rules, subplots, **kwargs: (
+            captured.update(themes=themes) or "answer",
+            [],
+            None,
+            None,
+        ),
+    )
+
+    service.ask(db_conn, "What themes exist?", [topic_ids[0]])
+
+    assert empty_theme_id in [t["id"] for t in captured["themes"]]
+
+
 def test_ask_scopes_context_to_given_topic_ids(db_conn, monkeypatch):
     theme_id, topic_ids = _make_document_with_topics(db_conn)
 

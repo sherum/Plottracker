@@ -14,8 +14,10 @@ def ask(
     add_target_is_new: bool = False,
 ) -> tuple[str, list[str], int | None, list[int] | None]:
     topics = repository.get_topics_by_ids(conn, topic_ids)
-    theme_ids = sorted({t["theme_id"] for t in topics if t["theme_id"] is not None})
-    themes = repository.get_themes_by_ids(conn, theme_ids)
+    # Themes aren't scoped to a document, and a brand-new theme has no topics
+    # yet, so derive the theme list from the theme table itself, not from the
+    # topics currently in scope - otherwise an empty theme would be invisible.
+    themes = [t for t in repository.list_themes(conn) if not t["excluded"]]
     encoding_rules = repository.list_encoding_rules(conn)
     document_ids = {t["document_id"] for t in topics}
     document_id = document_ids.pop() if len(document_ids) == 1 else None

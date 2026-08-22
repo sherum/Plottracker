@@ -129,6 +129,36 @@ TOOL_SCHEMAS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "create_theme",
+            "description": "Create a new, empty theme with no topics yet.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string"},
+                    "summary": {"type": "string"},
+                },
+                "required": ["title", "summary"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "assign_topic_to_theme",
+            "description": "Assign a topic to a theme, moving it out of any theme it was in before.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "topic_id": {"type": "integer"},
+                    "theme_id": {"type": "integer"},
+                },
+                "required": ["topic_id", "theme_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "remove_topic_from_theme",
             "description": "Unassign a topic from its theme, without excluding it.",
             "parameters": {
@@ -246,6 +276,16 @@ def _filter_topics(conn: sqlite3.Connection, args: dict) -> Any:
     return repository.get_topics_by_ids(conn, args["topic_ids"])
 
 
+def _create_theme(conn: sqlite3.Connection, args: dict) -> Any:
+    theme_id = repository.insert_theme(conn, title=args["title"], summary=args["summary"])
+    return repository.get_themes_by_ids(conn, [theme_id])[0]
+
+
+def _assign_topic_to_theme(conn: sqlite3.Connection, args: dict) -> Any:
+    repository.set_topic_theme(conn, args["topic_id"], args["theme_id"])
+    return repository.get_topics_by_ids(conn, [args["topic_id"]])[0]
+
+
 def _remove_topic_from_theme(conn: sqlite3.Connection, args: dict) -> Any:
     return repository.unassign_topic_theme(conn, args["topic_id"])
 
@@ -293,6 +333,8 @@ TOOL_FUNCTIONS: dict[str, Callable[[sqlite3.Connection, dict], Any]] = {
     "remove_topic_from_subplot": _remove_topic_from_subplot,
     "delete_subplot": _delete_subplot,
     "filter_topics": _filter_topics,
+    "create_theme": _create_theme,
+    "assign_topic_to_theme": _assign_topic_to_theme,
     "remove_topic_from_theme": _remove_topic_from_theme,
     "set_topic_act": _set_topic_act,
     "add_encoding_rule": _add_encoding_rule,
