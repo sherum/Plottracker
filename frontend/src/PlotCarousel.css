@@ -160,6 +160,12 @@
   margin: 0 0 0.5rem;
 }
 
+.carousel-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .carousel-theme-body {
   align-items: start;
 }

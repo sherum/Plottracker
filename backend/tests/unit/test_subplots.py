@@ -284,3 +284,46 @@ def test_retire_theme_is_a_no_op_for_main(db_conn):
     repository.retire_theme(db_conn, main_theme_id)
 
     assert repository.get_main_theme_id(db_conn) == main_theme_id
+
+
+def test_subplot_title_and_summary_always_match_its_theme(db_conn):
+    theme_id = repository.insert_theme(db_conn, title="Original Title", summary="Original summary.")
+    subplot_id = repository.insert_subplot(db_conn, theme_id=theme_id)
+
+    repository.update_theme(db_conn, theme_id, title="Renamed", summary="New summary.")
+
+    subplot = repository.get_subplot(db_conn, subplot_id)
+    assert subplot["title"] == "Renamed"
+    assert subplot["summary"] == "New summary."
+
+
+def test_set_main_theme_swaps_flag_and_subplots(db_conn):
+    old_main_id = repository.get_main_theme_id(db_conn)
+    theme_id, topic_ids = _make_document_with_topics(db_conn)[1:]
+    repository.insert_subplot(db_conn, theme_id=theme_id)
+
+    repository.set_main_theme(db_conn, theme_id)
+
+    assert repository.get_main_theme_id(db_conn) == theme_id
+    themes_by_id = {t["id"]: t for t in repository.list_themes(db_conn)}
+    assert themes_by_id[theme_id]["is_main"] == 1
+    assert themes_by_id[old_main_id]["is_main"] == 0
+
+    subplot_theme_ids = [s["theme_id"] for s in repository.list_subplots(db_conn)]
+    # The new Main has no subplot of its own anymore.
+    assert theme_id not in subplot_theme_ids
+    # The old Main, now an ordinary theme, has been given one.
+    assert old_main_id in subplot_theme_ids
+
+    # Topics did not move - they already belonged to theme_id, which is now Main.
+    topic = repository.get_topics_by_ids(db_conn, [topic_ids[0]])[0]
+    assert topic["theme_id"] == theme_id
+
+
+def test_set_main_theme_is_a_no_op_when_already_main(db_conn):
+    main_theme_id = repository.get_main_theme_id(db_conn)
+
+    repository.set_main_theme(db_conn, main_theme_id)
+
+    assert repository.get_main_theme_id(db_conn) == main_theme_id
+    assert repository.list_subplots(db_conn) == []

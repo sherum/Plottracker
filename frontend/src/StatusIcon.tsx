@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react'
 import { onActivateKey } from './keyboardActivate'
 
-type StatusIconName = 'theme' | 'excluded'
+type StatusIconName = 'theme' | 'excluded' | 'main'
 
 const ICON_CLASSES: Record<StatusIconName, string> = {
   theme: 'bi-tag-fill',
   excluded: 'bi-eye-slash',
+  main: 'bi-star-fill',
 }
 
 interface Props {

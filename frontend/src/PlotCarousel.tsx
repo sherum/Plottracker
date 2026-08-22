@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import CardEditForm from './CardEditForm'
+import IconButton from './IconButton'
 import StatusIcon from './StatusIcon'
 import type { Topic } from './TopicCardGrid'
 import './PlotCarousel.css'
@@ -9,6 +10,7 @@ interface Theme {
   title: string
   summary: string
   excluded: boolean
+  is_main: boolean
 }
 
 export interface TopicSelection {
@@ -26,6 +28,7 @@ interface Props {
   onNavigateTheme: (themeId: number) => void
   onUpdateTopic: (id: number, data: { title: string; summary: string }) => void
   onUpdateTheme: (id: number, data: { title: string; summary: string }) => void
+  onSetMainTheme: (id: number) => void
   onPreviewTopic?: (topicId: number | null, mode: 'theme' | 'topic') => void
   selection?: TopicSelection | null
   onToggleTopicSelection?: (topicId: number) => void
@@ -46,6 +49,7 @@ function PlotCarousel({
   onNavigateTheme,
   onUpdateTopic,
   onUpdateTheme,
+  onSetMainTheme,
   onPreviewTopic,
   selection,
   onToggleTopicSelection,
@@ -139,6 +143,11 @@ function PlotCarousel({
               onUpdateTheme(themes[wrap(themeIndex, themes.length)].id, data)
             }
             setEditing(false)
+          }}
+          onSetMain={() => {
+            if (themes[wrap(themeIndex, themes.length)]) {
+              onSetMainTheme(themes[wrap(themeIndex, themes.length)].id)
+            }
           }}
           topics={topics}
           onTopicIconClick={jumpToTopic}
@@ -279,6 +288,7 @@ interface ThemeViewProps {
   onStartEdit: () => void
   onCancelEdit: () => void
   onSave: (data: { title: string; summary: string }) => void
+  onSetMain: () => void
   topics: Topic[]
   onTopicIconClick: (topicId: number) => void
   onPreviewTopic?: (topicId: number | null, mode: 'theme' | 'topic') => void
@@ -294,6 +304,7 @@ function ThemeView({
   onStartEdit,
   onCancelEdit,
   onSave,
+  onSetMain,
   topics,
   onTopicIconClick,
   onPreviewTopic,
@@ -335,9 +346,18 @@ function ThemeView({
             <>
               <div className="carousel-editor-header">
                 <h3>{current.title}</h3>
-                <button type="button" className="btn btn-sm btn-outline-secondary" onClick={onStartEdit} title="Edit this theme">
-                  Edit
-                </button>
+                <div className="carousel-editor-actions">
+                  {current.is_main ? (
+                    <StatusIcon icon="main" label="This is the Main theme">
+                      Main
+                    </StatusIcon>
+                  ) : (
+                    <IconButton icon="main" label="Make this the Main theme" onClick={onSetMain} />
+                  )}
+                  <button type="button" className="btn btn-sm btn-outline-secondary" onClick={onStartEdit} title="Edit this theme">
+                    Edit
+                  </button>
+                </div>
               </div>
               <p>{current.summary}</p>
               {current.excluded && <StatusIcon icon="excluded" label="Excluded" />}

@@ -26,11 +26,18 @@ interface Theme {
   title: string
   summary: string
   excluded: boolean
+  is_main: boolean
 }
 
 // SQLite stores booleans as 0/1 and the API returns them as raw JSON numbers.
 function normalizeExcluded<T extends { excluded: unknown }>(row: T): T & { excluded: boolean } {
   return { ...row, excluded: Boolean(row.excluded) }
+}
+
+function normalizeTheme<T extends { excluded: unknown; is_main: unknown }>(
+  row: T
+): T & { excluded: boolean; is_main: boolean } {
+  return { ...row, excluded: Boolean(row.excluded), is_main: Boolean(row.is_main) }
 }
 
 function App() {
@@ -87,7 +94,7 @@ function AppContent() {
     ])
       .then(([documentsData, themesData, topicsData, encodingRulesData, storyDocumentsData]) => {
         setDocuments(documentsData)
-        setThemes(themesData.map(normalizeExcluded))
+        setThemes(themesData.map(normalizeTheme))
         setTopics(topicsData.map(normalizeExcluded))
         setEncodingRules(encodingRulesData)
         setStoryDocuments(storyDocumentsData)
@@ -137,7 +144,7 @@ function AppContent() {
   function refetchTopicsAndThemes() {
     Promise.all([fetch('/themes').then((res) => res.json()), fetch('/topics').then((res) => res.json())]).then(
       ([themesData, topicsData]) => {
-        setThemes(themesData.map(normalizeExcluded))
+        setThemes(themesData.map(normalizeTheme))
         setTopics(topicsData.map(normalizeExcluded))
       }
     )
@@ -334,10 +341,24 @@ function AppContent() {
         body: JSON.stringify(data),
       })
       if (!response.ok) throw new Error()
-      const updated = normalizeExcluded(await response.json())
+      const updated = normalizeTheme(await response.json())
       setThemes((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
+      // The subplot paired with this theme reads its title/summary live from
+      // it - refresh the subplot bars so a rename shows up there too.
+      setSubplotRefreshToken((n) => n + 1)
     } catch {
       showError('Could not save the theme. Please try again.')
+    }
+  }
+
+  async function setMainTheme(id: number) {
+    try {
+      const response = await fetch(`/themes/${id}/set-main`, { method: 'POST' })
+      if (!response.ok) throw new Error()
+      refetchTopicsAndThemes()
+      setSubplotRefreshToken((n) => n + 1)
+    } catch {
+      showError('Could not change the main theme. Please try again.')
     }
   }
 
@@ -595,6 +616,7 @@ function AppContent() {
                 onNavigateTheme={setCurrentThemeId}
                 onUpdateTopic={updateTopic}
                 onUpdateTheme={updateTheme}
+                onSetMainTheme={setMainTheme}
                 onPreviewTopic={handlePreviewTopic}
                 selection={subplotSelection}
                 onToggleTopicSelection={toggleTopicSelection}

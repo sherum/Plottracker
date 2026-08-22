@@ -83,3 +83,9 @@ def exclude_theme(theme_id: int, conn: sqlite3.Connection = Depends(get_db)) -> 
 @router.post("/themes/{theme_id}/include")
 def include_theme(theme_id: int, conn: sqlite3.Connection = Depends(get_db)) -> dict:
     return repository.set_theme_excluded(conn, theme_id, False)
+
+
+@router.post("/themes/{theme_id}/set-main")
+def set_main_theme(theme_id: int, conn: sqlite3.Connection = Depends(get_db)) -> dict:
+    repository.set_main_theme(conn, theme_id)
+    return repository.get_theme(conn, theme_id)

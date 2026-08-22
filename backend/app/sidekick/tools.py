@@ -132,6 +132,22 @@ TOOL_SCHEMAS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "set_main_theme",
+            "description": (
+                "Make the given theme the story's single Main theme - the catch-all for topics not in a "
+                "specific subplot. The theme that was previously Main becomes an ordinary subplot-backed "
+                "theme instead; its topics are unaffected."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {"theme_id": {"type": "integer"}},
+                "required": ["theme_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "remove_topic_from_theme",
             "description": "Move a topic back into the Main theme, out of whatever subplot it was in.",
             "parameters": {
@@ -249,6 +265,11 @@ def _assign_topic_to_theme(conn: sqlite3.Connection, args: dict) -> Any:
     return repository.get_topics_by_ids(conn, [args["topic_id"]])[0]
 
 
+def _set_main_theme(conn: sqlite3.Connection, args: dict) -> Any:
+    repository.set_main_theme(conn, args["theme_id"])
+    return repository.get_theme(conn, args["theme_id"])
+
+
 def _remove_topic_from_theme(conn: sqlite3.Connection, args: dict) -> Any:
     return repository.unassign_topic_theme(conn, args["topic_id"])
 
@@ -296,6 +317,7 @@ TOOL_FUNCTIONS: dict[str, Callable[[sqlite3.Connection, dict], Any]] = {
     "filter_topics": _filter_topics,
     "create_subplot": _create_subplot,
     "assign_topic_to_theme": _assign_topic_to_theme,
+    "set_main_theme": _set_main_theme,
     "remove_topic_from_theme": _remove_topic_from_theme,
     "set_topic_act": _set_topic_act,
     "add_encoding_rule": _add_encoding_rule,

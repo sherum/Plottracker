@@ -254,6 +254,19 @@ def test_analyze_document_creates_topics_and_themes(client, db_conn, tmp_path, m
     assert exclude_theme_response.json()["excluded"] == 1
 
 
+def test_set_main_theme_endpoint(client, db_conn):
+    old_main_id = repository.get_main_theme_id(db_conn)
+    theme_id = repository.insert_theme(db_conn, title="A Theme", summary="Summary.")
+    repository.insert_subplot(db_conn, theme_id=theme_id)
+
+    response = client.post(f"/themes/{theme_id}/set-main")
+    assert response.status_code == 200
+    assert response.json()["is_main"] == 1
+
+    assert repository.get_main_theme_id(db_conn) == theme_id
+    assert any(s["theme_id"] == old_main_id for s in client.get("/subplots").json())
+
+
 def test_story_order_crud(client, db_conn):
     doc_a = repository.insert_document(
         db_conn, role="draft_script", source_path="/tmp/a.txt", filename="a.txt", source_type="txt", content_hash="a"

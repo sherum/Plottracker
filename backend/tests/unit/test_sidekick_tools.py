@@ -93,6 +93,16 @@ def test_filter_topics_tool_returns_matching_topics(db_conn):
     assert [t["id"] for t in result] == [topic_id]
 
 
+def test_set_main_theme_tool(db_conn):
+    _, theme_id = _make_topic_and_theme(db_conn)
+
+    result = execute_tool(db_conn, "set_main_theme", {"theme_id": theme_id})
+
+    assert result["id"] == theme_id
+    assert result["is_main"] == 1
+    assert repository.get_main_theme_id(db_conn) == theme_id
+
+
 def test_remove_topic_from_theme_tool(db_conn):
     topic_id, theme_id = _make_topic_and_theme(db_conn)
 

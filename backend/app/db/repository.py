@@ -158,6 +158,23 @@ def retire_theme(conn: sqlite3.Connection, theme_id: int) -> None:
     conn.commit()
 
 
+def set_main_theme(conn: sqlite3.Connection, theme_id: int) -> None:
+    old_main_id = get_main_theme_id(conn)
+    if theme_id == old_main_id:
+        return
+
+    # Clear the old flag before setting the new one - the partial unique
+    # index on is_main=1 would otherwise briefly see two rows with it set.
+    conn.execute("UPDATE themes SET is_main = 0 WHERE id = ?", (old_main_id,))
+    conn.execute("UPDATE themes SET is_main = 1 WHERE id = ?", (theme_id,))
+
+    # Main never has a subplot - its topics (theme_id unchanged) now belong
+    # to Main automatically. The old Main, now an ordinary theme, needs one.
+    conn.execute("DELETE FROM subplots WHERE theme_id = ?", (theme_id,))
+    insert_subplot(conn, theme_id=old_main_id)
+    conn.commit()
+
+
 def set_topic_theme(conn: sqlite3.Connection, topic_id: int, theme_id: int) -> None:
     conn.execute("UPDATE topics SET theme_id = ? WHERE id = ?", (theme_id, topic_id))
     conn.commit()
@@ -174,6 +191,11 @@ def list_topics(conn: sqlite3.Connection, document_id: int) -> list[dict]:
 def list_themes(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute("SELECT * FROM themes ORDER BY id").fetchall()
     return [dict(row) for row in rows]
+
+
+def get_theme(conn: sqlite3.Connection, theme_id: int) -> dict:
+    row = conn.execute("SELECT * FROM themes WHERE id = ?", (theme_id,)).fetchone()
+    return dict(row)
 
 
 def list_all_topics(conn: sqlite3.Connection) -> list[dict]:
@@ -285,14 +307,17 @@ def count_active_topics_for_theme(conn: sqlite3.Connection, theme_id: int) -> in
     return row["n"]
 
 
-def insert_subplot(conn: sqlite3.Connection, *, title: str, summary: str, theme_id: int | None = None) -> int:
+def insert_subplot(
+    conn: sqlite3.Connection, *, title: str | None = None, summary: str | None = None, theme_id: int | None = None
+) -> int:
     # Every subplot has its own theme: reuse the one given, or create one from
-    # the subplot's own title/summary so it's never left without one.
+    # the given title/summary so it's never left without one. A subplot has no
+    # title/summary of its own - it always reads its theme's.
     if theme_id is None:
         theme_id = insert_theme(conn, title=title, summary=summary)
     cursor = conn.execute(
-        "INSERT INTO subplots (theme_id, title, summary, created_at) VALUES (?, ?, ?, ?)",
-        (theme_id, title, summary, datetime.now(timezone.utc).isoformat()),
+        "INSERT INTO subplots (theme_id, created_at) VALUES (?, ?)",
+        (theme_id, datetime.now(timezone.utc).isoformat()),
     )
     conn.commit()
     return cursor.lastrowid
@@ -301,7 +326,8 @@ def insert_subplot(conn: sqlite3.Connection, *, title: str, summary: str, theme_
 def get_subplot(conn: sqlite3.Connection, subplot_id: int) -> dict:
     row = conn.execute(
         """
-        SELECT subplots.*, themes.title AS theme_title,
+        SELECT subplots.id, subplots.theme_id, subplots.created_at,
+               themes.title AS title, themes.summary AS summary,
                (
                    SELECT COUNT(*) FROM topics
                    WHERE topics.theme_id = subplots.theme_id AND topics.excluded = 0
@@ -318,7 +344,8 @@ def get_subplot(conn: sqlite3.Connection, subplot_id: int) -> dict:
 def list_subplots(conn: sqlite3.Connection, document_id: int | None = None) -> list[dict]:
     rows = conn.execute(
         """
-        SELECT subplots.*, themes.title AS theme_title,
+        SELECT subplots.id, subplots.theme_id, subplots.created_at,
+               themes.title AS title, themes.summary AS summary,
                (
                    SELECT COUNT(*) FROM topics
                    WHERE topics.theme_id = subplots.theme_id AND topics.excluded = 0

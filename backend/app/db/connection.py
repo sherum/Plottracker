@@ -44,6 +44,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
 
     _migrate_segment_styles_check(conn)
     _migrate_theme_subplot_model(conn)
+    _migrate_drop_subplot_title_summary(conn)
 
     conn.commit()
 
@@ -162,6 +163,22 @@ def _migrate_theme_subplot_model(conn: sqlite3.Connection) -> None:
         """
     )
     conn.execute("DROP TABLE topics_old")
+    conn.execute("DROP TABLE subplots_old")
+
+
+def _migrate_drop_subplot_title_summary(conn: sqlite3.Connection) -> None:
+    subplot_columns = {row[1] for row in conn.execute("PRAGMA table_info(subplots)")}
+    if "title" not in subplot_columns:
+        return  # already migrated, or a fresh database whose schema.sql never had these columns
+
+    # A subplot's title/summary used to be its own copy, taken from its theme
+    # at creation time - now that every subplot is permanently 1:1 with a
+    # theme, that copy is dropped in favor of always reading the theme's.
+    conn.execute("ALTER TABLE subplots RENAME TO subplots_old")
+    conn.executescript(SCHEMA_PATH.read_text())
+    conn.execute(
+        "INSERT INTO subplots (id, theme_id, created_at) SELECT id, theme_id, created_at FROM subplots_old"
+    )
     conn.execute("DROP TABLE subplots_old")
 
 

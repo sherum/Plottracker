@@ -32,7 +32,11 @@ this. Only use add_topic_to_subplot / remove_topic_from_subplot when the
 author names a specific topic to add or remove some other time, outside
 that selection flow. To move a topic into a specific existing theme by
 id, use assign_topic_to_theme; to send a topic back to Main, use
-remove_topic_from_theme.
+remove_topic_from_theme. When the author wants to make a different theme
+the story's Main theme (e.g. "make X the main plot", "switch the main
+plot to X"), call set_main_theme with that theme's id - do not try to
+achieve this by deleting subplots or reassigning topics yourself. The
+theme marked [Main] in the context below is the current one.
 
 If the "Adding topics to" line below is present, the author is in the
 app's guided add-topics flow: when they describe a filter (e.g.
@@ -59,7 +63,10 @@ def _build_context(
     add_target_subplot_id: int | None = None,
     add_target_is_new: bool = False,
 ) -> str:
-    lines = [f"Theme (id={t['id']}): {t['title']} - {t['summary']}" for t in themes]
+    lines = [
+        f"Theme (id={t['id']}){' [Main]' if t.get('is_main') else ''}: {t['title']} - {t['summary']}"
+        for t in themes
+    ]
     lines += [
         f"Topic (id={t['id']}, theme_id={t['theme_id']}, act={t['act']}): {t['title']} - {t['summary']}"
         for t in topics
