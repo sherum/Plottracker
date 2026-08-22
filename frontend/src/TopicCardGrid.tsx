@@ -93,7 +93,8 @@ function TopicCardGrid({
               <h4>{topic.title}</h4>
               <div className="notecard-header-actions">
                 <button
-                  className="edit-btn"
+                  type="button"
+                  className="btn btn-sm btn-outline-secondary"
                   onClick={() => setEditingId(topic.id)}
                   aria-label="Edit topic"
                   title="Edit this topic"
@@ -101,7 +102,8 @@ function TopicCardGrid({
                   Edit
                 </button>
                 <button
-                  className="edit-btn"
+                  type="button"
+                  className="btn btn-sm btn-outline-secondary"
                   onClick={() => onToggleExcludeTopic(topic.id, !topic.excluded)}
                   aria-label={topic.excluded ? 'Include topic' : 'Exclude topic'}
                   title={topic.excluded ? 'Include this topic again' : 'Exclude this topic'}
@@ -110,7 +112,8 @@ function TopicCardGrid({
                 </button>
                 {onRemoveTopic && (
                   <button
-                    className="edit-btn"
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary"
                     onClick={() => onRemoveTopic(topic.id)}
                     aria-label={removeLabel}
                     title={removeLabel}

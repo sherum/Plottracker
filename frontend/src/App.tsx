@@ -568,7 +568,7 @@ function AppContent() {
                       ? ` ${filteredSelection.selectedTopicIds.size} of ${filteredSelection.topicIds.length} selected. Type “move them” in the sidekick when ready.`
                       : ' Ask the sidekick to filter topics, e.g. “unassigned topics” or “topics starting with Q”.'}
                   </span>
-                  <button className="selection-cancel" onClick={cancelAdd}>
+                  <button type="button" className="btn btn-sm btn-outline-secondary" onClick={cancelAdd}>
                     Cancel
                   </button>
                 </div>

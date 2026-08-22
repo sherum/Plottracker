@@ -96,7 +96,7 @@ function PlotCarousel({
             in the sidekick when finished.
           </span>
           {onCancelSelection && (
-            <button className="selection-cancel" onClick={onCancelSelection}>
+            <button type="button" className="btn btn-sm btn-outline-secondary" onClick={onCancelSelection}>
               Cancel
             </button>
           )}
@@ -235,7 +235,7 @@ function TopicView({
           <>
             <div className="carousel-editor-header">
               <h3>{current.title}</h3>
-              <button className="edit-btn" onClick={onStartEdit} title="Edit this topic">
+              <button type="button" className="btn btn-sm btn-outline-secondary" onClick={onStartEdit} title="Edit this topic">
                 Edit
               </button>
             </div>
@@ -335,7 +335,7 @@ function ThemeView({
             <>
               <div className="carousel-editor-header">
                 <h3>{current.title}</h3>
-                <button className="edit-btn" onClick={onStartEdit} title="Edit this theme">
+                <button type="button" className="btn btn-sm btn-outline-secondary" onClick={onStartEdit} title="Edit this theme">
                   Edit
                 </button>
               </div>

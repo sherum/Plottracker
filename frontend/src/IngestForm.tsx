@@ -60,6 +60,7 @@ function IngestForm({ onIngested }: Props) {
       <div className="ingest-form-row">
         <input
           ref={fileInputRef}
+          className="form-control form-control-sm"
           type="file"
           multiple
           accept=".txt,.md,.docx,.pdf"
@@ -72,7 +73,13 @@ function IngestForm({ onIngested }: Props) {
         {/*</select>
        */}
         {files.length > 0 && (
-          <button onClick={submit} disabled={status === 'loading'} title="Ingest the selected file(s)">
+          <button
+            type="button"
+            className="btn btn-sm btn-primary"
+            onClick={submit}
+            disabled={status === 'loading'}
+            title="Ingest the selected file(s)"
+          >
             {status === 'loading' ? 'Ingesting…' : `Ingest ${files.length} file${files.length === 1 ? '' : 's'}`}
           </button>
         )}

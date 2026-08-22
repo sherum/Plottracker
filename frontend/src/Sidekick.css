@@ -23,27 +23,6 @@
 
 .sidekick-input input {
   flex: 1;
-  font: inherit;
-  background: canvas;
-  color: canvastext;
-  border: 1px solid #888;
-  border-radius: 4px;
-  padding: 0.4rem;
-}
-
-.sidekick-input button {
-  padding: 0.4rem 0.8rem;
-  border-radius: 4px;
-  border: 1px solid canvastext;
-  background: none;
-  color: inherit;
-  cursor: pointer;
-}
-
-.sidekick-input button:disabled {
-  border-color: #888;
-  color: #888;
-  cursor: default;
 }
 
 .sidekick-answer {

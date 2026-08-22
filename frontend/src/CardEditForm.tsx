@@ -20,10 +20,15 @@ function CardEditForm({ title, summary, onSave, onCancel }: Props) {
         onChange={(e) => setDraftSummary(e.target.value)}
       />
       <div className="notecard-actions">
-        <button onClick={() => onSave({ title: draftTitle, summary: draftSummary })} title="Save changes">
+        <button
+          type="button"
+          className="btn btn-sm btn-primary"
+          onClick={() => onSave({ title: draftTitle, summary: draftSummary })}
+          title="Save changes"
+        >
           Save
         </button>
-        <button onClick={onCancel} title="Discard changes">
+        <button type="button" className="btn btn-sm btn-outline-secondary" onClick={onCancel} title="Discard changes">
           Cancel
         </button>
       </div>

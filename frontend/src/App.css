@@ -107,31 +107,6 @@ main {
   margin-top: 0.25rem;
 }
 
-.icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  padding: 0;
-  border: 1px solid #888;
-  border-radius: 4px;
-  background: none;
-  color: inherit;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.icon-btn:hover {
-  border-color: canvastext;
-}
-
-.icon-btn.active {
-  border-color: var(--color-accent);
-  background: color-mix(in srgb, var(--color-accent) 20%, canvas);
-  color: var(--color-accent);
-}
-
 .main-plot-row {
   display: flex;
   align-items: center;

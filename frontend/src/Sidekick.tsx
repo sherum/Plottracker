@@ -150,12 +150,19 @@ function Sidekick({
       </div>
       <div className="sidekick-input">
         <input
+          className="form-control form-control-sm"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && ask()}
           placeholder={placeholder}
         />
-        <button onClick={ask} disabled={asking || !question.trim()} title="Ask the AI sidekick">
+        <button
+          type="button"
+          className="btn btn-sm btn-primary"
+          onClick={ask}
+          disabled={asking || !question.trim()}
+          title="Ask the AI sidekick"
+        >
           {asking ? 'Asking…' : 'Ask'}
         </button>
       </div>
