@@ -16,6 +16,7 @@ def _make_topic_and_theme(db_conn):
     topic_id = repository.insert_topic(
         db_conn,
         document_id=document_id,
+        theme_id=repository.get_main_theme_id(db_conn),
         sequence_index=0,
         title="A Topic",
         summary="Summary.",
@@ -43,25 +44,6 @@ def test_set_theme_excluded_tool(db_conn):
     assert result["excluded"] == 1
 
 
-def test_promote_theme_to_subplot_tool(db_conn):
-    topic_id, theme_id = _make_topic_and_theme(db_conn)
-
-    result = execute_tool(db_conn, "promote_theme_to_subplot", {"theme_id": theme_id})
-
-    assert result["theme_id"] == theme_id
-    assert result["topic_count"] == 1
-
-
-def test_create_subplot_from_theme_tool_does_not_carry_topics(db_conn):
-    _, theme_id = _make_topic_and_theme(db_conn)
-
-    result = execute_tool(db_conn, "create_subplot_from_theme", {"theme_id": theme_id, "title": "Custom Name"})
-
-    assert result["title"] == "Custom Name"
-    assert result["theme_id"] == theme_id
-    assert result["topic_count"] == 0
-
-
 def test_add_then_remove_topic_from_subplot_tools(db_conn):
     topic_id, theme_id = _make_topic_and_theme(db_conn)
     subplot_id = repository.insert_subplot(db_conn, title="A Subplot", summary="Summary.", theme_id=theme_id)
@@ -73,12 +55,13 @@ def test_add_then_remove_topic_from_subplot_tools(db_conn):
     assert removed["topic_count"] == 0
 
 
-def test_create_theme_tool(db_conn):
-    result = execute_tool(db_conn, "create_theme", {"title": "New Theme", "summary": "Fresh start."})
+def test_create_subplot_tool(db_conn):
+    result = execute_tool(db_conn, "create_subplot", {"title": "New Subplot", "summary": "Fresh start."})
 
-    assert result["title"] == "New Theme"
+    assert result["title"] == "New Subplot"
     assert result["summary"] == "Fresh start."
-    assert any(t["title"] == "New Theme" for t in repository.list_themes(db_conn))
+    assert result["topic_count"] == 0
+    assert any(t["title"] == "New Subplot" for t in repository.list_themes(db_conn))
 
 
 def test_assign_topic_to_theme_tool_moves_topic(db_conn):
@@ -115,7 +98,8 @@ def test_remove_topic_from_theme_tool(db_conn):
 
     result = execute_tool(db_conn, "remove_topic_from_theme", {"topic_id": topic_id})
 
-    assert result["theme_id"] is None
+    assert result["theme_id"] == repository.get_main_theme_id(db_conn)
+    assert result["theme_id"] != theme_id
 
 
 def test_set_topic_act_tool_and_unassigned_sentinel(db_conn):

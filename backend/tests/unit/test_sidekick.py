@@ -13,10 +13,12 @@ def _make_document_with_topics(db_conn):
     )
     segment_id = repository.insert_segment(db_conn, document_id=document_id, sequence_index=0, text="Text.")
     theme_id = repository.insert_theme(db_conn, title="Ties to the Past", summary="A recurring thread.")
+    main_theme_id = repository.get_main_theme_id(db_conn)
     topic_ids = [
         repository.insert_topic(
             db_conn,
             document_id=document_id,
+            theme_id=main_theme_id,
             sequence_index=i,
             title=title,
             summary=title,
@@ -78,7 +80,10 @@ def test_ask_scopes_context_to_given_topic_ids(db_conn, monkeypatch):
     assert filtered_topic_ids is None
     assert captured["question"] == "What happens first?"
     assert [t["title"] for t in captured["topics"]] == ["First topic"]
-    assert [t["id"] for t in captured["themes"]] == [theme_id]
+    # All non-excluded themes are in scope, including Main - not just the
+    # one the given topic happens to belong to.
+    assert theme_id in [t["id"] for t in captured["themes"]]
+    assert repository.get_main_theme_id(db_conn) in [t["id"] for t in captured["themes"]]
     assert captured["current_topic_id"] == topic_ids[0]
     assert captured["current_theme_id"] == theme_id
 
@@ -178,16 +183,14 @@ def test_answer_question_no_tool_call_returns_answer_directly(db_conn, monkeypat
 
 
 def test_answer_question_captures_created_subplot_id_from_tool_call(db_conn, monkeypatch):
-    theme_id = repository.insert_theme(db_conn, title="A Theme", summary="Summary.")
-
     responses = [
         _FakeResponse(
             _FakeMessage(
                 tool_calls=[
                     _FakeToolCall(
                         "call_1",
-                        "create_subplot_from_theme",
-                        f'{{"theme_id": {theme_id}, "title": "New Subplot"}}',
+                        "create_subplot",
+                        '{"title": "New Subplot", "summary": "A fresh thread."}',
                     )
                 ]
             )
@@ -198,10 +201,10 @@ def test_answer_question_captures_created_subplot_id_from_tool_call(db_conn, mon
     monkeypatch.setattr(llm.litellm, "completion", lambda model, messages, tools: responses.pop(0))
 
     answer, actions, created_subplot_id, filtered_topic_ids = llm.answer_question(
-        db_conn, "promote with name New Subplot", [], [], [], []
+        db_conn, "start a new subplot called New Subplot", [], [], [], []
     )
 
-    assert actions == ["create_subplot_from_theme"]
+    assert actions == ["create_subplot"]
     assert created_subplot_id is not None
     assert filtered_topic_ids is None
     assert repository.get_subplot(db_conn, created_subplot_id)["title"] == "New Subplot"

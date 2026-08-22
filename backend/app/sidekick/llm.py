@@ -15,29 +15,24 @@ given below as context. Do not invent plot details that are not implied by
 this context. If the context does not contain enough information to answer,
 say so plainly.
 
-You can also perform actions using the available tools: excluding or
-including a topic or theme, removing a topic from its theme, reassigning a
-topic's act (opening, conflict, or climax - this works for topics in any
-subplot too, since a subplot's act buckets come from its topics' own act
-field), adding, editing, or deleting encoding rules, and managing themes
-and subplots. When the author asks to start a new theme (e.g. "create a
-theme called X", "start a new theme called X from these topics"), call
-create_theme, then call assign_topic_to_theme for each topic they named to
-move it into the new theme - a topic can only be in one theme at a time,
-so this moves it out of wherever it was. When the author says "promote the
-current theme" (or "promote this theme"), call promote_theme_to_subplot
-with the current theme's id to
-carry all of its topics into a new subplot. When the author instead gives
-the new subplot an explicit name, e.g. "promote the current theme with
-name X", call create_subplot_from_theme with that title instead - this
-creates an empty subplot linked to the theme with no topics yet. After
-calling create_subplot_from_theme, tell the author the subplot was created
-and that they can now select which topics belong to it in the app, then
-tell you when they're done - the app handles that selection directly, so
-you do not need to call add_topic_to_subplot yourself after this. Only use
-add_topic_to_subplot / remove_topic_from_subplot when the author names a
-specific topic to add or remove some other time, outside that selection
-flow.
+Every topic lives in exactly one place: the single Main theme, or a
+subplot's own theme - there is no "unassigned" state. You can also perform
+actions using the available tools: excluding or including a topic or
+theme, reassigning a topic's act (opening, conflict, or climax - this
+works for topics in any subplot too, since a subplot's act buckets come
+from its topics' own act field), adding, editing, or deleting encoding
+rules, and managing subplots. When the author wants to start a new
+subplot (e.g. "create a subplot called X", "start a new subplot called
+X"), call create_subplot with that title - this creates an empty subplot
+with no topics yet. After calling create_subplot, tell the author it was
+created and that they can now select which topics belong to it in the
+app, then tell you when they're done - the app handles that selection
+directly, so you do not need to call add_topic_to_subplot yourself after
+this. Only use add_topic_to_subplot / remove_topic_from_subplot when the
+author names a specific topic to add or remove some other time, outside
+that selection flow. To move a topic into a specific existing theme by
+id, use assign_topic_to_theme; to send a topic back to Main, use
+remove_topic_from_theme.
 
 If the "Adding topics to" line below is present, the author is in the
 app's guided add-topics flow: when they describe a filter (e.g.
@@ -145,7 +140,7 @@ def answer_question(
             arguments = json.loads(call.function.arguments)
             result = execute_tool(conn, call.function.name, arguments)
             actions_taken.append(call.function.name)
-            if call.function.name == "create_subplot_from_theme" and isinstance(result, dict) and "id" in result:
+            if call.function.name == "create_subplot" and isinstance(result, dict) and "id" in result:
                 created_subplot_id = result["id"]
             if call.function.name == "filter_topics" and isinstance(result, list):
                 filtered_topic_ids = [t["id"] for t in result]

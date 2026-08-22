@@ -37,37 +37,6 @@ TOOL_SCHEMAS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "promote_theme_to_subplot",
-            "description": "Promote a theme to a subplot, carrying its current topics along.",
-            "parameters": {
-                "type": "object",
-                "properties": {"theme_id": {"type": "integer"}},
-                "required": ["theme_id"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "create_subplot_from_theme",
-            "description": (
-                "Create a new, empty subplot from a theme with a custom title, linked to that theme "
-                "but without carrying over its topics. Use this when the author names the subplot "
-                "explicitly, so they can add specific topics to it afterward with add_topic_to_subplot."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "theme_id": {"type": "integer"},
-                    "title": {"type": "string"},
-                },
-                "required": ["theme_id", "title"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
             "name": "add_topic_to_subplot",
             "description": "Add a topic to an existing subplot.",
             "parameters": {
@@ -129,8 +98,12 @@ TOOL_SCHEMAS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "create_theme",
-            "description": "Create a new, empty theme with no topics yet.",
+            "name": "create_subplot",
+            "description": (
+                "Create a new, empty subplot (and its own theme) with no topics yet. Use this when the "
+                "author wants to start a new subplot by name - they can select which topics belong to it "
+                "afterward in the app."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -160,7 +133,7 @@ TOOL_SCHEMAS: list[dict] = [
         "type": "function",
         "function": {
             "name": "remove_topic_from_theme",
-            "description": "Unassign a topic from its theme, without excluding it.",
+            "description": "Move a topic back into the Main theme, out of whatever subplot it was in.",
             "parameters": {
                 "type": "object",
                 "properties": {"topic_id": {"type": "integer"}},
@@ -247,16 +220,6 @@ def _set_theme_excluded(conn: sqlite3.Connection, args: dict) -> Any:
     return repository.set_theme_excluded(conn, args["theme_id"], args["excluded"])
 
 
-def _promote_theme_to_subplot(conn: sqlite3.Connection, args: dict) -> Any:
-    subplot_id = repository.promote_theme_to_subplot(conn, args["theme_id"])
-    return repository.get_subplot(conn, subplot_id)
-
-
-def _create_subplot_from_theme(conn: sqlite3.Connection, args: dict) -> Any:
-    subplot_id = repository.create_named_subplot_from_theme(conn, args["theme_id"], args["title"])
-    return repository.get_subplot(conn, subplot_id)
-
-
 def _add_topic_to_subplot(conn: sqlite3.Connection, args: dict) -> Any:
     repository.add_topic_to_subplot(conn, args["subplot_id"], args["topic_id"])
     return repository.get_subplot(conn, args["subplot_id"])
@@ -276,9 +239,9 @@ def _filter_topics(conn: sqlite3.Connection, args: dict) -> Any:
     return repository.get_topics_by_ids(conn, args["topic_ids"])
 
 
-def _create_theme(conn: sqlite3.Connection, args: dict) -> Any:
-    theme_id = repository.insert_theme(conn, title=args["title"], summary=args["summary"])
-    return repository.get_themes_by_ids(conn, [theme_id])[0]
+def _create_subplot(conn: sqlite3.Connection, args: dict) -> Any:
+    subplot_id = repository.insert_subplot(conn, title=args["title"], summary=args.get("summary", ""))
+    return repository.get_subplot(conn, subplot_id)
 
 
 def _assign_topic_to_theme(conn: sqlite3.Connection, args: dict) -> Any:
@@ -327,13 +290,11 @@ def _delete_encoding_rule(conn: sqlite3.Connection, args: dict) -> Any:
 TOOL_FUNCTIONS: dict[str, Callable[[sqlite3.Connection, dict], Any]] = {
     "set_topic_excluded": _set_topic_excluded,
     "set_theme_excluded": _set_theme_excluded,
-    "promote_theme_to_subplot": _promote_theme_to_subplot,
-    "create_subplot_from_theme": _create_subplot_from_theme,
     "add_topic_to_subplot": _add_topic_to_subplot,
     "remove_topic_from_subplot": _remove_topic_from_subplot,
     "delete_subplot": _delete_subplot,
     "filter_topics": _filter_topics,
-    "create_theme": _create_theme,
+    "create_subplot": _create_subplot,
     "assign_topic_to_theme": _assign_topic_to_theme,
     "remove_topic_from_theme": _remove_topic_from_theme,
     "set_topic_act": _set_topic_act,

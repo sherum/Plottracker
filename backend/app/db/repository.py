@@ -90,10 +90,6 @@ def list_story_documents(conn: sqlite3.Connection) -> list[dict]:
 
 
 def delete_document(conn: sqlite3.Connection, document_id: int) -> None:
-    conn.execute(
-        "DELETE FROM subplot_topics WHERE topic_id IN (SELECT id FROM topics WHERE document_id = ?)",
-        (document_id,),
-    )
     conn.execute("DELETE FROM topics WHERE document_id = ?", (document_id,))
     conn.execute(
         "DELETE FROM segment_styles WHERE segment_id IN (SELECT id FROM segments WHERE document_id = ?)",
@@ -108,6 +104,7 @@ def insert_topic(
     conn: sqlite3.Connection,
     *,
     document_id: int,
+    theme_id: int,
     sequence_index: int,
     title: str,
     summary: str,
@@ -117,11 +114,13 @@ def insert_topic(
 ) -> int:
     cursor = conn.execute(
         """
-        INSERT INTO topics (document_id, sequence_index, title, summary, segment_start_id, segment_end_id, act, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO topics
+            (document_id, theme_id, sequence_index, title, summary, segment_start_id, segment_end_id, act, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             document_id,
+            theme_id,
             sequence_index,
             title,
             summary,
@@ -142,6 +141,21 @@ def insert_theme(conn: sqlite3.Connection, *, title: str, summary: str) -> int:
     )
     conn.commit()
     return cursor.lastrowid
+
+
+def get_main_theme_id(conn: sqlite3.Connection) -> int:
+    row = conn.execute("SELECT id FROM themes WHERE is_main = 1").fetchone()
+    return row["id"]
+
+
+def retire_theme(conn: sqlite3.Connection, theme_id: int) -> None:
+    main_theme_id = get_main_theme_id(conn)
+    if theme_id == main_theme_id:
+        return
+    conn.execute("UPDATE topics SET theme_id = ? WHERE theme_id = ?", (main_theme_id, theme_id))
+    conn.execute("DELETE FROM subplots WHERE theme_id = ?", (theme_id,))
+    conn.execute("DELETE FROM themes WHERE id = ?", (theme_id,))
+    conn.commit()
 
 
 def set_topic_theme(conn: sqlite3.Connection, topic_id: int, theme_id: int) -> None:
@@ -236,7 +250,8 @@ def set_topic_act(conn: sqlite3.Connection, topic_id: int, act: str | None) -> d
 
 
 def unassign_topic_theme(conn: sqlite3.Connection, topic_id: int) -> dict:
-    conn.execute("UPDATE topics SET theme_id = NULL WHERE id = ?", (topic_id,))
+    main_theme_id = get_main_theme_id(conn)
+    conn.execute("UPDATE topics SET theme_id = ? WHERE id = ?", (main_theme_id, topic_id))
     conn.commit()
     row = conn.execute("SELECT * FROM topics WHERE id = ?", (topic_id,)).fetchone()
     return dict(row)
@@ -252,6 +267,22 @@ def set_theme_excluded(conn: sqlite3.Connection, theme_id: int, excluded: bool) 
 def exclude_topics_for_document(conn: sqlite3.Connection, document_id: int) -> None:
     conn.execute("UPDATE topics SET excluded = 1 WHERE document_id = ?", (document_id,))
     conn.commit()
+
+
+def get_active_theme_ids_for_document(conn: sqlite3.Connection, document_id: int) -> set[int]:
+    main_theme_id = get_main_theme_id(conn)
+    rows = conn.execute(
+        "SELECT DISTINCT theme_id FROM topics WHERE document_id = ? AND excluded = 0 AND theme_id != ?",
+        (document_id, main_theme_id),
+    ).fetchall()
+    return {row["theme_id"] for row in rows}
+
+
+def count_active_topics_for_theme(conn: sqlite3.Connection, theme_id: int) -> int:
+    row = conn.execute(
+        "SELECT COUNT(*) AS n FROM topics WHERE theme_id = ? AND excluded = 0", (theme_id,)
+    ).fetchone()
+    return row["n"]
 
 
 def insert_subplot(conn: sqlite3.Connection, *, title: str, summary: str, theme_id: int | None = None) -> int:
@@ -272,9 +303,8 @@ def get_subplot(conn: sqlite3.Connection, subplot_id: int) -> dict:
         """
         SELECT subplots.*, themes.title AS theme_title,
                (
-                   SELECT COUNT(*) FROM subplot_topics
-                   JOIN topics ON topics.id = subplot_topics.topic_id
-                   WHERE subplot_topics.subplot_id = subplots.id AND topics.excluded = 0
+                   SELECT COUNT(*) FROM topics
+                   WHERE topics.theme_id = subplots.theme_id AND topics.excluded = 0
                ) AS topic_count
         FROM subplots
         LEFT JOIN themes ON themes.id = subplots.theme_id
@@ -290,19 +320,13 @@ def list_subplots(conn: sqlite3.Connection, document_id: int | None = None) -> l
         """
         SELECT subplots.*, themes.title AS theme_title,
                (
-                   SELECT COUNT(*) FROM subplot_topics
-                   JOIN topics ON topics.id = subplot_topics.topic_id
-                   WHERE subplot_topics.subplot_id = subplots.id AND topics.excluded = 0
+                   SELECT COUNT(*) FROM topics
+                   WHERE topics.theme_id = subplots.theme_id AND topics.excluded = 0
                ) AS topic_count
         FROM subplots
         LEFT JOIN themes ON themes.id = subplots.theme_id
         WHERE (
             ? IS NULL
-            OR EXISTS (
-                SELECT 1 FROM subplot_topics
-                JOIN topics ON topics.id = subplot_topics.topic_id
-                WHERE subplot_topics.subplot_id = subplots.id AND topics.document_id = ?
-            )
             OR EXISTS (
                 SELECT 1 FROM topics
                 WHERE topics.theme_id = subplots.theme_id AND topics.document_id = ?
@@ -310,68 +334,57 @@ def list_subplots(conn: sqlite3.Connection, document_id: int | None = None) -> l
         )
         ORDER BY subplots.id
         """,
-        (document_id, document_id, document_id),
+        (document_id, document_id),
     ).fetchall()
     return [dict(row) for row in rows]
 
 
 def add_topic_to_subplot(conn: sqlite3.Connection, subplot_id: int, topic_id: int) -> None:
     conn.execute(
-        "INSERT OR IGNORE INTO subplot_topics (subplot_id, topic_id) VALUES (?, ?)",
+        "UPDATE topics SET theme_id = (SELECT theme_id FROM subplots WHERE id = ?) WHERE id = ?",
         (subplot_id, topic_id),
     )
     conn.commit()
 
 
 def remove_topic_from_subplot(conn: sqlite3.Connection, subplot_id: int, topic_id: int) -> None:
+    main_theme_id = get_main_theme_id(conn)
     conn.execute(
-        "DELETE FROM subplot_topics WHERE subplot_id = ? AND topic_id = ?",
-        (subplot_id, topic_id),
+        """
+        UPDATE topics SET theme_id = ?
+        WHERE id = ? AND theme_id = (SELECT theme_id FROM subplots WHERE id = ?)
+        """,
+        (main_theme_id, topic_id, subplot_id),
     )
     conn.commit()
 
 
 def delete_subplot(conn: sqlite3.Connection, subplot_id: int) -> None:
-    conn.execute("DELETE FROM subplot_topics WHERE subplot_id = ?", (subplot_id,))
-    conn.execute("DELETE FROM subplots WHERE id = ?", (subplot_id,))
-    conn.commit()
+    row = conn.execute("SELECT theme_id FROM subplots WHERE id = ?", (subplot_id,)).fetchone()
+    if row is not None:
+        retire_theme(conn, row["theme_id"])
 
 
 def list_subplot_topic_ids(conn: sqlite3.Connection, subplot_id: int) -> list[int]:
     rows = conn.execute(
-        "SELECT topic_id FROM subplot_topics WHERE subplot_id = ?", (subplot_id,)
+        "SELECT id FROM topics WHERE theme_id = (SELECT theme_id FROM subplots WHERE id = ?)",
+        (subplot_id,),
     ).fetchall()
-    return [row["topic_id"] for row in rows]
+    return [row["id"] for row in rows]
 
 
 def list_subplot_topics(conn: sqlite3.Connection, subplot_id: int) -> list[dict]:
     rows = conn.execute(
         """
         SELECT topics.*, documents.filename AS document_filename, documents.story_position AS document_story_position
-        FROM subplot_topics
-        JOIN topics ON topics.id = subplot_topics.topic_id
+        FROM topics
         JOIN documents ON documents.id = topics.document_id
-        WHERE subplot_topics.subplot_id = ?
+        WHERE topics.theme_id = (SELECT theme_id FROM subplots WHERE id = ?)
         ORDER BY (documents.story_position IS NULL), documents.story_position, documents.id, topics.sequence_index
         """,
         (subplot_id,),
     ).fetchall()
     return [dict(row) for row in rows]
-
-
-def promote_theme_to_subplot(conn: sqlite3.Connection, theme_id: int) -> int:
-    theme = conn.execute("SELECT * FROM themes WHERE id = ?", (theme_id,)).fetchone()
-    subplot_id = insert_subplot(conn, title=theme["title"], summary=theme["summary"], theme_id=theme_id)
-    topic_rows = conn.execute("SELECT id FROM topics WHERE theme_id = ?", (theme_id,)).fetchall()
-    for row in topic_rows:
-        add_topic_to_subplot(conn, subplot_id, row["id"])
-    return subplot_id
-
-
-def create_named_subplot_from_theme(conn: sqlite3.Connection, theme_id: int, title: str) -> int:
-    theme = conn.execute("SELECT * FROM themes WHERE id = ?", (theme_id,)).fetchone()
-    summary = theme["summary"] if theme else ""
-    return insert_subplot(conn, title=title, summary=summary, theme_id=theme_id)
 
 
 def insert_encoding_rule(

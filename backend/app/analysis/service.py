@@ -27,6 +27,9 @@ def _trim_trailing_chapter_headings(result: AnalysisResult, segments: list[dict]
     return result.model_copy(update={"topics": [trim(topic) for topic in result.topics]})
 
 
+MAX_AUTO_SUBPLOTS = 4
+
+
 def analyze_document(conn: sqlite3.Connection, document_id: int) -> dict:
     segments = repository.get_segments(conn, document_id)
     if not segments:
@@ -35,12 +38,24 @@ def analyze_document(conn: sqlite3.Connection, document_id: int) -> dict:
     result = llm.extract_topics_and_themes(segments)
     result = _trim_trailing_chapter_headings(result, segments)
 
-    repository.exclude_topics_for_document(conn, document_id)
+    main_theme_id = repository.get_main_theme_id(conn)
 
+    # A reanalyze pass excludes this document's old topics below; if that
+    # empties out a theme from the previous pass, retire it (and its
+    # subplot) rather than leaving it behind as dead clutter.
+    previous_theme_ids = repository.get_active_theme_ids_for_document(conn, document_id)
+    repository.exclude_topics_for_document(conn, document_id)
+    for theme_id in previous_theme_ids:
+        if repository.count_active_topics_for_theme(conn, theme_id) == 0:
+            repository.retire_theme(conn, theme_id)
+
+    # Every topic starts under Main; only topics grouped into one of the
+    # top MAX_AUTO_SUBPLOTS themes (by topic count) get moved into a subplot.
     topic_ids = [
         repository.insert_topic(
             conn,
             document_id=document_id,
+            theme_id=main_theme_id,
             sequence_index=index,
             title=topic.title,
             summary=topic.summary,
@@ -51,11 +66,24 @@ def analyze_document(conn: sqlite3.Connection, document_id: int) -> dict:
         for index, topic in enumerate(result.topics)
     ]
 
+    valid_indices = range(len(topic_ids))
+    themes_by_size = sorted(
+        (
+            (theme, [i for i in theme.topic_indices if i in valid_indices])
+            for theme in result.themes
+        ),
+        key=lambda pair: len(pair[1]),
+        reverse=True,
+    )
+
     theme_ids = []
-    for theme in result.themes:
+    for theme, indices in themes_by_size[:MAX_AUTO_SUBPLOTS]:
+        if not indices:
+            continue
         theme_id = repository.insert_theme(conn, title=theme.title, summary=theme.summary)
+        repository.insert_subplot(conn, title=theme.title, summary=theme.summary, theme_id=theme_id)
         theme_ids.append(theme_id)
-        for topic_index in theme.topic_indices:
+        for topic_index in indices:
             repository.set_topic_theme(conn, topic_ids[topic_index], theme_id)
 
     return {"topics_created": len(topic_ids), "themes_created": len(theme_ids)}

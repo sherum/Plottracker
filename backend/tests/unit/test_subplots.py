@@ -12,10 +12,12 @@ def _make_document_with_topics(db_conn):
     )
     segment_id = repository.insert_segment(db_conn, document_id=document_id, sequence_index=0, text="Text.")
     theme_id = repository.insert_theme(db_conn, title="Ties to the Past", summary="A recurring thread.")
+    main_theme_id = repository.get_main_theme_id(db_conn)
     topic_ids = [
         repository.insert_topic(
             db_conn,
             document_id=document_id,
+            theme_id=main_theme_id,
             sequence_index=i,
             title=title,
             summary=title,
@@ -49,17 +51,19 @@ def test_insert_subplot_with_theme_reuses_it(db_conn):
     )
 
     assert repository.get_subplot(db_conn, subplot_id)["theme_id"] == theme_id
-    assert len(repository.list_themes(db_conn)) == 1
+    # Main plus this one.
+    assert len(repository.list_themes(db_conn)) == 2
 
 
-def test_promote_theme_to_subplot_copies_its_topics(db_conn):
+def test_subplot_topics_are_derived_from_theme_membership(db_conn):
     _, theme_id, topic_ids = _make_document_with_topics(db_conn)
 
-    subplot_id = repository.promote_theme_to_subplot(db_conn, theme_id)
+    subplot_id = repository.insert_subplot(
+        db_conn, title="Ties to the Past", summary="A recurring thread.", theme_id=theme_id
+    )
 
     subplot = repository.get_subplot(db_conn, subplot_id)
     assert subplot["theme_id"] == theme_id
-    assert subplot["title"] == "Ties to the Past"
     assert subplot["topic_count"] == 1
 
     subplot_topics = repository.list_subplot_topics(db_conn, subplot_id)
@@ -79,32 +83,36 @@ def test_manual_subplot_add_and_remove_topic(db_conn):
     assert repository.get_subplot(db_conn, subplot_id)["topic_count"] == 0
 
 
-def test_delete_subplot_removes_subplot_and_its_topic_links(db_conn):
-    _, theme_id, topic_ids = _make_document_with_topics(db_conn)
-    subplot_id = repository.promote_theme_to_subplot(db_conn, theme_id)
+def test_remove_topic_from_subplot_sends_it_back_to_main(db_conn):
+    _, _, topic_ids = _make_document_with_topics(db_conn)
+    subplot_id = repository.insert_subplot(db_conn, title="Author's Subplot", summary="Manually created.")
+    repository.add_topic_to_subplot(db_conn, subplot_id, topic_ids[1])
 
-    assert repository.list_subplot_topic_ids(db_conn, subplot_id) == [topic_ids[0]]
+    repository.remove_topic_from_subplot(db_conn, subplot_id, topic_ids[1])
+
+    topic = repository.get_topics_by_ids(db_conn, [topic_ids[1]])[0]
+    assert topic["theme_id"] == repository.get_main_theme_id(db_conn)
+
+
+def test_delete_subplot_moves_its_topics_to_main(db_conn):
+    _, theme_id, topic_ids = _make_document_with_topics(db_conn)
+    subplot_id = repository.insert_subplot(
+        db_conn, title="Ties to the Past", summary="A recurring thread.", theme_id=theme_id
+    )
 
     repository.delete_subplot(db_conn, subplot_id)
 
     assert subplot_id not in [s["id"] for s in repository.list_subplots(db_conn)]
-    assert repository.list_subplot_topic_ids(db_conn, subplot_id) == []
-
-
-def test_create_named_subplot_from_theme_has_no_topics(db_conn):
-    _, theme_id, _ = _make_document_with_topics(db_conn)
-
-    subplot_id = repository.create_named_subplot_from_theme(db_conn, theme_id, "My Subplot")
-
-    subplot = repository.get_subplot(db_conn, subplot_id)
-    assert subplot["title"] == "My Subplot"
-    assert subplot["theme_id"] == theme_id
-    assert subplot["topic_count"] == 0
+    assert theme_id not in [t["id"] for t in repository.list_themes(db_conn)]
+    topic = repository.get_topics_by_ids(db_conn, [topic_ids[0]])[0]
+    assert topic["theme_id"] == repository.get_main_theme_id(db_conn)
 
 
 def test_list_subplots_scoped_to_document(db_conn):
     document_id, theme_id, _ = _make_document_with_topics(db_conn)
-    subplot_id = repository.promote_theme_to_subplot(db_conn, theme_id)
+    subplot_id = repository.insert_subplot(
+        db_conn, title="Ties to the Past", summary="A recurring thread.", theme_id=theme_id
+    )
 
     other_document_id = repository.insert_document(
         db_conn,
@@ -120,13 +128,11 @@ def test_list_subplots_scoped_to_document(db_conn):
     assert [s["id"] for s in repository.list_subplots(db_conn)] == [subplot_id]
 
 
-def test_list_subplots_scoped_to_document_includes_empty_named_subplot(db_conn):
-    document_id, theme_id, _ = _make_document_with_topics(db_conn)
-    subplot_id = repository.create_named_subplot_from_theme(db_conn, theme_id, "Empty Subplot")
+def test_list_subplots_scoped_to_document_excludes_unpopulated_subplot(db_conn):
+    document_id, _, _ = _make_document_with_topics(db_conn)
+    repository.insert_subplot(db_conn, title="Empty Subplot", summary="Not yet populated.")
 
-    scoped = repository.list_subplots(db_conn, document_id)
-
-    assert [s["id"] for s in scoped] == [subplot_id]
+    assert repository.list_subplots(db_conn, document_id) == []
 
 
 def test_set_story_order_assigns_sequential_positions(db_conn):
@@ -182,6 +188,7 @@ def test_list_subplot_topics_orders_by_story_position_across_documents(db_conn):
         source_type="txt",
         content_hash="book1",
     )
+    main_theme_id = repository.get_main_theme_id(db_conn)
 
     # doc_later was ingested first (lower id, would sort first by naive document_id
     # ordering) but belongs later in the story once explicitly ordered.
@@ -191,6 +198,7 @@ def test_list_subplot_topics_orders_by_story_position_across_documents(db_conn):
     topic_later = repository.insert_topic(
         db_conn,
         document_id=doc_later,
+        theme_id=main_theme_id,
         sequence_index=0,
         title="Book 2 topic",
         summary="s",
@@ -200,6 +208,7 @@ def test_list_subplot_topics_orders_by_story_position_across_documents(db_conn):
     topic_earlier = repository.insert_topic(
         db_conn,
         document_id=doc_earlier,
+        theme_id=main_theme_id,
         sequence_index=0,
         title="Book 1 topic",
         summary="s",
@@ -232,6 +241,7 @@ def test_get_topic_source_text_joins_segments_in_range(db_conn):
     topic_id = repository.insert_topic(
         db_conn,
         document_id=document_id,
+        theme_id=repository.get_main_theme_id(db_conn),
         sequence_index=0,
         title="A Topic",
         summary="Summary.",
@@ -243,3 +253,34 @@ def test_get_topic_source_text_joins_segments_in_range(db_conn):
 
     assert text == "First.\n\nSecond."
     assert "Third." not in text
+
+
+def test_get_main_theme_id_is_a_singleton(db_conn):
+    first = repository.get_main_theme_id(db_conn)
+    second = repository.get_main_theme_id(db_conn)
+    assert first == second
+
+    main = next(t for t in repository.list_themes(db_conn) if t["id"] == first)
+    assert main["is_main"] == 1
+
+
+def test_retire_theme_moves_topics_to_main_and_deletes_subplot(db_conn):
+    _, theme_id, topic_ids = _make_document_with_topics(db_conn)
+    subplot_id = repository.insert_subplot(
+        db_conn, title="Ties to the Past", summary="A recurring thread.", theme_id=theme_id
+    )
+
+    repository.retire_theme(db_conn, theme_id)
+
+    assert theme_id not in [t["id"] for t in repository.list_themes(db_conn)]
+    assert subplot_id not in [s["id"] for s in repository.list_subplots(db_conn)]
+    topic = repository.get_topics_by_ids(db_conn, [topic_ids[0]])[0]
+    assert topic["theme_id"] == repository.get_main_theme_id(db_conn)
+
+
+def test_retire_theme_is_a_no_op_for_main(db_conn):
+    main_theme_id = repository.get_main_theme_id(db_conn)
+
+    repository.retire_theme(db_conn, main_theme_id)
+
+    assert repository.get_main_theme_id(db_conn) == main_theme_id

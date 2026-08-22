@@ -25,6 +25,7 @@ def test_list_subplots_document_id_query_param(client, db_conn):
     topic_id = repository.insert_topic(
         db_conn,
         document_id=document_id,
+        theme_id=repository.get_main_theme_id(db_conn),
         sequence_index=0,
         title="A Topic",
         summary="Summary.",
@@ -115,7 +116,7 @@ def test_ingest_upload_unknown_role_returns_400(client, tmp_path, monkeypatch):
     assert response.status_code == 400
 
 
-def test_analyze_document_creates_topics_and_themes(client, tmp_path, monkeypatch):
+def test_analyze_document_creates_topics_and_themes(client, db_conn, tmp_path, monkeypatch):
     (tmp_path / "chapter1.txt").write_text("The hero leaves home.\n\nThe hero finds an ally.")
     client.post("/ingest", json={"folder_path": str(tmp_path), "role": "draft_script"})
     document_id = client.get("/documents").json()[0]["id"]
@@ -143,7 +144,7 @@ def test_analyze_document_creates_topics_and_themes(client, tmp_path, monkeypatc
     assert topics[0]["title"] == "Departure"
 
     themes = client.get("/themes").json()
-    assert themes[0]["title"] == "Journey"
+    journey_theme = next(t for t in themes if t["title"] == "Journey")
 
     all_topics = client.get("/topics").json()
     assert all_topics[0]["title"] == "Departure"
@@ -157,22 +158,19 @@ def test_analyze_document_creates_topics_and_themes(client, tmp_path, monkeypatc
     assert patch_topic_response.json()["title"] == "Departure (revised)"
     assert client.get(f"/documents/{document_id}/topics").json()[0]["summary"] == "Updated summary."
 
-    theme_id = themes[0]["id"]
+    theme_id = journey_theme["id"]
     patch_theme_response = client.patch(
         f"/themes/{theme_id}", json={"title": "Journey (revised)", "summary": "Updated theme summary."}
     )
     assert patch_theme_response.status_code == 200
     assert patch_theme_response.json()["title"] == "Journey (revised)"
-    assert client.get("/themes").json()[0]["summary"] == "Updated theme summary."
+    updated_theme = next(t for t in client.get("/themes").json() if t["id"] == theme_id)
+    assert updated_theme["summary"] == "Updated theme summary."
 
-    promote_response = client.post(f"/themes/{theme_id}/promote")
-    assert promote_response.status_code == 200
-    subplot = promote_response.json()
-    assert subplot["theme_id"] == theme_id
-    assert subplot["topic_count"] == 1
-
+    # analyze already auto-created a subplot for this theme - no manual promotion step.
     subplots = client.get("/subplots").json()
-    assert subplots[0]["id"] == subplot["id"]
+    subplot = next(s for s in subplots if s["theme_id"] == theme_id)
+    assert subplot["topic_count"] == 1
 
     manual_subplot = client.post("/subplots", json={"title": "Author's Subplot", "summary": "Manual."}).json()
     assert manual_subplot["topic_count"] == 0
@@ -241,7 +239,7 @@ def test_analyze_document_creates_topics_and_themes(client, tmp_path, monkeypatc
 
     unassign_response = client.post(f"/topics/{topic_id}/unassign-theme")
     assert unassign_response.status_code == 200
-    assert unassign_response.json()["theme_id"] is None
+    assert unassign_response.json()["theme_id"] == repository.get_main_theme_id(db_conn)
 
     set_act_response = client.post(f"/topics/{topic_id}/set-act", json={"act": "climax"})
     assert set_act_response.status_code == 200

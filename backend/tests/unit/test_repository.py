@@ -73,6 +73,7 @@ def test_delete_document_removes_segments_topics_and_subplot_membership(db_conn)
     topic_id = repository.insert_topic(
         db_conn,
         document_id=doc_id,
+        theme_id=repository.get_main_theme_id(db_conn),
         sequence_index=0,
         title="A Topic",
         summary="Summary.",
@@ -80,7 +81,7 @@ def test_delete_document_removes_segments_topics_and_subplot_membership(db_conn)
         segment_end_id=segment_id,
     )
     repository.set_topic_theme(db_conn, topic_id, theme_id)
-    subplot_id = repository.insert_subplot(db_conn, title="A Subplot", summary="Summary.")
+    subplot_id = repository.insert_subplot(db_conn, title="A Subplot", summary="Summary.", theme_id=theme_id)
     repository.add_topic_to_subplot(db_conn, subplot_id, topic_id)
 
     repository.delete_document(db_conn, doc_id)
@@ -90,7 +91,7 @@ def test_delete_document_removes_segments_topics_and_subplot_membership(db_conn)
     assert repository.list_topics(db_conn, doc_id) == []
     assert repository.list_subplot_topics(db_conn, subplot_id) == []
     # The theme itself is not document-owned, so it survives with no topics.
-    assert repository.list_themes(db_conn)[0]["id"] == theme_id
+    assert theme_id in [t["id"] for t in repository.list_themes(db_conn)]
 
 
 def test_list_all_topics_resolves_chapter_title_and_page_number(db_conn):
@@ -112,6 +113,7 @@ def test_list_all_topics_resolves_chapter_title_and_page_number(db_conn):
     repository.insert_topic(
         db_conn,
         document_id=doc_id,
+        theme_id=repository.get_main_theme_id(db_conn),
         sequence_index=0,
         title="Opening scene",
         summary="Summary.",
@@ -138,6 +140,7 @@ def test_set_topic_act_updates_and_clears(db_conn):
     topic_id = repository.insert_topic(
         db_conn,
         document_id=doc_id,
+        theme_id=repository.get_main_theme_id(db_conn),
         sequence_index=0,
         title="A Topic",
         summary="Summary.",
@@ -179,7 +182,7 @@ def test_update_encoding_rule_changes_fields(db_conn):
     assert updated["description"] == "Revised."
 
 
-def test_unassign_topic_theme_clears_theme_id(db_conn):
+def test_unassign_topic_theme_moves_topic_to_main(db_conn):
     doc_id = repository.insert_document(
         db_conn,
         role="draft_script",
@@ -193,6 +196,7 @@ def test_unassign_topic_theme_clears_theme_id(db_conn):
     topic_id = repository.insert_topic(
         db_conn,
         document_id=doc_id,
+        theme_id=repository.get_main_theme_id(db_conn),
         sequence_index=0,
         title="A Topic",
         summary="Summary.",
@@ -201,7 +205,8 @@ def test_unassign_topic_theme_clears_theme_id(db_conn):
     )
     repository.set_topic_theme(db_conn, topic_id, theme_id)
 
+    main_theme_id = repository.get_main_theme_id(db_conn)
     updated = repository.unassign_topic_theme(db_conn, topic_id)
 
-    assert updated["theme_id"] is None
-    assert repository.list_topics(db_conn, doc_id)[0]["theme_id"] is None
+    assert updated["theme_id"] == main_theme_id
+    assert repository.list_topics(db_conn, doc_id)[0]["theme_id"] == main_theme_id

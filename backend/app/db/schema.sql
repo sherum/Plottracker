@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS themes (
     id INTEGER PRIMARY KEY,
     title TEXT NOT NULL,
     summary TEXT NOT NULL,
+    is_main INTEGER NOT NULL DEFAULT 0,
     excluded INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL
 );
@@ -47,7 +48,7 @@ CREATE TABLE IF NOT EXISTS themes (
 CREATE TABLE IF NOT EXISTS topics (
     id INTEGER PRIMARY KEY,
     document_id INTEGER NOT NULL REFERENCES documents(id),
-    theme_id INTEGER REFERENCES themes(id),
+    theme_id INTEGER NOT NULL REFERENCES themes(id),
     act TEXT CHECK (act IN ('opening', 'conflict', 'climax')),
     sequence_index INTEGER NOT NULL,
     title TEXT NOT NULL,
@@ -63,17 +64,14 @@ CREATE INDEX IF NOT EXISTS idx_topics_document_sequence
 
 CREATE TABLE IF NOT EXISTS subplots (
     id INTEGER PRIMARY KEY,
-    theme_id INTEGER REFERENCES themes(id),
+    theme_id INTEGER NOT NULL REFERENCES themes(id),
     title TEXT NOT NULL,
     summary TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS subplot_topics (
-    subplot_id INTEGER NOT NULL REFERENCES subplots(id),
-    topic_id INTEGER NOT NULL REFERENCES topics(id),
-    PRIMARY KEY (subplot_id, topic_id)
-);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subplots_theme_id
+    ON subplots(theme_id);
 
 CREATE TABLE IF NOT EXISTS encoding_rules (
     id INTEGER PRIMARY KEY,

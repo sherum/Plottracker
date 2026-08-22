@@ -59,9 +59,3 @@ def remove_subplot_topic(
 ) -> dict:
     repository.remove_topic_from_subplot(conn, subplot_id, topic_id)
     return repository.get_subplot(conn, subplot_id)
-
-
-@router.post("/themes/{theme_id}/promote")
-def promote_theme(theme_id: int, conn: sqlite3.Connection = Depends(get_db)) -> dict:
-    subplot_id = repository.promote_theme_to_subplot(conn, theme_id)
-    return repository.get_subplot(conn, subplot_id)
