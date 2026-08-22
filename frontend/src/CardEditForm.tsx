@@ -12,14 +12,14 @@ function CardEditForm({ title, summary, onSave, onCancel }: Props) {
   const [draftSummary, setDraftSummary] = useState(summary)
 
   return (
-    <div className="card editing">
-      <input className="card-input" value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} />
+    <div className="notecard editing">
+      <input className="notecard-input" value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} />
       <textarea
-        className="card-textarea"
+        className="notecard-textarea"
         value={draftSummary}
         onChange={(e) => setDraftSummary(e.target.value)}
       />
-      <div className="card-actions">
+      <div className="notecard-actions">
         <button onClick={() => onSave({ title: draftTitle, summary: draftSummary })} title="Save changes">
           Save
         </button>

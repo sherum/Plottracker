@@ -1,4 +1,4 @@
-.card-grid {
+.notecard-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 0.75rem;
@@ -18,53 +18,53 @@
   margin-bottom: 0.75rem;
 }
 
-.card {
+.notecard {
   border: 1px solid #ddd;
   border-radius: 8px;
   padding: 0.75rem;
 }
 
-.card.clickable {
+.notecard.clickable {
   cursor: pointer;
 }
 
-.card.clickable:hover {
+.notecard.clickable:hover {
   border-color: #888;
 }
 
-.card.clickable:focus-visible {
+.notecard.clickable:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
-.card.excluded {
+.notecard.excluded {
   opacity: 0.55;
   border-style: dashed;
 }
 
-.card.editing-source {
+.notecard.editing-source {
   border-color: var(--color-accent);
   box-shadow: 0 0 0 1px var(--color-accent);
 }
 
-.card-act-opening {
+.notecard-act-opening {
   border-left: 4px solid var(--color-opening);
 }
 
-.card-act-conflict {
+.notecard-act-conflict {
   border-left: 4px solid var(--color-conflict);
 }
 
-.card-act-climax {
+.notecard-act-climax {
   border-left: 4px solid var(--color-climax);
 }
 
 
-.card h4 {
+.notecard h4 {
   margin: 0 0 0.4rem;
 }
 
-.card p {
+.notecard p {
   margin: 0 0 0.5rem;
   font-size: 0.9em;
   color: #444;
@@ -85,24 +85,24 @@
   margin-bottom: 1rem;
 }
 
-.card-tags {
+.notecard-tags {
   display: flex;
   gap: 0.4rem;
   flex-wrap: wrap;
 }
 
-.card-header {
+.notecard-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 0.5rem;
 }
 
-.card-header h4 {
+.notecard-header h4 {
   margin: 0;
 }
 
-.card-header-actions {
+.notecard-header-actions {
   display: flex;
   gap: 0.3rem;
   flex-shrink: 0;
@@ -123,14 +123,14 @@
   border-color: canvastext;
 }
 
-.card.editing {
+.notecard.editing {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
 }
 
-.card-input,
-.card-textarea {
+.notecard-input,
+.notecard-textarea {
   width: 100%;
   box-sizing: border-box;
   font: inherit;
@@ -141,17 +141,17 @@
   padding: 0.3rem;
 }
 
-.card-textarea {
+.notecard-textarea {
   resize: vertical;
   min-height: 3.5rem;
 }
 
-.card-actions {
+.notecard-actions {
   display: flex;
   gap: 0.4rem;
 }
 
-.card-actions button {
+.notecard-actions button {
   font-size: 0.85em;
   padding: 0.25rem 0.6rem;
   border-radius: 4px;
@@ -161,7 +161,7 @@
   cursor: pointer;
 }
 
-.card-actions button:first-child {
+.notecard-actions button:first-child {
   border-color: canvastext;
   font-weight: 600;
 }

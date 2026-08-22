@@ -240,7 +240,7 @@ function TopicView({
               </button>
             </div>
             <p>{current.summary}</p>
-            <div className="card-tags">
+            <div className="notecard-tags">
               {current.excluded && <StatusIcon icon="excluded" label="Excluded" />}
               {current.theme_id !== null && themeTitleById[current.theme_id] && (
                 <StatusIcon icon="theme" label={`Part of theme: ${themeTitleById[current.theme_id]}`}>
@@ -257,7 +257,7 @@ function TopicView({
 
 function TileContent({ topic, themeTitleById }: { topic: Topic; themeTitleById: Record<number, string> }) {
   if (!topic) return null
-  const actClass = topic.act ? ` card-act-${topic.act}` : ''
+  const actClass = topic.act ? ` notecard-act-${topic.act}` : ''
   return (
     <span className={`carousel-tile-content${actClass}`}>
       <span className="carousel-tile-title">{topic.title}</span>
@@ -348,7 +348,7 @@ function ThemeView({
         <div className="carousel-topic-icons">
           {themeTopics.length === 0 && <p className="hbar-hint">No topics in this theme yet.</p>}
           {themeTopics.map((topic) => {
-            const actClass = topic.act ? ` card-act-${topic.act}` : ''
+            const actClass = topic.act ? ` notecard-act-${topic.act}` : ''
             const selected = selection?.selectedTopicIds.has(topic.id) ?? false
             return (
               <button

@@ -452,12 +452,16 @@ function AppContent() {
   }
 
   return (
-    <main>
-      <h1>{inStoryMode ? `The Story (${storyDocuments.length} documents)` : loadedDocument ? loadedDocument.filename : 'Genre Writer'}</h1>
+    <main className="app-shell container-fluid">
+      <h1 className="my-4">{inStoryMode ? `The Story (${storyDocuments.length} documents)` : loadedDocument ? loadedDocument.filename : 'Genre Writer'}</h1>
 
-      <div className="layout">
-        <div className="col col-documents panel">
-          <h2>Documents</h2>
+      <div className="row g-4">
+        <div className="col-12 col-lg-2 order-2 order-lg-1 d-flex flex-column gap-4 documents-panel">
+        <div className="card">
+          <div className="card-header">
+            <h2 className="h5 mb-0">Documents</h2>
+          </div>
+          <div className="card-body">
           <IngestForm onIngested={refetchDocuments} />
           <details
             className="documents-accordion"
@@ -520,12 +524,16 @@ function AppContent() {
               </ol>
             </div>
           )}
+          </div>
+        </div>
         </div>
 
-        <div className="col col-center">
-          <div className="col-center-inner">
-            <section className="panel">
-              <h2>Plot Viewer</h2>
+        <div className="col-12 col-lg-8 order-1 order-lg-2 d-flex flex-column gap-4">
+            <div className="card">
+              <div className="card-header">
+                <h2 className="h5 mb-0">Plot Viewer</h2>
+              </div>
+              <div className="card-body">
               <div className="main-plot-row">
                 <HbarVisual buckets={buckets} extraBucket={extraBucket} onSegmentClick={jumpToAct} markerTopicId={currentTopicId} />
                 <IconButton
@@ -547,10 +555,12 @@ function AppContent() {
                 onClickAdd={toggleAddTargetSubplot}
                 onToggleDelete={toggleDeleteTarget}
               />
-            </section>
+              </div>
+            </div>
 
             {addTarget && (
-              <section className="panel">
+              <div className="card">
+                <div className="card-body">
                 <div className="selection-banner">
                   <span>
                     Adding topics to {addTarget.type === 'new' ? 'a new subplot' : `“${addTargetTitle ?? '…'}”`}.
@@ -570,10 +580,12 @@ function AppContent() {
                     onPreviewTopic={handlePreviewTopic}
                   />
                 )}
-              </section>
+                </div>
+              </div>
             )}
 
-            <section className="panel">
+            <div className="card">
+              <div className="card-body">
               <PlotCarousel
                 topics={orderedEffectiveTopics}
                 themes={effectiveThemes}
@@ -588,25 +600,33 @@ function AppContent() {
                 onToggleTopicSelection={toggleTopicSelection}
                 onCancelSelection={cancelSubplotSelection}
               />
-            </section>
+              </div>
+            </div>
 
-            <section className="panel">
-              <h2>Preview</h2>
+            <div className="card">
+              <div className="card-header">
+                <h2 className="h5 mb-0">Preview</h2>
+              </div>
+              <div className="card-body">
               <SourcePreview
                 topic={effectiveTopics.find((t) => t.id === previewTopicId) ?? null}
                 mode={previewMode}
               />
-            </section>
-          </div>
+              </div>
+            </div>
         </div>
 
-        <div className="col col-encoding">
-          <div className="panel">
-            <h2>Encoding Rules</h2>
-            <EncodingRules rules={encodingRules} />
+        <div className="col-12 col-lg-2 order-3 d-flex flex-column gap-4">
+          <div className="card">
+            <div className="card-header">
+              <h2 className="h5 mb-0">Encoding Rules</h2>
+            </div>
+            <div className="card-body">
+              <EncodingRules rules={encodingRules} />
+            </div>
           </div>
-          <div className="panelp">
-            <h2>Sidekick</h2>
+          <div>
+            <h2 className="h5">Sidekick</h2>
             <Sidekick
               topics={effectiveTopics}
               currentTopicId={currentTopicId}

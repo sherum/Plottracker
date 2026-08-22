@@ -63,7 +63,7 @@ function TopicCardGrid({
         />
       )}
       {query !== '' && shownTopics.length === 0 && <p className="hbar-hint">No topics match "{search}".</p>}
-      <div className="card-grid">
+      <div className="notecard-grid">
       {shownTopics.map((topic) => {
         if (editingId === topic.id) {
           return (
@@ -81,17 +81,17 @@ function TopicCardGrid({
         }
 
         const themeTitle = topic.theme_id !== null ? themeTitleById?.[topic.theme_id] : undefined
-        const actClass = topic.act ? ` card-act-${topic.act}` : ''
+        const actClass = topic.act ? ` notecard-act-${topic.act}` : ''
         return (
           <div
-            className={`card${actClass}${topic.excluded ? ' excluded' : ''}`}
+            className={`notecard${actClass}${topic.excluded ? ' excluded' : ''}`}
             key={topic.id}
             onMouseEnter={onHoverTopic ? () => onHoverTopic(topic.id) : undefined}
             onMouseLeave={onHoverTopic ? () => onHoverTopic(null) : undefined}
           >
-            <div className="card-header">
+            <div className="notecard-header">
               <h4>{topic.title}</h4>
-              <div className="card-header-actions">
+              <div className="notecard-header-actions">
                 <button
                   className="edit-btn"
                   onClick={() => setEditingId(topic.id)}
@@ -121,7 +121,7 @@ function TopicCardGrid({
               </div>
             </div>
             <p>{topic.summary}</p>
-            <div className="card-tags">
+            <div className="notecard-tags">
               {topic.excluded && <StatusIcon icon="excluded" label="Excluded" />}
               <span className="tag">{topic.document_filename}</span>
               {themeTitle && (
