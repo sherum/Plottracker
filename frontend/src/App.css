@@ -112,7 +112,7 @@ main {
 .doc-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.3rem;
   margin-top: 0.25rem;
 }
