@@ -37,6 +37,7 @@ interface Props {
   onCancelSelection?: () => void
   searchTopics?: Topic[] | null
   onClearSearch?: () => void
+  onHoverSearchTopic?: (topicId: number | null) => void
 }
 
 function wrap(index: number, length: number): number {
@@ -61,6 +62,7 @@ function PlotCarousel({
   onCancelSelection,
   searchTopics,
   onClearSearch,
+  onHoverSearchTopic,
 }: Props) {
   const [view, setView] = useState<'topic' | 'theme'>('topic')
   const [editing, setEditing] = useState(false)
@@ -122,6 +124,7 @@ function PlotCarousel({
             jumpToTopic(topicId)
           }}
           onPreviewTopic={onPreviewTopic}
+          onHoverTopic={onHoverSearchTopic}
           onClear={() => onClearSearch?.()}
         />
       ) : (
@@ -418,6 +421,7 @@ interface TopicZoneGridProps {
   onSetTopicAct: (id: number, act: 'opening' | 'conflict' | 'climax' | null) => void
   onTopicIconClick: (topicId: number) => void
   onPreviewTopic?: (topicId: number | null, mode: 'theme' | 'topic') => void
+  onHoverTopic?: (topicId: number | null) => void
   selection?: TopicSelection | null
   onToggleTopicSelection?: (topicId: number) => void
   emptyMessage: string
@@ -428,6 +432,7 @@ function TopicZoneGrid({
   onSetTopicAct,
   onTopicIconClick,
   onPreviewTopic,
+  onHoverTopic,
   selection,
   onToggleTopicSelection,
   emptyMessage,
@@ -477,8 +482,14 @@ function TopicZoneGrid({
                       setDragOverAct('none')
                     }}
                     onClick={() => (selection ? onToggleTopicSelection?.(topic.id) : onTopicIconClick(topic.id))}
-                    onMouseEnter={() => onPreviewTopic?.(topic.id, 'theme')}
-                    onMouseLeave={() => onPreviewTopic?.(null, 'theme')}
+                    onMouseEnter={() => {
+                      onPreviewTopic?.(topic.id, 'theme')
+                      onHoverTopic?.(topic.id)
+                    }}
+                    onMouseLeave={() => {
+                      onPreviewTopic?.(null, 'theme')
+                      onHoverTopic?.(null)
+                    }}
                     title={topic.title}
                     role={selection ? 'checkbox' : undefined}
                     aria-checked={selection ? selected : undefined}
@@ -502,12 +513,14 @@ function SearchResultsPanel({
   onSetTopicAct,
   onExamineTopic,
   onPreviewTopic,
+  onHoverTopic,
   onClear,
 }: {
   topics: Topic[]
   onSetTopicAct: (id: number, act: 'opening' | 'conflict' | 'climax' | null) => void
   onExamineTopic: (topicId: number) => void
   onPreviewTopic?: (topicId: number | null, mode: 'theme' | 'topic') => void
+  onHoverTopic?: (topicId: number | null) => void
   onClear: () => void
 }) {
   return (
@@ -536,6 +549,7 @@ function SearchResultsPanel({
             onSetTopicAct={onSetTopicAct}
             onTopicIconClick={onExamineTopic}
             onPreviewTopic={onPreviewTopic}
+            onHoverTopic={onHoverTopic}
             emptyMessage="No topics matched."
           />
         </div>

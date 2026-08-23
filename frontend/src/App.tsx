@@ -79,6 +79,7 @@ function AppContent() {
     selectedTopicIds: Set<number>
   } | null>(null)
   const [searchTopicIds, setSearchTopicIds] = useState<number[] | null>(null)
+  const [hoveredSearchTopicId, setHoveredSearchTopicId] = useState<number | null>(null)
   const { showError } = useToast()
 
   function handlePreviewTopic(topicId: number | null, mode: 'theme' | 'topic') {
@@ -676,7 +677,7 @@ function AppContent() {
                       : (topicId, actKey) =>
                           moveTopic(topicId, mainThemeId, actKey === 'unassigned' ? null : (actKey as 'opening' | 'conflict' | 'climax'))
                   }
-                  markerTopicId={currentTopicId}
+                  markerTopicId={hoveredSearchTopicId ?? currentTopicId}
                 />
                 <IconButton
                   icon="add"
@@ -690,7 +691,7 @@ function AppContent() {
                 storyMode={inStoryMode}
                 topicOrderIndex={topicOrderIndex}
                 refreshToken={subplotRefreshToken}
-                currentTopicId={currentTopicId}
+                currentTopicId={hoveredSearchTopicId ?? currentTopicId}
                 onNavigateTopic={setCurrentTopicId}
                 addTargetSubplotId={addTarget?.type === 'subplot' ? addTarget.subplotId : null}
                 deleteTargetIds={deleteTargetIds}
@@ -748,6 +749,7 @@ function AppContent() {
                   searchTopicIds ? effectiveTopics.filter((t) => searchTopicIds.includes(t.id)) : null
                 }
                 onClearSearch={clearSearchResults}
+                onHoverSearchTopic={setHoveredSearchTopicId}
               />
               </div>
             </div>
