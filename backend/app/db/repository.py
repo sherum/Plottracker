@@ -418,7 +418,7 @@ def list_subplot_topics(conn: sqlite3.Connection, subplot_id: int) -> list[dict]
         SELECT topics.*, documents.filename AS document_filename, documents.story_position AS document_story_position
         FROM topics
         JOIN documents ON documents.id = topics.document_id
-        WHERE topics.theme_id = (SELECT theme_id FROM subplots WHERE id = ?)
+        WHERE topics.theme_id = (SELECT theme_id FROM subplots WHERE id = ?) AND topics.excluded = 0
         ORDER BY (documents.story_position IS NULL), documents.story_position, documents.id, topics.sequence_index
         """,
         (subplot_id,),

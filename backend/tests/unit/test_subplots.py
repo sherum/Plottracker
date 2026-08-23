@@ -70,6 +70,20 @@ def test_subplot_topics_are_derived_from_theme_membership(db_conn):
     assert [t["id"] for t in subplot_topics] == [topic_ids[0]]
 
 
+def test_list_subplot_topics_excludes_superseded_topics(db_conn):
+    _, theme_id, topic_ids = _make_document_with_topics(db_conn)
+    subplot_id = repository.insert_subplot(
+        db_conn, title="Ties to the Past", summary="A recurring thread.", theme_id=theme_id
+    )
+
+    # A later reanalyze pass leaves this topic behind, excluded but still
+    # pointing at the theme - it must not inflate the subplot's topic list.
+    repository.set_topic_excluded(db_conn, topic_ids[0], True)
+
+    assert repository.list_subplot_topics(db_conn, subplot_id) == []
+    assert repository.get_subplot(db_conn, subplot_id)["topic_count"] == 0
+
+
 def test_manual_subplot_add_and_remove_topic(db_conn):
     _, _, topic_ids = _make_document_with_topics(db_conn)
 

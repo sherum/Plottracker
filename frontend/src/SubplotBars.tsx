@@ -14,7 +14,8 @@ interface Subplot {
 
 interface SubplotWithTopics extends Subplot {
   topics: Topic[]
-  span: number
+  startPercent: number
+  widthPercent: number
 }
 
 interface Props {
@@ -28,9 +29,12 @@ interface Props {
   deleteTargetIds: Set<number>
   onClickAdd: (subplotId: number) => void
   onToggleDelete: (subplotId: number) => void
-  mainTheme: { id: number; topics: Topic[] } | null
   onDropTopic: (topicId: number, themeId: number, act: 'opening' | 'conflict' | 'climax' | null) => void
 }
+
+// A bar narrower than this is unreadable and hard to hit with a click/drop,
+// so short subplots are floored to this width rather than shown true-to-scale.
+const MIN_SPAN_PERCENT = 8
 
 function SubplotBars({
   documentId,
@@ -43,7 +47,6 @@ function SubplotBars({
   deleteTargetIds,
   onClickAdd,
   onToggleDelete,
-  mainTheme,
   onDropTopic,
 }: Props) {
   const [subplots, setSubplots] = useState<SubplotWithTopics[]>([])
@@ -56,6 +59,7 @@ function SubplotBars({
     let cancelled = false
 
     const listUrl = storyMode ? '/subplots' : `/subplots?document_id=${documentId}`
+    const total = topicOrderIndex.size
 
     fetch(listUrl)
       .then((res) => res.json())
@@ -67,17 +71,28 @@ function SubplotBars({
               .then((topics: Topic[]) => {
                 // Ranked by each topic's position in the currently displayed
                 // (story- or document-wide) order, since raw sequence_index
-                // is only comparable within a single document.
+                // is only comparable within a single document. The bar is
+                // placed at that same span of the whole story's timeline, so
+                // its position lines up with the top overview bar above it.
                 const ranks = topics.map((t) => topicOrderIndex.get(t.id)).filter((r): r is number => r !== undefined)
-                const span = ranks.length > 0 ? Math.max(...ranks) - Math.min(...ranks) : 0
-                return { ...subplot, topics, span }
+                if (ranks.length === 0 || total === 0) {
+                  return { ...subplot, topics, startPercent: 0, widthPercent: 100 }
+                }
+                const minRank = Math.min(...ranks)
+                const maxRank = Math.max(...ranks)
+                const rawStart = (minRank / total) * 100
+                const rawWidth = ((maxRank + 1 - minRank) / total) * 100
+                const widthPercent = Math.max(rawWidth, MIN_SPAN_PERCENT)
+                const startPercent = Math.min(rawStart, 100 - widthPercent)
+                return { ...subplot, topics, startPercent, widthPercent }
               })
           )
         )
       )
       .then((withTopics) => {
         if (cancelled) return
-        withTopics.sort((a, b) => b.span - a.span)
+        // Top to bottom in the order each subplot first appears in the story.
+        withTopics.sort((a, b) => a.startPercent - b.startPercent)
         setSubplots(withTopics)
       })
       .catch(() => {
@@ -90,7 +105,7 @@ function SubplotBars({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentId, storyMode, refreshToken])
 
-  if (subplots.length === 0 && !mainTheme) return null
+  if (subplots.length === 0) return null
 
   function jumpToAct(topics: Topic[], actKey: string) {
     const { buckets, extraBucket } = buildActBuckets(topics)
@@ -103,61 +118,53 @@ function SubplotBars({
     return (topicId: number, actKey: string) => onDropTopic(topicId, themeId, actKey === 'unassigned' ? null : (actKey as 'opening' | 'conflict' | 'climax'))
   }
 
-  const mainBuckets = mainTheme ? buildActBuckets(mainTheme.topics) : null
-
   return (
     <div className="subplot-bars">
-      {mainTheme && mainBuckets && (
-        <div className="subplot-bar-row subplot-bar-row-main">
-          <span className="subplot-bar-label" title="Main">
-            Main
-          </span>
-          <HbarVisual
-            buckets={mainBuckets.buckets}
-            extraBucket={mainBuckets.extraBucket}
-            onSegmentClick={(actKey) => jumpToAct(mainTheme.topics, actKey)}
-            onDropTopic={dropOnTheme(mainTheme.id)}
-            markerTopicId={currentTopicId}
-            size="small"
-          />
-        </div>
-      )}
       {subplots.map((subplot) => {
         const { buckets, extraBucket } = buildActBuckets(subplot.topics)
         const isEmpty = subplot.topic_count === 0
         return (
           <div className={`subplot-bar-row${isEmpty ? ' subplot-bar-row-empty' : ''}`} key={subplot.id}>
-            <span className="subplot-bar-label" title={subplot.title}>
-              {subplot.title}
-            </span>
-            {isEmpty && (
-              <span
-                className="subplot-bar-empty-badge"
-                title="No active topics. A future reanalyze may repopulate it, or you can remove it."
-              >
-                empty
+            <div className="subplot-bar-header">
+              <span className="subplot-bar-label" title={subplot.title}>
+                {subplot.title}
               </span>
-            )}
-            <HbarVisual
-              buckets={buckets}
-              extraBucket={extraBucket}
-              onSegmentClick={(actKey) => jumpToAct(subplot.topics, actKey)}
-              onDropTopic={dropOnTheme(subplot.theme_id)}
-              markerTopicId={currentTopicId}
-              size="small"
-            />
-            <IconButton
-              icon="add"
-              label={`Add topics to ${subplot.title}`}
-              active={addTargetSubplotId === subplot.id}
-              onClick={() => onClickAdd(subplot.id)}
-            />
-            <IconButton
-              icon="remove"
-              label={`Mark ${subplot.title} for deletion`}
-              active={deleteTargetIds.has(subplot.id)}
-              onClick={() => onToggleDelete(subplot.id)}
-            />
+              {isEmpty && (
+                <span
+                  className="subplot-bar-empty-badge"
+                  title="No active topics. A future reanalyze may repopulate it, or you can remove it."
+                >
+                  empty
+                </span>
+              )}
+              <IconButton
+                icon="add"
+                label={`Add topics to ${subplot.title}`}
+                active={addTargetSubplotId === subplot.id}
+                onClick={() => onClickAdd(subplot.id)}
+              />
+              <IconButton
+                icon="remove"
+                label={`Mark ${subplot.title} for deletion`}
+                active={deleteTargetIds.has(subplot.id)}
+                onClick={() => onToggleDelete(subplot.id)}
+              />
+            </div>
+            <div className="subplot-bar-track">
+              <div
+                className="subplot-bar-span"
+                style={{ marginLeft: `${subplot.startPercent}%`, width: `${subplot.widthPercent}%` }}
+              >
+                <HbarVisual
+                  buckets={buckets}
+                  extraBucket={extraBucket}
+                  onSegmentClick={(actKey) => jumpToAct(subplot.topics, actKey)}
+                  onDropTopic={dropOnTheme(subplot.theme_id)}
+                  markerTopicId={currentTopicId}
+                  size="small"
+                />
+              </div>
+            </div>
           </div>
         )
       })}

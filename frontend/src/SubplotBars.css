@@ -1,19 +1,25 @@
 .subplot-bars {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
   margin-top: 0.75rem;
 }
 
 .subplot-bar-row {
   display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.subplot-bar-header {
+  display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.4rem;
 }
 
 .subplot-bar-label {
-  flex: 0 0 auto;
-  width: 9rem;
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -21,14 +27,17 @@
   color: #888;
 }
 
-.subplot-bar-row .hbar {
-  flex: 1;
-  min-width: 0;
+.subplot-bar-track {
+  width: 100%;
 }
 
-.subplot-bar-row-main .subplot-bar-label {
-  font-weight: 600;
-  color: inherit;
+.subplot-bar-span {
+  box-sizing: border-box;
+}
+
+.subplot-bar-row .hbar {
+  width: 100%;
+  min-width: 0;
 }
 
 .subplot-bar-row-empty {

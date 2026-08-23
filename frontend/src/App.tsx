@@ -491,10 +491,6 @@ function AppContent() {
   const effectiveThemes = themes.filter((t) => effectiveThemeIds.has(t.id))
 
   const mainThemeId = themes.find((t) => t.is_main)?.id ?? null
-  const mainTheme =
-    (inStoryMode || loadedDocument !== null) && mainThemeId !== null
-      ? { id: mainThemeId, topics: topics.filter((t) => t.theme_id === mainThemeId) }
-      : null
 
   const orderedEffectiveTopics = [...effectiveTopics].sort(
     (a, b) =>
@@ -658,7 +654,18 @@ function AppContent() {
               </div>
               <div className="card-body">
               <div className="main-plot-row">
-                <HbarVisual buckets={buckets} extraBucket={extraBucket} onSegmentClick={jumpToAct} markerTopicId={currentTopicId} />
+                <HbarVisual
+                  buckets={buckets}
+                  extraBucket={extraBucket}
+                  onSegmentClick={jumpToAct}
+                  onDropTopic={
+                    mainThemeId === null
+                      ? undefined
+                      : (topicId, actKey) =>
+                          moveTopic(topicId, mainThemeId, actKey === 'unassigned' ? null : (actKey as 'opening' | 'conflict' | 'climax'))
+                  }
+                  markerTopicId={currentTopicId}
+                />
                 <IconButton
                   icon="add"
                   label="Add topics to a new subplot"
@@ -677,7 +684,6 @@ function AppContent() {
                 deleteTargetIds={deleteTargetIds}
                 onClickAdd={toggleAddTargetSubplot}
                 onToggleDelete={toggleDeleteTarget}
-                mainTheme={mainTheme}
                 onDropTopic={moveTopic}
               />
               </div>
