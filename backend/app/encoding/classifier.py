@@ -13,7 +13,7 @@ class Block(TypedDict):
 
 def classify_document(conn: sqlite3.Connection, document_id: int) -> dict:
     segments = repository.get_segments(conn, document_id)
-    rules = repository.list_encoding_rules(conn)
+    rules = [r for r in repository.list_encoding_rules(conn, document_id) if r["enabled"]]
     if not rules:
         return {"tagged": 0}
 

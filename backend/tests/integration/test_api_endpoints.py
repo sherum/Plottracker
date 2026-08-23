@@ -402,3 +402,35 @@ def test_encoding_rule_crud(client):
     delete_response = client.delete(f"/encoding-rules/{rule_id}")
     assert delete_response.status_code == 200
     assert client.get("/encoding-rules").json() == []
+
+
+def test_encoding_rule_enabled_toggle_is_scoped_to_document(client, db_conn):
+    document_id = repository.insert_document(
+        db_conn,
+        role="draft_script",
+        source_path="/tmp/chapter1.txt",
+        filename="chapter1.txt",
+        source_type="txt",
+        content_hash="hash",
+    )
+    other_document_id = repository.insert_document(
+        db_conn,
+        role="draft_script",
+        source_path="/tmp/chapter2.txt",
+        filename="chapter2.txt",
+        source_type="txt",
+        content_hash="hash2",
+    )
+    rule_id = repository.insert_encoding_rule(
+        db_conn, style_kind="italic", block_length="multi", position="chapter_start", label="dream_sequence"
+    )
+
+    scoped = client.get("/encoding-rules", params={"document_id": document_id}).json()
+    assert scoped[0]["enabled"] == 1
+
+    toggle_response = client.patch(f"/documents/{document_id}/encoding-rules/{rule_id}", json={"enabled": False})
+    assert toggle_response.status_code == 200
+    assert toggle_response.json() == {"document_id": document_id, "id": rule_id, "enabled": False}
+
+    assert client.get("/encoding-rules", params={"document_id": document_id}).json()[0]["enabled"] == 0
+    assert client.get("/encoding-rules", params={"document_id": other_document_id}).json()[0]["enabled"] == 1

@@ -446,9 +446,36 @@ def insert_encoding_rule(
     return cursor.lastrowid
 
 
-def list_encoding_rules(conn: sqlite3.Connection) -> list[dict]:
-    rows = conn.execute("SELECT * FROM encoding_rules ORDER BY id").fetchall()
+def list_encoding_rules(conn: sqlite3.Connection, document_id: int | None = None) -> list[dict]:
+    if document_id is None:
+        rows = conn.execute("SELECT * FROM encoding_rules ORDER BY id").fetchall()
+        return [dict(row) for row in rows]
+
+    rows = conn.execute(
+        """
+        SELECT encoding_rules.*, exclusions.document_id IS NULL AS enabled
+        FROM encoding_rules
+        LEFT JOIN document_encoding_rule_exclusions AS exclusions
+            ON exclusions.encoding_rule_id = encoding_rules.id AND exclusions.document_id = ?
+        ORDER BY encoding_rules.id
+        """,
+        (document_id,),
+    ).fetchall()
     return [dict(row) for row in rows]
+
+
+def set_rule_enabled_for_document(conn: sqlite3.Connection, document_id: int, rule_id: int, enabled: bool) -> None:
+    if enabled:
+        conn.execute(
+            "DELETE FROM document_encoding_rule_exclusions WHERE document_id = ? AND encoding_rule_id = ?",
+            (document_id, rule_id),
+        )
+    else:
+        conn.execute(
+            "INSERT OR IGNORE INTO document_encoding_rule_exclusions (document_id, encoding_rule_id) VALUES (?, ?)",
+            (document_id, rule_id),
+        )
+    conn.commit()
 
 
 def update_encoding_rule(

@@ -216,6 +216,61 @@ def test_update_encoding_rule_changes_fields(db_conn):
     assert updated["description"] == "Revised."
 
 
+def test_list_encoding_rules_scoped_to_document_defaults_to_enabled(db_conn):
+    document_id = repository.insert_document(
+        db_conn,
+        role="draft_script",
+        source_path="/tmp/chapter1.txt",
+        filename="chapter1.txt",
+        source_type="txt",
+        content_hash="hash",
+    )
+    rule_id = repository.insert_encoding_rule(
+        db_conn, style_kind="italic", block_length="multi", position="chapter_start", label="dream_sequence"
+    )
+
+    rules = repository.list_encoding_rules(db_conn, document_id)
+
+    assert len(rules) == 1
+    assert rules[0]["id"] == rule_id
+    assert rules[0]["enabled"] == 1
+
+
+def test_set_rule_enabled_for_document_disables_and_reenables(db_conn):
+    document_id = repository.insert_document(
+        db_conn,
+        role="draft_script",
+        source_path="/tmp/chapter1.txt",
+        filename="chapter1.txt",
+        source_type="txt",
+        content_hash="hash",
+    )
+    other_document_id = repository.insert_document(
+        db_conn,
+        role="draft_script",
+        source_path="/tmp/chapter2.txt",
+        filename="chapter2.txt",
+        source_type="txt",
+        content_hash="hash2",
+    )
+    rule_id = repository.insert_encoding_rule(
+        db_conn, style_kind="italic", block_length="multi", position="chapter_start", label="dream_sequence"
+    )
+
+    repository.set_rule_enabled_for_document(db_conn, document_id, rule_id, False)
+
+    rules = repository.list_encoding_rules(db_conn, document_id)
+    assert rules[0]["enabled"] == 0
+    # Disabling for one document leaves the rule enabled for every other one.
+    other_rules = repository.list_encoding_rules(db_conn, other_document_id)
+    assert other_rules[0]["enabled"] == 1
+
+    repository.set_rule_enabled_for_document(db_conn, document_id, rule_id, True)
+
+    rules = repository.list_encoding_rules(db_conn, document_id)
+    assert rules[0]["enabled"] == 1
+
+
 def test_get_topic_segments_returns_ordered_rows_in_range(db_conn):
     document_id = repository.insert_document(
         db_conn,

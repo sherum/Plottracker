@@ -19,9 +19,13 @@ class EncodingRuleCreate(BaseModel):
     description: str = ""
 
 
+class EncodingRuleToggle(BaseModel):
+    enabled: bool
+
+
 @router.get("/encoding-rules")
-def get_encoding_rules(conn: sqlite3.Connection = Depends(get_db)) -> list[dict]:
-    return repository.list_encoding_rules(conn)
+def get_encoding_rules(document_id: int | None = None, conn: sqlite3.Connection = Depends(get_db)) -> list[dict]:
+    return repository.list_encoding_rules(conn, document_id)
 
 
 @router.post("/encoding-rules")
@@ -56,6 +60,14 @@ def update_encoding_rule(
 def delete_encoding_rule(rule_id: int, conn: sqlite3.Connection = Depends(get_db)) -> dict:
     repository.delete_encoding_rule(conn, rule_id)
     return {"deleted": rule_id}
+
+
+@router.patch("/documents/{document_id}/encoding-rules/{rule_id}")
+def set_encoding_rule_enabled_for_document(
+    document_id: int, rule_id: int, request: EncodingRuleToggle, conn: sqlite3.Connection = Depends(get_db)
+) -> dict:
+    repository.set_rule_enabled_for_document(conn, document_id, rule_id, request.enabled)
+    return {"document_id": document_id, "id": rule_id, "enabled": request.enabled}
 
 
 @router.post("/documents/{document_id}/classify-encoding")

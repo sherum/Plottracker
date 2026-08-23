@@ -80,3 +80,11 @@ CREATE TABLE IF NOT EXISTS encoding_rules (
     description TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL
 );
+
+-- A row's mere presence means the rule is disabled for that document.
+-- Absence means enabled - the default for every existing document/rule.
+CREATE TABLE IF NOT EXISTS document_encoding_rule_exclusions (
+    document_id INTEGER NOT NULL REFERENCES documents(id),
+    encoding_rule_id INTEGER NOT NULL REFERENCES encoding_rules(id),
+    PRIMARY KEY (document_id, encoding_rule_id)
+);

@@ -84,6 +84,23 @@ def test_multiline_italic_not_after_heading_is_untagged(db_conn):
     assert tags["The ground fell away."] == []
 
 
+def test_disabled_rule_does_not_tag_the_document(db_conn):
+    document_id = _make_document(db_conn)
+    _add_paragraph(db_conn, document_id, 0, "Chapter One", heading=True)
+    _add_paragraph(db_conn, document_id, 1, "I was flying.", italic=True)
+    _add_paragraph(db_conn, document_id, 2, "The ground fell away.", italic=True)
+    _add_rules(db_conn)
+    rule_id = repository.list_encoding_rules(db_conn)[0]["id"]
+    repository.set_rule_enabled_for_document(db_conn, document_id, rule_id, False)
+
+    summary = classify_document(db_conn, document_id)
+
+    assert summary == {"tagged": 0}
+    tags = _semantic_tags_by_text(db_conn, document_id)
+    assert tags["I was flying."] == []
+    assert tags["The ground fell away."] == []
+
+
 def test_classify_is_idempotent(db_conn):
     document_id = _make_document(db_conn)
     _add_paragraph(db_conn, document_id, 0, "Where am I?", italic=True)
