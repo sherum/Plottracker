@@ -74,7 +74,7 @@ function AppContent() {
   const [deleteTargetIds, setDeleteTargetIds] = useState<Set<number>>(new Set())
   const [renamingDocId, setRenamingDocId] = useState<number | null>(null)
   const [renameValue, setRenameValue] = useState('')
-  const [expandedDocId, setExpandedDocId] = useState<number | null>(null)
+  const [documentsExpanded, setDocumentsExpanded] = useState(true)
   const [filteredSelection, setFilteredSelection] = useState<{
     topicIds: number[]
     selectedTopicIds: Set<number>
@@ -489,8 +489,8 @@ function AppContent() {
     setLoadedDocument(doc)
   }
 
-  function toggleDocActions(docId: number) {
-    setExpandedDocId((prev) => (prev === docId ? null : docId))
+  function toggleDocumentsPanel() {
+    setDocumentsExpanded((prev) => !prev)
   }
 
   // Once at least one document is linked into the story, the whole app
@@ -563,24 +563,28 @@ function AppContent() {
       <div className="row g-4">
         <div className="col-12 col-lg-2 order-2 order-lg-1 d-flex flex-column gap-4 documents-panel">
         <div className="card">
-          <div className="card-header">
+          <div className="card-header documents-card-header">
             <h2 className="h5 mb-0">Documents</h2>
+            <span className="documents-panel-toggle">
+              <IconButton
+                icon="chevron"
+                label={documentsExpanded ? 'Collapse documents' : 'Expand documents'}
+                active={documentsExpanded}
+                onClick={toggleDocumentsPanel}
+              />
+            </span>
           </div>
           <div className="card-body">
           <IngestForm onIngested={refetchDocuments} />
           {documents.length === 0 ? (
             <p>No documents ingested yet.</p>
           ) : (
-            <ul className="documents-list">
+            <ul className={`documents-list${documentsExpanded ? '' : ' collapsed'}`}>
               {documents.map((doc) => {
                 const inStory = storyDocuments.some((d) => d.id === doc.id)
                 const isRenaming = renamingDocId === doc.id
-                const isExpanded = expandedDocId === doc.id
-                const liClasses = [loadedDocument?.id === doc.id && 'loaded', isExpanded && 'expanded']
-                  .filter(Boolean)
-                  .join(' ')
                 return (
-                  <li key={doc.id} className={liClasses || undefined}>
+                  <li key={doc.id} className={loadedDocument?.id === doc.id ? 'loaded' : undefined}>
                     {isRenaming ? (
                       <div className="doc-rename-row">
                         <input
@@ -606,20 +610,9 @@ function AppContent() {
                         </button>
                       </div>
                     ) : (
-                      <div className="doc-header-row">
-                        <button type="button" className="doc-filename" onClick={() => loadDocument(doc)}>
-                          {doc.filename}
-                        </button>
-                        <span className="tag">{doc.role}</span>
-                        <span className="doc-toggle">
-                          <IconButton
-                            icon="more"
-                            label={`${isExpanded ? 'Hide' : 'Show'} actions for ${doc.filename}`}
-                            active={isExpanded}
-                            onClick={() => toggleDocActions(doc.id)}
-                          />
-                        </span>
-                      </div>
+                      <button type="button" className="doc-filename" onClick={() => loadDocument(doc)}>
+                        {doc.filename}
+                      </button>
                     )}
                     <div className="doc-actions">
                       <IconButton

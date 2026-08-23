@@ -1,7 +1,7 @@
-type IconName = 'more' | 'reanalyze' | 'classify' | 'delete' | 'add' | 'remove' | 'link' | 'up' | 'down' | 'main' | 'split' | 'rename'
+type IconName = 'chevron' | 'reanalyze' | 'classify' | 'delete' | 'add' | 'remove' | 'link' | 'up' | 'down' | 'main' | 'split' | 'rename'
 
 const ICON_CLASSES: Record<IconName, string> = {
-  more: 'bi-three-dots',
+  chevron: 'bi-chevron-down',
   reanalyze: 'bi-arrow-clockwise',
   classify: 'bi-tags',
   delete: 'bi-trash',

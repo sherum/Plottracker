@@ -105,15 +105,9 @@ main {
   background: color-mix(in srgb, var(--color-accent) 10%, canvas);
 }
 
-.doc-header-row {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
 .doc-filename {
-  flex: 1 1 auto;
-  min-width: 0;
+  display: block;
+  width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -132,11 +126,6 @@ main {
   text-decoration: underline;
 }
 
-.doc-toggle {
-  display: none;
-  flex: 0 0 auto;
-}
-
 .doc-actions {
   display: flex;
   flex-wrap: nowrap;
@@ -150,17 +139,28 @@ main {
   gap: 0.3rem;
 }
 
+.documents-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.documents-panel-toggle {
+  display: none;
+}
+
 @media (min-width: 992px) {
-  .doc-toggle {
+  .documents-panel-toggle {
     display: inline-flex;
   }
 
-  .doc-actions {
-    display: none;
+  .documents-panel-toggle .btn.active i {
+    transform: rotate(180deg);
   }
 
-  .documents-list li.expanded .doc-actions {
-    display: flex;
+  .documents-list.collapsed {
+    display: none;
   }
 }
 
