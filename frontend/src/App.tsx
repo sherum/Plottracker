@@ -198,6 +198,7 @@ function AppContent() {
       )
     )
     setSubplotSelection(null)
+    refetchTopicsAndThemes()
     setSubplotRefreshToken((n) => n + 1)
     return { count: topicIds.length, title: subplotTitle }
   }
@@ -306,6 +307,7 @@ function AppContent() {
     setAddTarget(null)
     setAddTargetTitle(null)
     setFilteredSelection(null)
+    refetchTopicsAndThemes()
     setSubplotRefreshToken((n) => n + 1)
     return { count: topicIds.length, title }
   }
@@ -315,6 +317,7 @@ function AppContent() {
     if (ids.length === 0) return { count: 0 }
     await Promise.all(ids.map((id) => fetch(`/subplots/${id}`, { method: 'DELETE' })))
     setDeleteTargetIds(new Set())
+    refetchTopicsAndThemes()
     setSubplotRefreshToken((n) => n + 1)
     return { count: ids.length }
   }
