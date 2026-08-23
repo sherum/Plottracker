@@ -206,6 +206,14 @@ def list_themes(conn: sqlite3.Connection) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+def list_active_themes(conn: sqlite3.Connection) -> list[dict]:
+    """Non-main, non-excluded themes - candidates to offer the LLM for reuse."""
+    rows = conn.execute(
+        "SELECT id, title, summary FROM themes WHERE is_main = 0 AND excluded = 0 ORDER BY id"
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def get_theme(conn: sqlite3.Connection, theme_id: int) -> dict:
     row = conn.execute("SELECT * FROM themes WHERE id = ?", (theme_id,)).fetchone()
     return dict(row)
@@ -309,22 +317,6 @@ def set_theme_excluded(conn: sqlite3.Connection, theme_id: int, excluded: bool) 
 def exclude_topics_for_document(conn: sqlite3.Connection, document_id: int) -> None:
     conn.execute("UPDATE topics SET excluded = 1 WHERE document_id = ?", (document_id,))
     conn.commit()
-
-
-def get_active_theme_ids_for_document(conn: sqlite3.Connection, document_id: int) -> set[int]:
-    main_theme_id = get_main_theme_id(conn)
-    rows = conn.execute(
-        "SELECT DISTINCT theme_id FROM topics WHERE document_id = ? AND excluded = 0 AND theme_id != ?",
-        (document_id, main_theme_id),
-    ).fetchall()
-    return {row["theme_id"] for row in rows}
-
-
-def count_active_topics_for_theme(conn: sqlite3.Connection, theme_id: int) -> int:
-    row = conn.execute(
-        "SELECT COUNT(*) AS n FROM topics WHERE theme_id = ? AND excluded = 0", (theme_id,)
-    ).fetchone()
-    return row["n"]
 
 
 def insert_subplot(

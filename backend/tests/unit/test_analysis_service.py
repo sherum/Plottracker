@@ -41,7 +41,7 @@ def test_analyze_document_stores_topics_and_themes(db_conn, monkeypatch):
         ],
         themes=[ThemeOut(title="Journey", summary="The hero's journey begins.", topic_indices=[0, 1])],
     )
-    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments: fake_result)
+    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments, existing_themes=None: fake_result)
 
     summary = service.analyze_document(db_conn, document_id)
 
@@ -87,7 +87,7 @@ def test_analyze_document_leaves_ungrouped_topics_under_main(db_conn, monkeypatc
         # Only the first topic is grouped into a theme; the second is left out entirely.
         themes=[ThemeOut(title="Journey", summary="The hero's journey begins.", topic_indices=[0])],
     )
-    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments: fake_result)
+    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments, existing_themes=None: fake_result)
 
     service.analyze_document(db_conn, document_id)
 
@@ -125,7 +125,7 @@ def test_analyze_document_caps_auto_created_subplots_at_four(db_conn, monkeypatc
         )
         cursor += size
     fake_result = AnalysisResult(topics=topics, themes=themes)
-    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments: fake_result)
+    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments, existing_themes=None: fake_result)
 
     summary = service.analyze_document(db_conn, document_id)
 
@@ -156,7 +156,7 @@ def test_analyze_document_ignores_out_of_range_topic_indices(db_conn, monkeypatc
         ],
         themes=[ThemeOut(title="Journey", summary="s", topic_indices=[0, 5, -1])],
     )
-    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments: fake_result)
+    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments, existing_themes=None: fake_result)
 
     summary = service.analyze_document(db_conn, document_id)
 
@@ -166,7 +166,7 @@ def test_analyze_document_ignores_out_of_range_topic_indices(db_conn, monkeypatc
     assert topic["theme_id"] != main_theme_id
 
 
-def test_reanalyze_retires_theme_that_loses_its_last_topic(db_conn, monkeypatch):
+def test_reanalyze_keeps_theme_that_loses_its_last_topic(db_conn, monkeypatch):
     document_id, segment_ids = _make_document_with_segments(db_conn)
 
     first_result = AnalysisResult(
@@ -181,7 +181,7 @@ def test_reanalyze_retires_theme_that_loses_its_last_topic(db_conn, monkeypatch)
         ],
         themes=[ThemeOut(title="Journey", summary="s", topic_indices=[0])],
     )
-    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments: first_result)
+    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments, existing_themes=None: first_result)
     service.analyze_document(db_conn, document_id)
 
     first_pass_theme_id = next(
@@ -201,11 +201,75 @@ def test_reanalyze_retires_theme_that_loses_its_last_topic(db_conn, monkeypatch)
         ],
         themes=[],
     )
-    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments: second_result)
+    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments, existing_themes=None: second_result)
     service.analyze_document(db_conn, document_id)
 
-    assert first_pass_theme_id not in [t["id"] for t in repository.list_themes(db_conn)]
-    assert subplot_id not in [s["id"] for s in repository.list_subplots(db_conn)]
+    # The theme/subplot survives even though it has no active topics left -
+    # it may be manually curated, and only the user retires it.
+    assert first_pass_theme_id in [t["id"] for t in repository.list_themes(db_conn)]
+    assert subplot_id in [s["id"] for s in repository.list_subplots(db_conn)]
+
+
+def test_analyze_document_reuses_existing_theme_when_llm_matches_one(db_conn, monkeypatch):
+    first_document_id, first_segment_ids = _make_document_with_segments(db_conn)
+    first_result = AnalysisResult(
+        topics=[
+            TopicOut(
+                segment_start_id=first_segment_ids[0],
+                segment_end_id=first_segment_ids[0],
+                title="Departure",
+                summary="The hero leaves home.",
+                act="opening",
+            )
+        ],
+        themes=[ThemeOut(title="Journey", summary="The hero's road.", topic_indices=[0])],
+    )
+    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments, existing_themes=None: first_result)
+    service.analyze_document(db_conn, first_document_id)
+
+    journey_theme_id = next(t["id"] for t in repository.list_themes(db_conn) if t["title"] == "Journey")
+
+    second_document_id, second_segment_ids = _make_document_with_segments(db_conn)
+    captured_existing_themes = {}
+
+    def second_pass(segments, existing_themes=None):
+        captured_existing_themes["value"] = existing_themes
+        return AnalysisResult(
+            topics=[
+                TopicOut(
+                    segment_start_id=second_segment_ids[0],
+                    segment_end_id=second_segment_ids[0],
+                    title="Further down the road",
+                    summary="The hero keeps moving.",
+                    act="conflict",
+                )
+            ],
+            themes=[
+                ThemeOut(
+                    title="Journey",
+                    summary="The hero's road.",
+                    topic_indices=[0],
+                    existing_theme_id=journey_theme_id,
+                )
+            ],
+        )
+
+    monkeypatch.setattr(service.llm, "extract_topics_and_themes", second_pass)
+    summary = service.analyze_document(db_conn, second_document_id)
+
+    # The LLM was offered the existing theme as context...
+    assert captured_existing_themes["value"] == [
+        {"id": journey_theme_id, "title": "Journey", "summary": "The hero's road."}
+    ]
+    # ...and reusing it doesn't create a duplicate or count against the cap.
+    assert summary["themes_created"] == 0
+    non_main_themes = [t for t in repository.list_themes(db_conn) if t["title"] == "Journey"]
+    assert len(non_main_themes) == 1
+
+    new_topic = next(
+        t for t in repository.list_topics(db_conn, second_document_id) if t["title"] == "Further down the road"
+    )
+    assert new_topic["theme_id"] == journey_theme_id
 
 
 def test_reanalyze_excludes_old_topics_instead_of_duplicating(db_conn, monkeypatch):
@@ -223,7 +287,7 @@ def test_reanalyze_excludes_old_topics_instead_of_duplicating(db_conn, monkeypat
         ],
         themes=[],
     )
-    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments: first_result)
+    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments, existing_themes=None: first_result)
     service.analyze_document(db_conn, document_id)
 
     second_result = AnalysisResult(
@@ -238,7 +302,7 @@ def test_reanalyze_excludes_old_topics_instead_of_duplicating(db_conn, monkeypat
         ],
         themes=[],
     )
-    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments: second_result)
+    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments, existing_themes=None: second_result)
     service.analyze_document(db_conn, document_id)
 
     topics = repository.list_topics(db_conn, document_id)
@@ -276,7 +340,7 @@ def test_analyze_document_trims_topic_ending_on_next_chapter_heading(db_conn, mo
         ],
         themes=[],
     )
-    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments: fake_result)
+    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments, existing_themes=None: fake_result)
 
     service.analyze_document(db_conn, document_id)
 
@@ -308,7 +372,7 @@ def test_analyze_document_keeps_single_segment_heading_topic_untrimmed(db_conn, 
         ],
         themes=[],
     )
-    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments: fake_result)
+    monkeypatch.setattr(service.llm, "extract_topics_and_themes", lambda segments, existing_themes=None: fake_result)
 
     service.analyze_document(db_conn, document_id)
 

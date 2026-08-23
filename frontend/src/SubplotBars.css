@@ -30,3 +30,14 @@
   font-weight: 600;
   color: inherit;
 }
+
+.subplot-bar-row-empty {
+  opacity: 0.6;
+}
+
+.subplot-bar-empty-badge {
+  flex: 0 0 auto;
+  font-size: 0.75em;
+  font-style: italic;
+  color: var(--color-accent);
+}

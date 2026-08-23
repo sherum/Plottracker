@@ -31,22 +31,36 @@ Respond with strict JSON only, matching this shape:
     {"segment_start_id": int, "segment_end_id": int, "title": str, "summary": str, "act": "opening" | "conflict" | "climax"}
   ],
   "themes": [
-    {"title": str, "summary": str, "topic_indices": [int]}
+    {"title": str, "summary": str, "topic_indices": [int], "existing_theme_id": int | null}
   ]
 }
 
 Order topics by their first appearance in the manuscript. "topic_indices" are
-0-based positions into the "topics" list above."""
+0-based positions into the "topics" list above.
+
+You may be given a list of existing themes/subplots from the rest of the
+story. If a group of topics continues one of them, set "existing_theme_id"
+to that theme's id and reuse its title/summary rather than inventing a
+near-duplicate. Only omit "existing_theme_id" (or set it null) when the
+topics form a genuinely new thread not covered by any existing theme."""
 
 
 def _is_chapter_break(segment: dict) -> bool:
     return any(style["style_kind"] == "heading" for style in segment.get("styles", []))
 
 
-def extract_topics_and_themes(segments: list[dict]) -> AnalysisResult:
+def _format_existing_themes(existing_themes: list[dict]) -> str:
+    if not existing_themes:
+        return ""
+    lines = "\n".join(f"- id {t['id']}: {t['title']} - {t['summary']}" for t in existing_themes)
+    return f"\n\nExisting themes/subplots from the rest of the story:\n{lines}"
+
+
+def extract_topics_and_themes(segments: list[dict], existing_themes: list[dict] | None = None) -> AnalysisResult:
     manuscript = "\n".join(
         f"[segment {s['id']}]{' [CHAPTER BREAK]' if _is_chapter_break(s) else ''} {s['text']}" for s in segments
     )
+    manuscript += _format_existing_themes(existing_themes or [])
 
     response = litellm.completion(
         model=MODEL,

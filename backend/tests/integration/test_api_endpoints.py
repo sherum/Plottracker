@@ -172,7 +172,7 @@ def test_analyze_document_creates_topics_and_themes(client, db_conn, tmp_path, m
         ],
         themes=[ThemeOut(title="Journey", summary="The hero's journey begins.", topic_indices=[0])],
     )
-    monkeypatch.setattr(llm, "extract_topics_and_themes", lambda segments: fake_result)
+    monkeypatch.setattr(llm, "extract_topics_and_themes", lambda segments, existing_themes=None: fake_result)
 
     analyze_response = client.post(f"/documents/{document_id}/analyze")
     assert analyze_response.status_code == 200

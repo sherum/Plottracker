@@ -17,6 +17,7 @@ class ThemeOut(BaseModel):
     title: str
     summary: str
     topic_indices: list[int] = []
+    existing_theme_id: int | None = None
 
 
 class AnalysisResult(BaseModel):

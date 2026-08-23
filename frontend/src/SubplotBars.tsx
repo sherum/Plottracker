@@ -124,11 +124,20 @@ function SubplotBars({
       )}
       {subplots.map((subplot) => {
         const { buckets, extraBucket } = buildActBuckets(subplot.topics)
+        const isEmpty = subplot.topic_count === 0
         return (
-          <div className="subplot-bar-row" key={subplot.id}>
+          <div className={`subplot-bar-row${isEmpty ? ' subplot-bar-row-empty' : ''}`} key={subplot.id}>
             <span className="subplot-bar-label" title={subplot.title}>
               {subplot.title}
             </span>
+            {isEmpty && (
+              <span
+                className="subplot-bar-empty-badge"
+                title="No active topics. A future reanalyze may repopulate it, or you can remove it."
+              >
+                empty
+              </span>
+            )}
             <HbarVisual
               buckets={buckets}
               extraBucket={extraBucket}

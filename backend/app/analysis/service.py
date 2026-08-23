@@ -35,19 +35,18 @@ def analyze_document(conn: sqlite3.Connection, document_id: int) -> dict:
     if not segments:
         raise ValueError(f"document {document_id} has no segments")
 
-    result = llm.extract_topics_and_themes(segments)
+    existing_themes = repository.list_active_themes(conn)
+    result = llm.extract_topics_and_themes(segments, existing_themes)
     result = _trim_trailing_chapter_headings(result, segments)
 
     main_theme_id = repository.get_main_theme_id(conn)
+    existing_theme_ids = {theme["id"] for theme in existing_themes}
 
-    # A reanalyze pass excludes this document's old topics below; if that
-    # empties out a theme from the previous pass, retire it (and its
-    # subplot) rather than leaving it behind as dead clutter.
-    previous_theme_ids = repository.get_active_theme_ids_for_document(conn, document_id)
+    # A reanalyze pass excludes this document's old topics; themes/subplots
+    # are left alone even if that empties one out. They may be manually
+    # curated, and a later pass may repopulate them - only the user retires
+    # a theme, via exclude_theme.
     repository.exclude_topics_for_document(conn, document_id)
-    for theme_id in previous_theme_ids:
-        if repository.count_active_topics_for_theme(conn, theme_id) == 0:
-            repository.retire_theme(conn, theme_id)
 
     # Every topic starts under Main; only topics grouped into one of the
     # top MAX_AUTO_SUBPLOTS themes (by topic count) get moved into a subplot.
@@ -67,19 +66,36 @@ def analyze_document(conn: sqlite3.Connection, document_id: int) -> dict:
     ]
 
     valid_indices = range(len(topic_ids))
-    themes_by_size = sorted(
+    themes_with_indices = [
+        (theme, [i for i in theme.topic_indices if i in valid_indices])
+        for theme in result.themes
+    ]
+
+    # A theme continuing an existing one is reused directly, with no cap -
+    # it's not a new subplot. Only genuinely new clusters compete for the
+    # MAX_AUTO_SUBPLOTS budget, largest first.
+    reused = [
+        (theme, indices)
+        for theme, indices in themes_with_indices
+        if indices and theme.existing_theme_id in existing_theme_ids
+    ]
+    new = sorted(
         (
-            (theme, [i for i in theme.topic_indices if i in valid_indices])
-            for theme in result.themes
+            (theme, indices)
+            for theme, indices in themes_with_indices
+            if indices and theme.existing_theme_id not in existing_theme_ids
         ),
         key=lambda pair: len(pair[1]),
         reverse=True,
     )
 
     theme_ids = []
-    for theme, indices in themes_by_size[:MAX_AUTO_SUBPLOTS]:
-        if not indices:
-            continue
+    for theme, indices in reused:
+        theme_id = theme.existing_theme_id
+        for topic_index in indices:
+            repository.set_topic_theme(conn, topic_ids[topic_index], theme_id)
+
+    for theme, indices in new[:MAX_AUTO_SUBPLOTS]:
         theme_id = repository.insert_theme(conn, title=theme.title, summary=theme.summary)
         repository.insert_subplot(conn, title=theme.title, summary=theme.summary, theme_id=theme_id)
         theme_ids.append(theme_id)

@@ -50,3 +50,20 @@ def test_manuscript_has_no_markers_when_no_headings_present(monkeypatch):
     llm.extract_topics_and_themes(segments)
 
     assert "CHAPTER BREAK" not in captured["manuscript"]
+
+
+def test_manuscript_lists_existing_themes_for_reuse(monkeypatch):
+    segments = [{"id": 1, "text": "Just prose.", "styles": []}]
+    existing_themes = [{"id": 7, "title": "The heist", "summary": "Planning the job."}]
+
+    captured = {}
+
+    def fake_completion(model, messages, response_format):
+        captured["manuscript"] = messages[1]["content"]
+        return _FakeResponse(json.dumps({"topics": [], "themes": []}))
+
+    monkeypatch.setattr(llm.litellm, "completion", fake_completion)
+
+    llm.extract_topics_and_themes(segments, existing_themes)
+
+    assert "id 7: The heist - Planning the job." in captured["manuscript"]
