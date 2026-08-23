@@ -74,6 +74,7 @@ function AppContent() {
   const [deleteTargetIds, setDeleteTargetIds] = useState<Set<number>>(new Set())
   const [renamingDocId, setRenamingDocId] = useState<number | null>(null)
   const [renameValue, setRenameValue] = useState('')
+  const [expandedDocId, setExpandedDocId] = useState<number | null>(null)
   const [filteredSelection, setFilteredSelection] = useState<{
     topicIds: number[]
     selectedTopicIds: Set<number>
@@ -488,6 +489,10 @@ function AppContent() {
     setLoadedDocument(doc)
   }
 
+  function toggleDocActions(docId: number) {
+    setExpandedDocId((prev) => (prev === docId ? null : docId))
+  }
+
   // Once at least one document is linked into the story, the whole app
   // switches from viewing a single loaded document to viewing the full,
   // story-ordered union of every linked document's topics.
@@ -570,8 +575,12 @@ function AppContent() {
               {documents.map((doc) => {
                 const inStory = storyDocuments.some((d) => d.id === doc.id)
                 const isRenaming = renamingDocId === doc.id
+                const isExpanded = expandedDocId === doc.id
+                const liClasses = [loadedDocument?.id === doc.id && 'loaded', isExpanded && 'expanded']
+                  .filter(Boolean)
+                  .join(' ')
                 return (
-                  <li key={doc.id} className={loadedDocument?.id === doc.id ? 'loaded' : undefined}>
+                  <li key={doc.id} className={liClasses || undefined}>
                     {isRenaming ? (
                       <div className="doc-rename-row">
                         <input
@@ -597,12 +606,22 @@ function AppContent() {
                         </button>
                       </div>
                     ) : (
-                      <>
-                        <span className="doc-filename">{doc.filename}</span> <span className="tag">{doc.role}</span>
-                      </>
+                      <div className="doc-header-row">
+                        <button type="button" className="doc-filename" onClick={() => loadDocument(doc)}>
+                          {doc.filename}
+                        </button>
+                        <span className="tag">{doc.role}</span>
+                        <span className="doc-toggle">
+                          <IconButton
+                            icon="more"
+                            label={`${isExpanded ? 'Hide' : 'Show'} actions for ${doc.filename}`}
+                            active={isExpanded}
+                            onClick={() => toggleDocActions(doc.id)}
+                          />
+                        </span>
+                      </div>
                     )}
                     <div className="doc-actions">
-                      <IconButton icon="load" label="Load" onClick={() => loadDocument(doc)} />
                       <IconButton
                         icon="rename"
                         label="Rename"
