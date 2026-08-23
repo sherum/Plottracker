@@ -93,14 +93,12 @@ function AppContent() {
       fetch('/documents').then((res) => res.json()),
       fetch('/themes').then((res) => res.json()),
       fetch('/topics').then((res) => res.json()),
-      fetch('/encoding-rules').then((res) => res.json()),
       fetch('/story/documents').then((res) => res.json()),
     ])
-      .then(([documentsData, themesData, topicsData, encodingRulesData, storyDocumentsData]) => {
+      .then(([documentsData, themesData, topicsData, storyDocumentsData]) => {
         setDocuments(documentsData)
         setThemes(themesData.map(normalizeTheme))
         setTopics(topicsData.map(normalizeExcluded))
-        setEncodingRules(encodingRulesData)
         setStoryDocuments(storyDocumentsData)
       })
       .catch(() => setError('Could not reach the backend at http://localhost:8000'))
@@ -155,10 +153,22 @@ function AppContent() {
   }
 
   function refetchEncodingRules() {
-    fetch('/encoding-rules')
+    // Rules are shown scoped to whichever single document is loaded, so
+    // enabling/disabling one is unambiguous. Story mode spans several
+    // documents at once, so there's no single document to scope by there.
+    const url =
+      storyDocuments.length > 0 || !loadedDocument
+        ? '/encoding-rules'
+        : `/encoding-rules?document_id=${loadedDocument.id}`
+    fetch(url)
       .then((res) => res.json())
       .then(setEncodingRules)
   }
+
+  useEffect(() => {
+    refetchEncodingRules()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadedDocument?.id, storyDocuments.length])
 
   function refetchAfterSidekickAction() {
     refetchTopicsAndThemes()
@@ -450,6 +460,21 @@ function AppContent() {
     } catch {
       setClassifying((prev) => ({ ...prev, [id]: '' }))
       showError('Could not classify encoding for this document. Please try again.')
+    }
+  }
+
+  async function toggleEncodingRule(ruleId: number, enabled: boolean) {
+    if (!loadedDocument) return
+    try {
+      const response = await fetch(`/documents/${loadedDocument.id}/encoding-rules/${ruleId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled }),
+      })
+      if (!response.ok) throw new Error()
+      setEncodingRules((prev) => prev.map((r) => (r.id === ruleId ? { ...r, enabled } : r)))
+    } catch {
+      showError('Could not update this encoding rule. Please try again.')
     }
   }
 
@@ -788,7 +813,10 @@ function AppContent() {
               <h2 className="h5 mb-0">Encoding Rules</h2>
             </div>
             <div className="card-body">
-              <EncodingRules rules={encodingRules} />
+              <EncodingRules
+                rules={encodingRules}
+                onToggleRule={loadedDocument && !inStoryMode ? toggleEncodingRule : undefined}
+              />
             </div>
           </div>
           <div>

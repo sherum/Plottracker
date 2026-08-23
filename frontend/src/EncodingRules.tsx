@@ -8,21 +8,38 @@ export interface EncodingRule {
   position: 'chapter_start' | 'anywhere'
   label: string
   description: string
+  enabled?: boolean
 }
 
 interface Props {
   rules: EncodingRule[]
+  onToggleRule?: (id: number, enabled: boolean) => void
 }
 
-function EncodingRules({ rules }: Props) {
+function EncodingRules({ rules, onToggleRule }: Props) {
   return (
     <div className="notecards">
       <div className="encoding-rules-list">
-        {rules.map((rule) => (
-          <div className="encoding-rule-pill" key={rule.id} title={rule.description || rule.label}>
-            {rule.description || rule.label}
-          </div>
-        ))}
+        {rules.map((rule) => {
+          const enabled = rule.enabled ?? true
+          return (
+            <button
+              type="button"
+              className={`encoding-rule-pill${enabled ? '' : ' encoding-rule-disabled'}`}
+              key={rule.id}
+              disabled={!onToggleRule}
+              onClick={onToggleRule ? () => onToggleRule(rule.id, !enabled) : undefined}
+              title={
+                onToggleRule
+                  ? `${enabled ? 'Disable' : 'Enable'} "${rule.label}" for this document`
+                  : rule.description || rule.label
+              }
+              aria-pressed={onToggleRule ? enabled : undefined}
+            >
+              {rule.description || rule.label}
+            </button>
+          )
+        })}
       </div>
       {rules.length === 0 && (
         <p className="hbar-hint">

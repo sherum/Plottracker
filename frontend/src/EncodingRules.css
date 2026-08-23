@@ -10,4 +10,22 @@
   padding: 0.5rem 0.9rem;
   font-size: 0.85em;
   text-align: center;
+  width: 100%;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+}
+
+.encoding-rule-pill:not(:disabled) {
+  cursor: pointer;
+}
+
+.encoding-rule-pill:not(:disabled):hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.encoding-rule-disabled {
+  opacity: 0.45;
+  text-decoration: line-through;
 }
