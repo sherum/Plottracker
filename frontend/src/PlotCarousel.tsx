@@ -35,6 +35,8 @@ interface Props {
   selection?: TopicSelection | null
   onToggleTopicSelection?: (topicId: number) => void
   onCancelSelection?: () => void
+  searchTopics?: Topic[] | null
+  onClearSearch?: () => void
 }
 
 function wrap(index: number, length: number): number {
@@ -57,6 +59,8 @@ function PlotCarousel({
   selection,
   onToggleTopicSelection,
   onCancelSelection,
+  searchTopics,
+  onClearSearch,
 }: Props) {
   const [view, setView] = useState<'topic' | 'theme'>('topic')
   const [editing, setEditing] = useState(false)
@@ -109,56 +113,71 @@ function PlotCarousel({
           )}
         </div>
       )}
-      <ViewToggle view={view} onChange={setView} />
-
-      {view === 'topic' ? (
-        <TopicView
-          orderedTopics={orderedTopics}
-          topicIndex={topicIndex}
-          onNavigate={(i) => {
-            onNavigateTopic(orderedTopics[wrap(i, orderedTopics.length)].id)
-            setEditing(false)
+      {searchTopics ? (
+        <SearchResultsPanel
+          topics={searchTopics}
+          onSetTopicAct={onSetTopicAct}
+          onExamineTopic={(topicId) => {
+            onClearSearch?.()
+            jumpToTopic(topicId)
           }}
-          editing={editing}
-          onStartEdit={() => setEditing(true)}
-          onCancelEdit={() => setEditing(false)}
-          onSave={(data) => {
-            onUpdateTopic(orderedTopics[topicIndex].id, data)
-            setEditing(false)
-          }}
-          themeTitleById={themeTitleById}
-          selection={selection}
-          onToggleTopicSelection={onToggleTopicSelection}
+          onPreviewTopic={onPreviewTopic}
+          onClear={() => onClearSearch?.()}
         />
       ) : (
-        <ThemeView
-          themes={themes}
-          themeIndex={wrap(themeIndex, themes.length)}
-          onNavigate={(i) => {
-            if (themes[wrap(i, themes.length)]) onNavigateTheme(themes[wrap(i, themes.length)].id)
-            setEditing(false)
-          }}
-          editing={editing}
-          onStartEdit={() => setEditing(true)}
-          onCancelEdit={() => setEditing(false)}
-          onSave={(data) => {
-            if (themes[wrap(themeIndex, themes.length)]) {
-              onUpdateTheme(themes[wrap(themeIndex, themes.length)].id, data)
-            }
-            setEditing(false)
-          }}
-          onSetMain={() => {
-            if (themes[wrap(themeIndex, themes.length)]) {
-              onSetMainTheme(themes[wrap(themeIndex, themes.length)].id)
-            }
-          }}
-          onSetTopicAct={onSetTopicAct}
-          topics={topics}
-          onTopicIconClick={jumpToTopic}
-          onPreviewTopic={onPreviewTopic}
-          selection={selection}
-          onToggleTopicSelection={onToggleTopicSelection}
-        />
+        <>
+          <ViewToggle view={view} onChange={setView} />
+
+          {view === 'topic' ? (
+            <TopicView
+              orderedTopics={orderedTopics}
+              topicIndex={topicIndex}
+              onNavigate={(i) => {
+                onNavigateTopic(orderedTopics[wrap(i, orderedTopics.length)].id)
+                setEditing(false)
+              }}
+              editing={editing}
+              onStartEdit={() => setEditing(true)}
+              onCancelEdit={() => setEditing(false)}
+              onSave={(data) => {
+                onUpdateTopic(orderedTopics[topicIndex].id, data)
+                setEditing(false)
+              }}
+              themeTitleById={themeTitleById}
+              selection={selection}
+              onToggleTopicSelection={onToggleTopicSelection}
+            />
+          ) : (
+            <ThemeView
+              themes={themes}
+              themeIndex={wrap(themeIndex, themes.length)}
+              onNavigate={(i) => {
+                if (themes[wrap(i, themes.length)]) onNavigateTheme(themes[wrap(i, themes.length)].id)
+                setEditing(false)
+              }}
+              editing={editing}
+              onStartEdit={() => setEditing(true)}
+              onCancelEdit={() => setEditing(false)}
+              onSave={(data) => {
+                if (themes[wrap(themeIndex, themes.length)]) {
+                  onUpdateTheme(themes[wrap(themeIndex, themes.length)].id, data)
+                }
+                setEditing(false)
+              }}
+              onSetMain={() => {
+                if (themes[wrap(themeIndex, themes.length)]) {
+                  onSetMainTheme(themes[wrap(themeIndex, themes.length)].id)
+                }
+              }}
+              onSetTopicAct={onSetTopicAct}
+              topics={topics}
+              onTopicIconClick={jumpToTopic}
+              onPreviewTopic={onPreviewTopic}
+              selection={selection}
+              onToggleTopicSelection={onToggleTopicSelection}
+            />
+          )}
+        </>
       )}
     </div>
   )
@@ -324,8 +343,6 @@ function ThemeView({
   selection,
   onToggleTopicSelection,
 }: ThemeViewProps) {
-  const [draggingTopicId, setDraggingTopicId] = useState<number | null>(null)
-  const [dragOverAct, setDragOverAct] = useState<'opening' | 'conflict' | 'climax' | null | 'none'>('none')
   if (themes.length === 0) {
     return <p className="hbar-hint">No themes yet. Themes appear here once topics are grouped into them.</p>
   }
@@ -381,62 +398,146 @@ function ThemeView({
         </div>
 
         <div className="carousel-topic-zones col-12 col-md-8">
-          {themeTopics.length === 0 && <p className="hbar-hint">No topics in this theme yet.</p>}
-          {themeTopics.length > 0 &&
-            ACT_ZONES.map(({ act, label }) => {
-              const zoneTopics = themeTopics.filter((t) => t.act === act)
-              const actClass = act ? ` notecard-act-${act}` : ''
-              return (
-                <div
-                  key={label}
-                  className={`carousel-topic-zone${actClass}${dragOverAct === act ? ' drag-over' : ''}`}
-                  onDragOver={(e) => {
-                    if (draggingTopicId === null) return
-                    e.preventDefault()
-                    setDragOverAct(act ?? null)
-                  }}
-                  onDragLeave={() => setDragOverAct('none')}
-                  onDrop={(e) => {
-                    e.preventDefault()
-                    setDragOverAct('none')
-                    if (draggingTopicId !== null) onSetTopicAct(draggingTopicId, act)
-                  }}
-                >
-                  <span className="carousel-topic-zone-label">{label}</span>
-                  <div className="carousel-topic-icons">
-                    {zoneTopics.map((topic) => {
-                      const selected = selection?.selectedTopicIds.has(topic.id) ?? false
-                      return (
-                        <button
-                          key={topic.id}
-                          className={`carousel-topic-icon${selection ? ' selectable' : ''}${selected ? ' selected' : ''}`}
-                          draggable={!selection}
-                          onDragStart={(e) => {
-                            setDraggingTopicId(topic.id)
-                            e.dataTransfer.setData(TOPIC_DRAG_MIME, String(topic.id))
-                            e.dataTransfer.effectAllowed = 'move'
-                          }}
-                          onDragEnd={() => {
-                            setDraggingTopicId(null)
-                            setDragOverAct('none')
-                          }}
-                          onClick={() => (selection ? onToggleTopicSelection?.(topic.id) : onTopicIconClick(topic.id))}
-                          onMouseEnter={() => onPreviewTopic?.(topic.id, 'theme')}
-                          onMouseLeave={() => onPreviewTopic?.(null, 'theme')}
-                          title={topic.title}
-                          role={selection ? 'checkbox' : undefined}
-                          aria-checked={selection ? selected : undefined}
-                        >
-                          {selection && <span className={`select-checkbox${selected ? ' checked' : ''}`} />}
-                          {topic.excluded && <StatusIcon icon="excluded" label="Excluded" />}
-                          <span className="carousel-topic-icon-title">{topic.title}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              )
-            })}
+          <TopicZoneGrid
+            topics={themeTopics}
+            onSetTopicAct={onSetTopicAct}
+            onTopicIconClick={onTopicIconClick}
+            onPreviewTopic={onPreviewTopic}
+            selection={selection}
+            onToggleTopicSelection={onToggleTopicSelection}
+            emptyMessage="No topics in this theme yet."
+          />
+        </div>
+      </div>
+    </>
+  )
+}
+
+interface TopicZoneGridProps {
+  topics: Topic[]
+  onSetTopicAct: (id: number, act: 'opening' | 'conflict' | 'climax' | null) => void
+  onTopicIconClick: (topicId: number) => void
+  onPreviewTopic?: (topicId: number | null, mode: 'theme' | 'topic') => void
+  selection?: TopicSelection | null
+  onToggleTopicSelection?: (topicId: number) => void
+  emptyMessage: string
+}
+
+function TopicZoneGrid({
+  topics,
+  onSetTopicAct,
+  onTopicIconClick,
+  onPreviewTopic,
+  selection,
+  onToggleTopicSelection,
+  emptyMessage,
+}: TopicZoneGridProps) {
+  const [draggingTopicId, setDraggingTopicId] = useState<number | null>(null)
+  const [dragOverAct, setDragOverAct] = useState<'opening' | 'conflict' | 'climax' | null | 'none'>('none')
+
+  if (topics.length === 0) return <p className="hbar-hint">{emptyMessage}</p>
+
+  return (
+    <>
+      {ACT_ZONES.map(({ act, label }) => {
+        const zoneTopics = topics.filter((t) => t.act === act)
+        const actClass = act ? ` notecard-act-${act}` : ''
+        return (
+          <div
+            key={label}
+            className={`carousel-topic-zone${actClass}${dragOverAct === act ? ' drag-over' : ''}`}
+            onDragOver={(e) => {
+              if (draggingTopicId === null) return
+              e.preventDefault()
+              setDragOverAct(act ?? null)
+            }}
+            onDragLeave={() => setDragOverAct('none')}
+            onDrop={(e) => {
+              e.preventDefault()
+              setDragOverAct('none')
+              if (draggingTopicId !== null) onSetTopicAct(draggingTopicId, act)
+            }}
+          >
+            <span className="carousel-topic-zone-label">{label}</span>
+            <div className="carousel-topic-icons">
+              {zoneTopics.map((topic) => {
+                const selected = selection?.selectedTopicIds.has(topic.id) ?? false
+                return (
+                  <button
+                    key={topic.id}
+                    className={`carousel-topic-icon${selection ? ' selectable' : ''}${selected ? ' selected' : ''}`}
+                    draggable={!selection}
+                    onDragStart={(e) => {
+                      setDraggingTopicId(topic.id)
+                      e.dataTransfer.setData(TOPIC_DRAG_MIME, String(topic.id))
+                      e.dataTransfer.effectAllowed = 'move'
+                    }}
+                    onDragEnd={() => {
+                      setDraggingTopicId(null)
+                      setDragOverAct('none')
+                    }}
+                    onClick={() => (selection ? onToggleTopicSelection?.(topic.id) : onTopicIconClick(topic.id))}
+                    onMouseEnter={() => onPreviewTopic?.(topic.id, 'theme')}
+                    onMouseLeave={() => onPreviewTopic?.(null, 'theme')}
+                    title={topic.title}
+                    role={selection ? 'checkbox' : undefined}
+                    aria-checked={selection ? selected : undefined}
+                  >
+                    {selection && <span className={`select-checkbox${selected ? ' checked' : ''}`} />}
+                    {topic.excluded && <StatusIcon icon="excluded" label="Excluded" />}
+                    <span className="carousel-topic-icon-title">{topic.title}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+    </>
+  )
+}
+
+function SearchResultsPanel({
+  topics,
+  onSetTopicAct,
+  onExamineTopic,
+  onPreviewTopic,
+  onClear,
+}: {
+  topics: Topic[]
+  onSetTopicAct: (id: number, act: 'opening' | 'conflict' | 'climax' | null) => void
+  onExamineTopic: (topicId: number) => void
+  onPreviewTopic?: (topicId: number | null, mode: 'theme' | 'topic') => void
+  onClear: () => void
+}) {
+  return (
+    <>
+      <div className="carousel-nav carousel-nav-theme">
+        <div className="carousel-tile carousel-tile-theme carousel-tile-current">
+          <span className="carousel-tile-label">Search Results</span>
+          <span className="carousel-tile-title">
+            {topics.length} topic{topics.length === 1 ? '' : 's'} matched
+          </span>
+        </div>
+      </div>
+
+      <div className="carousel-theme-body row g-3">
+        <div className="carousel-editor carousel-editor-theme col-12 col-md-4">
+          <p className="hbar-hint">
+            Click a topic to open and edit it. Drag a topic onto a bar above to move it into a subplot.
+          </p>
+          <button type="button" className="btn btn-sm btn-outline-secondary" onClick={onClear}>
+            Clear search results
+          </button>
+        </div>
+        <div className="carousel-topic-zones col-12 col-md-8">
+          <TopicZoneGrid
+            topics={topics}
+            onSetTopicAct={onSetTopicAct}
+            onTopicIconClick={onExamineTopic}
+            onPreviewTopic={onPreviewTopic}
+            emptyMessage="No topics matched."
+          />
         </div>
       </div>
     </>

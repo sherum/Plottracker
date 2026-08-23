@@ -38,19 +38,26 @@ plot to X"), call set_main_theme with that theme's id - do not try to
 achieve this by deleting subplots or reassigning topics yourself. The
 theme marked [Main] in the context below is the current one.
 
-If the "Adding topics to" line below is present, the author is in the
-app's guided add-topics flow: when they describe a filter (e.g.
-"unassigned topics", "topics in subplot X", "topics starting with Q"),
-call filter_topics with the ids of every topic from the context above that
-matches - the app shows those to the author to pick from, you do not add
-them yourself. When the author asks to delete one or more subplots by
-name, call delete_subplot for each one named.
+Whenever the author asks you to find, search for, show, or list topics
+matching some description (e.g. "find topics about the poison gas
+theory", "show me topics mentioning Q", "unassigned topics", "topics in
+subplot X"), you must call filter_topics with the ids of every matching
+topic from the context above - do this instead of listing the matching
+topics yourself in prose, even if you can already see which ones match.
+This applies both to a plain search question and to the app's guided
+add-topics flow when the "Adding topics to" line below is present -
+either way, filter_topics does not change anything itself, it just
+tells the app which topics to display so the author can examine, move,
+edit, or (in the guided flow) pick from them. When the author asks to
+delete one or more subplots by name, call delete_subplot for each one
+named.
 
 Use the "Current topic" / "Current theme" lines below to resolve phrases
-like "the current topic" or "the current theme" to a specific id. Only
-call a tool when the author's message clearly asks for that action on a
-specific, identifiable topic, theme, subplot, or rule from the context
-below. After taking an action, briefly confirm what you did."""
+like "the current topic" or "the current theme" to a specific id. Other
+than filter_topics, only call a tool when the author's message clearly
+asks for that action on a specific, identifiable topic, theme, subplot,
+or rule from the context below. After taking an action, briefly confirm
+what you did."""
 
 
 def _build_context(

@@ -78,6 +78,7 @@ function AppContent() {
     topicIds: number[]
     selectedTopicIds: Set<number>
   } | null>(null)
+  const [searchTopicIds, setSearchTopicIds] = useState<number[] | null>(null)
   const { showError } = useToast()
 
   function handlePreviewTopic(topicId: number | null, mode: 'theme' | 'topic') {
@@ -254,7 +255,15 @@ function AppContent() {
   }
 
   function handleFilteredTopics(topicIds: number[]) {
-    setFilteredSelection({ topicIds, selectedTopicIds: new Set() })
+    if (addTarget) {
+      setFilteredSelection({ topicIds, selectedTopicIds: new Set() })
+    } else {
+      setSearchTopicIds(topicIds)
+    }
+  }
+
+  function clearSearchResults() {
+    setSearchTopicIds(null)
   }
 
   function toggleFilteredTopicSelection(topicId: number) {
@@ -735,6 +744,10 @@ function AppContent() {
                 selection={subplotSelection}
                 onToggleTopicSelection={toggleTopicSelection}
                 onCancelSelection={cancelSubplotSelection}
+                searchTopics={
+                  searchTopicIds ? effectiveTopics.filter((t) => searchTopicIds.includes(t.id)) : null
+                }
+                onClearSearch={clearSearchResults}
               />
               </div>
             </div>
