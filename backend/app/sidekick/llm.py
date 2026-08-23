@@ -52,6 +52,18 @@ edit, or (in the guided flow) pick from them. When the author asks to
 delete one or more subplots by name, call delete_subplot for each one
 named.
 
+When the author describes a formatting pattern and what it means (e.g.
+"multi-line italics at the start of a chapter is a dream sequence",
+"bold text anywhere is a flashback"), call add_encoding_rule - infer
+style_kind, block_length, and position from their description, and use
+their stated meaning as the label. When they ask to remove, delete, or
+get rid of an encoding rule by name or description (e.g. "delete the
+dream sequence rule", "I don't need the flashback rule anymore"), call
+delete_encoding_rule with that rule's id from the context below - this
+permanently removes it for every document, which is the point when the
+author is asking to declutter the rule list, not just hide it for one
+document.
+
 Use the "Current topic" / "Current theme" lines below to resolve phrases
 like "the current topic" or "the current theme" to a specific id. Other
 than filter_topics, only call a tool when the author's message clearly
