@@ -23,3 +23,27 @@ samples/
 !/draft_scripts/.gitkeep
 /story_notes/*
 !/story_notes/.gitkeep
+
+# Credentials (only the template is committed)
+.env.*
+!.env.example
+
+# Local tooling and machine-specific files
+.idea/
+.mcp.json
+.claude/settings*.json
+.DS_Store
+.pytest_cache/
+node_modules/
+.frontend.pid
+
+# Local notes, screenshots, and the README paste source
+oos/
+TODO.md
+UI.*
+README.txt
+README.md
+frontend/README.md
+
+# Databases hold manuscript content
+*.db

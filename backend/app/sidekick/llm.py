@@ -3,9 +3,10 @@ import sqlite3
 
 import litellm
 
+from app.config import settings
 from app.sidekick.tools import TOOL_SCHEMAS, execute_tool
 
-MODEL = "openrouter/google/gemini-3.7-flash"
+MODEL = settings.sidekick_model
 MAX_TOOL_ROUNDS = 4
 
 SYSTEM_PROMPT = """You are a sidekick helping an author understand and manage their own story.

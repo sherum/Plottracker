@@ -48,7 +48,7 @@
 ## AI Sidekick
     - The AI can answer questions about the story
     - Rephrase dialog using the character's voice
-    - Current provider: Gemini 3.7 Flash via OpenRouter/LiteLLM (model `google/gemini-3.7-flash`), using OPENROUTER_API_KEY
+    - Current provider: OpenRouter/LiteLLM, using OPENROUTER_API_KEY from .env. Models are set by ANALYSIS_MODEL and SIDEKICK_MODEL in .env (default `openrouter/google/gemini-3.7-flash`); a stronger model is recommended for ANALYSIS_MODEL
     - Future implementation: Cerebras as the inference provider, as described in .claude/skills/cerebras/SKILLS.md
 
 ## Technical design

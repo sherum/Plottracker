@@ -3,8 +3,9 @@ import json
 import litellm
 
 from app.analysis.models import AnalysisResult
+from app.config import settings
 
-MODEL = "openrouter/google/gemini-3.7-flash"
+MODEL = settings.analysis_model
 
 SYSTEM_PROMPT = """You are a story structure analyst reviewing a manuscript.
 

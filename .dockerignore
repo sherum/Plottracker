@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+.git
+.venv
+**/.venv
+**/node_modules
+**/__pycache__
+data
+draft_scripts
+story_notes
+frontend/dist
+.idea
+oos
