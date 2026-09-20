@@ -26,6 +26,7 @@ interface Document {
 interface Story {
   id: number
   name: string
+  names: string[]
   document_count: number
 }
 
@@ -48,10 +49,14 @@ function normalizeTheme<T extends { excluded: unknown; is_main: unknown }>(
   return { ...row, excluded: Boolean(row.excluded), is_main: Boolean(row.is_main) }
 }
 
-// Story names come from filenames, e.g. "space_mage".
+// Story names come from filenames, e.g. "space_mage"; linked stories list every name in order.
+function prettyName(name: string): string {
+  return name.replace(/[_-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 function storyTitle(story: Story | null): string {
   if (!story) return 'Story'
-  return story.name.replace(/[_-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+  return (story.names.length > 0 ? story.names : [story.name]).map(prettyName).join(' + ')
 }
 
 function App() {
@@ -67,6 +72,8 @@ function AppContent() {
   const [storyDocuments, setStoryDocuments] = useState<Document[]>([])
   const [stories, setStories] = useState<Story[]>([])
   const [activeStoryId, setActiveStoryId] = useState<number | null>(null)
+  const [linkFromId, setLinkFromId] = useState<number | null>(null)
+  const [linkPair, setLinkPair] = useState<{ a: number; b: number } | null>(null)
   const [themes, setThemes] = useState<Theme[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
   const [encodingRules, setEncodingRules] = useState<EncodingRule[]>([])
@@ -165,6 +172,59 @@ function AppContent() {
   function switchStory(storyId: number) {
     setLoadedDocument(null)
     setActiveStoryId(storyId)
+  }
+
+  // Linking is two clicks - the order button on a story, then the story that follows it -
+  // and then a dialog confirms the order.
+  function toggleLinkFrom(storyId: number) {
+    setLinkFromId((prev) => (prev === storyId ? null : storyId))
+  }
+
+  function pickLinkTarget(storyId: number) {
+    if (linkFromId === null || storyId === linkFromId) return
+    setLinkPair({ a: linkFromId, b: storyId })
+  }
+
+  function cancelLink() {
+    setLinkPair(null)
+    setLinkFromId(null)
+  }
+
+  async function confirmLink(flip: boolean) {
+    if (!linkPair) return
+    const [first, second] = flip ? [linkPair.b, linkPair.a] : [linkPair.a, linkPair.b]
+    try {
+      const response = await fetch('/stories/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ first_story_id: first, second_story_id: second }),
+      })
+      if (!response.ok) throw new Error()
+      const { story_id: survivorId } = await response.json()
+      cancelLink()
+      await refetchDocuments()
+      setLoadedDocument(null)
+      setSubplotRefreshToken((n) => n + 1)
+      if (survivorId !== activeStoryId) setActiveStoryId(survivorId)
+      else refetchStoryDocuments().then(refetchTopicsAndThemes)
+    } catch {
+      showError('Could not link these stories. Please try again.')
+    }
+  }
+
+  async function unlinkStory(story: Story) {
+    const last = prettyName(story.names[story.names.length - 1])
+    if (!window.confirm(`Detach "${last}" from ${storyTitle(story)}? Its topics and subplots split back out.`)) return
+    try {
+      const response = await fetch(`/stories/${story.id}/unlink`, { method: 'POST' })
+      if (!response.ok) throw new Error()
+      await refetchDocuments()
+      setLoadedDocument(null)
+      setSubplotRefreshToken((n) => n + 1)
+      refetchStoryDocuments().then(refetchTopicsAndThemes)
+    } catch {
+      showError('Could not unlink this story. Please try again.')
+    }
   }
 
   function refetchStoryDocuments() {
@@ -684,6 +744,57 @@ function AppContent() {
           </div>
           <div className="card-body">
           <IngestForm onIngested={handleIngested} />
+          {stories.length > 0 && (
+            <div className="stories-list">
+              <h3>Stories</h3>
+              {linkFromId !== null && (
+                <p className="stories-hint">
+                  Click the story that follows {storyTitle(stories.find((s) => s.id === linkFromId) ?? null)}.
+                </p>
+              )}
+              <ul>
+                {stories.map((story) => {
+                  const isSource = story.id === linkFromId
+                  const isTarget = linkFromId !== null && !isSource
+                  const classes = [
+                    story.id === activeStoryId ? 'story-active' : '',
+                    isSource ? 'story-link-source' : '',
+                    isTarget ? 'story-link-target' : '',
+                  ]
+                  return (
+                    <li key={story.id} className={classes.filter(Boolean).join(' ') || undefined}>
+                      <button
+                        type="button"
+                        className="doc-filename"
+                        onClick={() => (isTarget ? pickLinkTarget(story.id) : switchStory(story.id))}
+                      >
+                        {storyTitle(story)} <span className="tag">{story.document_count}</span>
+                      </button>
+                      <div className="doc-actions">
+                        <IconButton
+                          icon="link"
+                          label={
+                            isSource
+                              ? 'Cancel linking'
+                              : `Link ${storyTitle(story)} to the story that follows it`
+                          }
+                          active={isSource}
+                          onClick={() => toggleLinkFrom(story.id)}
+                        />
+                        {story.names.length > 1 && (
+                          <IconButton
+                            icon="unlink"
+                            label={`Detach the last story from ${storyTitle(story)}`}
+                            onClick={() => unlinkStory(story)}
+                          />
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )}
           {documents.length === 0 ? (
             <p>No documents ingested yet.</p>
           ) : (
@@ -918,6 +1029,39 @@ function AppContent() {
           </div>
         </div>
       </div>
+
+      {linkPair && (
+        <div className="link-dialog-backdrop">
+          <div className="link-dialog card" role="dialog" aria-modal="true" aria-labelledby="link-dialog-title">
+            <div className="card-body">
+              <h2 id="link-dialog-title" className="h5">
+                Link these stories?
+              </h2>
+              <p>
+                Do you want to link <strong>{storyTitle(stories.find((s) => s.id === linkPair.a) ?? null)}</strong> and{' '}
+                <strong>{storyTitle(stories.find((s) => s.id === linkPair.b) ?? null)}</strong> in this order?
+              </p>
+              <p className="link-dialog-order">
+                {storyTitle(stories.find((s) => s.id === linkPair.a) ?? null)}
+                <i className="bi bi-arrow-right" aria-hidden="true" />
+                {storyTitle(stories.find((s) => s.id === linkPair.b) ?? null)}
+              </p>
+              <p className="link-dialog-note">They will share one Main plot and be read in this order.</p>
+              <div className="link-dialog-actions">
+                <button type="button" className="btn btn-primary" onClick={() => confirmLink(false)}>
+                  Yes
+                </button>
+                <button type="button" className="btn btn-outline-primary" onClick={() => confirmLink(true)}>
+                  Flip (second, then first)
+                </button>
+                <button type="button" className="btn btn-outline-secondary" onClick={cancelLink}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

@@ -210,3 +210,81 @@ main {
   text-align: center;
   margin-top: 4rem;
 }
+
+.stories-list {
+  margin: 0.75rem 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid color-mix(in srgb, canvastext 15%, canvas);
+}
+
+.stories-list h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+}
+
+.stories-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.stories-list li {
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: color-mix(in srgb, canvastext 6%, canvas);
+}
+
+.stories-list li.story-active {
+  border-color: var(--color-accent);
+}
+
+.stories-list li.story-link-source {
+  background: color-mix(in srgb, var(--color-accent) 12%, canvas);
+}
+
+.stories-list li.story-link-target {
+  border: 1px dashed var(--color-accent);
+  cursor: pointer;
+}
+
+.stories-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.85em;
+  color: var(--color-accent);
+}
+
+.link-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 45%);
+}
+
+.link-dialog {
+  width: min(28rem, calc(100vw - 2rem));
+}
+
+.link-dialog-order {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  font-weight: 600;
+}
+
+.link-dialog-note {
+  font-size: 0.85em;
+  color: #888;
+}
+
+.link-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}

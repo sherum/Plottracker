@@ -1,4 +1,4 @@
-type IconName = 'chevron' | 'reanalyze' | 'classify' | 'delete' | 'add' | 'remove' | 'link' | 'up' | 'down' | 'main' | 'split' | 'rename' | 'resolve'
+type IconName = 'chevron' | 'reanalyze' | 'classify' | 'delete' | 'add' | 'remove' | 'link' | 'up' | 'down' | 'main' | 'split' | 'rename' | 'resolve' | 'unlink'
 
 const ICON_CLASSES: Record<IconName, string> = {
   chevron: 'bi-chevron-down',
@@ -14,6 +14,7 @@ const ICON_CLASSES: Record<IconName, string> = {
   split: 'bi-scissors',
   rename: 'bi-pencil',
   resolve: 'bi-check-circle',
+  unlink: 'bi-x-circle',
 }
 
 interface Props {
