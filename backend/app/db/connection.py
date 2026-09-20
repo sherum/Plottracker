@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Iterator
 
 from app.config import settings
-from app.db.stories import get_or_create_story, order_story
+from app.db.stories import ensure_main_theme, get_or_create_story, order_story
 from app.db.story_name import parse_story_name
 
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
@@ -219,13 +219,28 @@ def _migrate_stories(conn: sqlite3.Connection) -> None:
         "SELECT story_id FROM documents WHERE story_position IS NOT NULL ORDER BY story_position LIMIT 1"
     ).fetchone() or conn.execute("SELECT story_id FROM documents ORDER BY id LIMIT 1").fetchone()
     if primary is not None:
+        _fold_unowned_main_theme(conn, primary["story_id"])
         conn.execute("UPDATE themes SET story_id = ? WHERE story_id IS NULL", (primary["story_id"],))
+
+    for row in conn.execute("SELECT id FROM stories").fetchall():
+        ensure_main_theme(conn, row["id"])
 
     # Numbering comes last: the story already in use is identified by its existing positions.
     for row in conn.execute(
         "SELECT DISTINCT story_id FROM documents WHERE role = 'draft_script' AND story_position IS NULL"
     ).fetchall():
         order_story(conn, row["story_id"])
+
+
+def _fold_unowned_main_theme(conn: sqlite3.Connection, story_id: int) -> None:
+    # A fresh database starts with a Main theme that belongs to no story. If the
+    # story has since been given its own Main, retire the placeholder.
+    unowned = conn.execute("SELECT id FROM themes WHERE is_main = 1 AND story_id IS NULL").fetchone()
+    owned = conn.execute("SELECT id FROM themes WHERE is_main = 1 AND story_id = ?", (story_id,)).fetchone()
+    if unowned is None or owned is None:
+        return
+    conn.execute("UPDATE topics SET theme_id = ? WHERE theme_id = ?", (owned["id"], unowned["id"]))
+    conn.execute("DELETE FROM themes WHERE id = ?", (unowned["id"],))
 
 
 def get_db() -> Iterator[sqlite3.Connection]:

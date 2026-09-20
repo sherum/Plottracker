@@ -277,7 +277,8 @@ def test_analyze_document_creates_topics_and_themes(client, db_conn, tmp_path, m
 
     unassign_response = client.post(f"/topics/{topic_id}/unassign-theme")
     assert unassign_response.status_code == 200
-    assert unassign_response.json()["theme_id"] == repository.get_main_theme_id(db_conn)
+    story_id = repository.get_document(db_conn, document_id)["story_id"]
+    assert unassign_response.json()["theme_id"] == repository.get_main_theme_id(db_conn, story_id)
 
     set_act_response = client.post(f"/topics/{topic_id}/set-act", json={"act": "climax"})
     assert set_act_response.status_code == 200
@@ -347,26 +348,28 @@ def test_set_main_theme_endpoint(client, db_conn):
     assert any(s["theme_id"] == old_main_id for s in client.get("/subplots").json())
 
 
-def test_story_order_crud(client, db_conn):
-    doc_a = repository.insert_document(
-        db_conn, role="draft_script", source_path="/tmp/a.txt", filename="a.txt", source_type="txt", content_hash="a"
-    )
-    doc_b = repository.insert_document(
-        db_conn, role="draft_script", source_path="/tmp/b.txt", filename="b.txt", source_type="txt", content_hash="b"
-    )
+def test_story_order_can_be_reordered_and_reset(client, db_conn):
+    from app.db.stories import assign_story
 
-    assert client.get("/story/documents").json() == []
+    doc_1 = repository.insert_document(
+        db_conn, role="draft_script", source_path="/tmp/saga_1.txt", filename="saga_1.txt", source_type="txt", content_hash="1"
+    )
+    doc_2 = repository.insert_document(
+        db_conn, role="draft_script", source_path="/tmp/saga_2.txt", filename="saga_2.txt", source_type="txt", content_hash="2"
+    )
+    assign_story(db_conn, doc_1)
+    assign_story(db_conn, doc_2)
 
-    put_response = client.put("/story/documents", json={"document_ids": [doc_b, doc_a]})
+    assert [d["id"] for d in client.get("/story/documents").json()] == [doc_1, doc_2]
+
+    put_response = client.put("/story/documents", json={"document_ids": [doc_2, doc_1]})
     assert put_response.status_code == 200
-    assert [d["id"] for d in put_response.json()] == [doc_b, doc_a]
+    assert [d["id"] for d in put_response.json()] == [doc_2, doc_1]
 
-    get_response = client.get("/story/documents")
-    assert [d["id"] for d in get_response.json()] == [doc_b, doc_a]
-
-    clear_response = client.put("/story/documents", json={"document_ids": []})
-    assert clear_response.status_code == 200
-    assert client.get("/story/documents").json() == []
+    story_id = repository.get_document(db_conn, doc_1)["story_id"]
+    reset_response = client.put("/story/documents", json={"document_ids": [], "story_id": story_id})
+    assert reset_response.status_code == 200
+    assert [d["id"] for d in client.get("/story/documents").json()] == [doc_1, doc_2]
 
 
 def test_encoding_rule_crud(client):

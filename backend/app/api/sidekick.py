@@ -16,6 +16,7 @@ class AskRequest(BaseModel):
     current_theme_id: int | None = None
     add_target_subplot_id: int | None = None
     add_target_is_new: bool = False
+    story_id: int | None = None
 
 
 class AskResponse(BaseModel):
@@ -35,6 +36,7 @@ def ask_sidekick(request: AskRequest, conn: sqlite3.Connection = Depends(get_db)
         current_theme_id=request.current_theme_id,
         add_target_subplot_id=request.add_target_subplot_id,
         add_target_is_new=request.add_target_is_new,
+        story_id=request.story_id,
     )
     return AskResponse(
         answer=answer,

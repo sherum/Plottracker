@@ -12,6 +12,7 @@ router = APIRouter()
 class SubplotCreate(BaseModel):
     title: str
     summary: str
+    story_id: int | None = None
 
 
 class TopicRef(BaseModel):
@@ -19,13 +20,17 @@ class TopicRef(BaseModel):
 
 
 @router.get("/subplots")
-def list_subplots(document_id: int | None = None, conn: sqlite3.Connection = Depends(get_db)) -> list[dict]:
-    return repository.list_subplots(conn, document_id)
+def list_subplots(
+    document_id: int | None = None, story_id: int | None = None, conn: sqlite3.Connection = Depends(get_db)
+) -> list[dict]:
+    return repository.list_subplots(conn, document_id, story_id)
 
 
 @router.post("/subplots")
 def create_subplot(request: SubplotCreate, conn: sqlite3.Connection = Depends(get_db)) -> dict:
-    subplot_id = repository.insert_subplot(conn, title=request.title, summary=request.summary)
+    subplot_id = repository.insert_subplot(
+        conn, title=request.title, summary=request.summary, story_id=request.story_id
+    )
     return repository.get_subplot(conn, subplot_id)
 
 

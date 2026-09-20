@@ -40,8 +40,8 @@ def get_topics(document_id: int, conn: sqlite3.Connection = Depends(get_db)) -> 
 
 
 @router.get("/topics")
-def get_all_topics(conn: sqlite3.Connection = Depends(get_db)) -> list[dict]:
-    return repository.list_all_topics(conn)
+def get_all_topics(story_id: int | None = None, conn: sqlite3.Connection = Depends(get_db)) -> list[dict]:
+    return repository.list_all_topics(conn, story_id)
 
 
 @router.patch("/topics/{topic_id}")
@@ -90,8 +90,8 @@ def split_topic(topic_id: int, request: TopicSplit, conn: sqlite3.Connection = D
 
 
 @router.get("/themes")
-def get_themes(conn: sqlite3.Connection = Depends(get_db)) -> list[dict]:
-    return repository.list_themes(conn)
+def get_themes(story_id: int | None = None, conn: sqlite3.Connection = Depends(get_db)) -> list[dict]:
+    return repository.list_themes(conn, story_id)
 
 
 @router.patch("/themes/{theme_id}")

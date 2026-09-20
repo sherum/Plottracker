@@ -12,6 +12,7 @@ router = APIRouter()
 
 class StoryOrderUpdate(BaseModel):
     document_ids: list[int]
+    story_id: int | None = None
 
 
 class DocumentRename(BaseModel):
@@ -32,14 +33,14 @@ def rename_document(document_id: int, request: DocumentRename, conn: sqlite3.Con
 
 
 @router.get("/story/documents")
-def get_story_documents(conn: sqlite3.Connection = Depends(get_db)) -> list[dict]:
-    return repository.list_story_documents(conn)
+def get_story_documents(story_id: int | None = None, conn: sqlite3.Connection = Depends(get_db)) -> list[dict]:
+    return repository.list_story_documents(conn, story_id)
 
 
 @router.put("/story/documents")
 def put_story_documents(request: StoryOrderUpdate, conn: sqlite3.Connection = Depends(get_db)) -> list[dict]:
-    repository.set_story_order(conn, request.document_ids)
-    return repository.list_story_documents(conn)
+    story_id = repository.set_story_order(conn, request.document_ids, request.story_id)
+    return repository.list_story_documents(conn, story_id)
 
 
 @router.get("/documents/{document_id}/segments")

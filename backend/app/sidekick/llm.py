@@ -122,6 +122,7 @@ def answer_question(
     current_theme_id: int | None = None,
     add_target_subplot_id: int | None = None,
     add_target_is_new: bool = False,
+    story_id: int | None = None,
 ) -> tuple[str, list[str], int | None, list[int] | None]:
     context = _build_context(
         topics,
@@ -165,6 +166,8 @@ def answer_question(
         )
         for call in tool_calls:
             arguments = json.loads(call.function.arguments)
+            if call.function.name == "create_subplot":
+                arguments["story_id"] = story_id
             result = execute_tool(conn, call.function.name, arguments)
             actions_taken.append(call.function.name)
             if call.function.name == "create_subplot" and isinstance(result, dict) and "id" in result:

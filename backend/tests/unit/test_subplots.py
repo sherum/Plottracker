@@ -149,7 +149,7 @@ def test_list_subplots_scoped_to_document_excludes_unpopulated_subplot(db_conn):
     assert repository.list_subplots(db_conn, document_id) == []
 
 
-def test_set_story_order_assigns_sequential_positions(db_conn):
+def test_set_story_order_puts_listed_documents_first_and_numbers_the_rest(db_conn):
     doc_a = repository.insert_document(
         db_conn, role="draft_script", source_path="/tmp/a.txt", filename="a.txt", source_type="txt", content_hash="a"
     )
@@ -163,14 +163,11 @@ def test_set_story_order_assigns_sequential_positions(db_conn):
     repository.set_story_order(db_conn, [doc_c, doc_a])
 
     story_documents = repository.list_story_documents(db_conn)
-    assert [d["id"] for d in story_documents] == [doc_c, doc_a]
-    assert [d["story_position"] for d in story_documents] == [1, 2]
-
-    doc_b_row = next(d for d in repository.list_documents(db_conn) if d["id"] == doc_b)
-    assert doc_b_row["story_position"] is None
+    assert [d["id"] for d in story_documents] == [doc_c, doc_a, doc_b]
+    assert [d["story_position"] for d in story_documents] == [1, 2, 3]
 
 
-def test_set_story_order_can_reorder_and_unlink(db_conn):
+def test_set_story_order_can_be_changed_and_never_drops_a_document(db_conn):
     doc_a = repository.insert_document(
         db_conn, role="draft_script", source_path="/tmp/a.txt", filename="a.txt", source_type="txt", content_hash="a"
     )
@@ -182,7 +179,7 @@ def test_set_story_order_can_reorder_and_unlink(db_conn):
     repository.set_story_order(db_conn, [doc_b])
 
     story_documents = repository.list_story_documents(db_conn)
-    assert [d["id"] for d in story_documents] == [doc_b]
+    assert [d["id"] for d in story_documents] == [doc_b, doc_a]
 
 
 def test_list_subplot_topics_orders_by_story_position_across_documents(db_conn):

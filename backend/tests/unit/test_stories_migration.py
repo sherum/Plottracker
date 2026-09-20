@@ -52,28 +52,39 @@ def _insert_main(conn, story_id):
 
 def test_existing_main_theme_goes_to_the_story_in_use(db_conn):
     # a fresh database already holds one Main theme that belongs to no story yet
+    placeholder_id = db_conn.execute("SELECT id FROM themes WHERE is_main = 1").fetchone()["id"]
     _add_document(db_conn, "other_1.docx")
     in_use = _add_document(db_conn, "space_mage_1.docx", story_position=1)
 
     _migrate_stories(db_conn)
 
-    main_story = db_conn.execute(
-        "SELECT stories.name FROM themes JOIN stories ON stories.id = themes.story_id WHERE is_main = 1"
-    ).fetchone()["name"]
-    assert main_story == _story_of(db_conn, in_use)
+    kept = db_conn.execute("SELECT story_id FROM themes WHERE id = ?", (placeholder_id,)).fetchone()["story_id"]
+    assert kept == db_conn.execute("SELECT story_id FROM documents WHERE id = ?", (in_use,)).fetchone()["story_id"]
 
 
-def test_stories_can_share_a_position_number_and_each_have_a_main(db_conn):
+def test_every_story_gets_exactly_one_main_theme(db_conn):
     _add_document(db_conn, "a_1.docx", story_position=1)
     _add_document(db_conn, "b_1.docx", story_position=1)
 
     _migrate_stories(db_conn)
+    _migrate_stories(db_conn)
 
-    story_without_main = db_conn.execute(
-        "SELECT id FROM stories WHERE id NOT IN (SELECT story_id FROM themes WHERE is_main = 1)"
-    ).fetchone()[0]
-    _insert_main(db_conn, story_without_main)
-    assert db_conn.execute("SELECT COUNT(*) FROM themes WHERE is_main = 1").fetchone()[0] == 2
+    mains = db_conn.execute("SELECT story_id, COUNT(*) AS n FROM themes WHERE is_main = 1 GROUP BY story_id").fetchall()
+    assert len(mains) == 2
+    assert all(row["n"] == 1 for row in mains)
+
+
+def test_placeholder_main_is_retired_once_a_story_has_its_own(db_conn):
+    from app.db.stories import assign_story
+
+    placeholder_id = db_conn.execute("SELECT id FROM themes WHERE is_main = 1").fetchone()["id"]
+    document = _add_document(db_conn, "saga_1.docx")
+    assign_story(db_conn, document)  # creates the story and its own Main
+
+    _migrate_stories(db_conn)
+
+    assert db_conn.execute("SELECT 1 FROM themes WHERE id = ?", (placeholder_id,)).fetchone() is None
+    assert db_conn.execute("SELECT COUNT(*) FROM themes WHERE is_main = 1").fetchone()[0] == 1
 
 
 def test_a_story_cannot_have_two_main_themes_or_repeat_a_position(db_conn):

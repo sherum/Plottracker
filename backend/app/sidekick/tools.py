@@ -256,7 +256,9 @@ def _filter_topics(conn: sqlite3.Connection, args: dict) -> Any:
 
 
 def _create_subplot(conn: sqlite3.Connection, args: dict) -> Any:
-    subplot_id = repository.insert_subplot(conn, title=args["title"], summary=args.get("summary", ""))
+    subplot_id = repository.insert_subplot(
+        conn, title=args["title"], summary=args.get("summary", ""), story_id=args.get("story_id")
+    )
     return repository.get_subplot(conn, subplot_id)
 
 

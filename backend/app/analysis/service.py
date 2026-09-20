@@ -35,11 +35,12 @@ def analyze_document(conn: sqlite3.Connection, document_id: int) -> dict:
     if not segments:
         raise ValueError(f"document {document_id} has no segments")
 
-    existing_themes = repository.list_active_themes(conn)
+    story_id = repository.get_document(conn, document_id)["story_id"]
+    existing_themes = repository.list_active_themes(conn, story_id)
     result = llm.extract_topics_and_themes(segments, existing_themes)
     result = _trim_trailing_chapter_headings(result, segments)
 
-    main_theme_id = repository.get_main_theme_id(conn)
+    main_theme_id = repository.get_main_theme_id(conn, story_id)
     existing_theme_ids = {theme["id"] for theme in existing_themes}
 
     # A reanalyze pass excludes this document's old topics; themes/subplots
@@ -96,7 +97,7 @@ def analyze_document(conn: sqlite3.Connection, document_id: int) -> dict:
             repository.set_topic_theme(conn, topic_ids[topic_index], theme_id)
 
     for theme, indices in new[:MAX_AUTO_SUBPLOTS]:
-        theme_id = repository.insert_theme(conn, title=theme.title, summary=theme.summary)
+        theme_id = repository.insert_theme(conn, title=theme.title, summary=theme.summary, story_id=story_id)
         repository.insert_subplot(conn, title=theme.title, summary=theme.summary, theme_id=theme_id)
         theme_ids.append(theme_id)
         for topic_index in indices:
