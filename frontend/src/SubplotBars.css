@@ -50,3 +50,20 @@
   font-style: italic;
   color: var(--color-accent);
 }
+
+.subplot-bar-row-resolved .subplot-bar-label,
+.subplot-bar-row-resolved .subplot-bar-track {
+  opacity: 0.6;
+}
+
+.subplot-bar-badge {
+  flex: 0 0 auto;
+  font-size: 0.75em;
+  font-style: italic;
+  color: #888;
+}
+
+.subplot-bar-badge-warning {
+  color: var(--color-accent);
+  font-weight: 600;
+}

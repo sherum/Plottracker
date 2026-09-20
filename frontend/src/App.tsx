@@ -19,6 +19,14 @@ interface Document {
   filename: string
   source_type: string
   ingested_at: string
+  story_id: number | null
+  story_position: number | null
+}
+
+interface Story {
+  id: number
+  name: string
+  document_count: number
 }
 
 interface Theme {
@@ -40,6 +48,12 @@ function normalizeTheme<T extends { excluded: unknown; is_main: unknown }>(
   return { ...row, excluded: Boolean(row.excluded), is_main: Boolean(row.is_main) }
 }
 
+// Story names come from filenames, e.g. "space_mage".
+function storyTitle(story: Story | null): string {
+  if (!story) return 'Story'
+  return story.name.replace(/[_-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 function App() {
   return (
     <ToastProvider>
@@ -51,6 +65,8 @@ function App() {
 function AppContent() {
   const [documents, setDocuments] = useState<Document[]>([])
   const [storyDocuments, setStoryDocuments] = useState<Document[]>([])
+  const [stories, setStories] = useState<Story[]>([])
+  const [activeStoryId, setActiveStoryId] = useState<number | null>(null)
   const [themes, setThemes] = useState<Theme[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
   const [encodingRules, setEncodingRules] = useState<EncodingRule[]>([])
@@ -88,27 +104,47 @@ function AppContent() {
     setPreviewMode(mode)
   }
 
+  // Themes, topics and story order all belong to one story, so they are
+  // always fetched for the story being viewed.
+  const storyQuery = activeStoryId === null ? '' : `?story_id=${activeStoryId}`
+
   useEffect(() => {
-    Promise.all([
-      fetch('/documents').then((res) => res.json()),
-      fetch('/themes').then((res) => res.json()),
-      fetch('/topics').then((res) => res.json()),
-      fetch('/story/documents').then((res) => res.json()),
-    ])
-      .then(([documentsData, themesData, topicsData, storyDocumentsData]) => {
+    Promise.all([fetch('/documents').then((res) => res.json()), fetch('/stories').then((res) => res.json())])
+      .then(([documentsData, storiesData]: [Document[], Story[]]) => {
         setDocuments(documentsData)
+        setStories(storiesData)
+        setActiveStoryId(storiesData[0]?.id ?? null)
+        if (storiesData.length === 0) setLoading(false)
+      })
+      .catch(() => setError('Could not reach the backend at http://localhost:8000'))
+  }, [])
+
+  useEffect(() => {
+    if (activeStoryId === null) return
+    Promise.all([
+      fetch(`/themes${storyQuery}`).then((res) => res.json()),
+      fetch(`/topics${storyQuery}`).then((res) => res.json()),
+      fetch(`/story/documents${storyQuery}`).then((res) => res.json()),
+    ])
+      .then(([themesData, topicsData, storyDocumentsData]) => {
         setThemes(themesData.map(normalizeTheme))
         setTopics(topicsData.map(normalizeExcluded))
         setStoryDocuments(storyDocumentsData)
       })
       .catch(() => setError('Could not reach the backend at http://localhost:8000'))
       .finally(() => setLoading(false))
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeStoryId])
 
   function refetchDocuments() {
-    fetch('/documents')
-      .then((res) => res.json())
-      .then(setDocuments)
+    return Promise.all([
+      fetch('/documents').then((res) => res.json()),
+      fetch('/stories').then((res) => res.json()),
+    ]).then(([documentsData, storiesData]: [Document[], Story[]]) => {
+      setDocuments(documentsData)
+      setStories(storiesData)
+      return documentsData
+    })
   }
 
   async function updateStoryOrder(documentIds: number[]) {
@@ -116,22 +152,32 @@ function AppContent() {
       const response = await fetch('/story/documents', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ document_ids: documentIds }),
+        body: JSON.stringify({ document_ids: documentIds, story_id: activeStoryId }),
       })
       if (!response.ok) throw new Error()
       setStoryDocuments(await response.json())
+      refetchTopicsAndThemes()
     } catch {
       showError('Could not update the story order. Please try again.')
     }
   }
 
-  function addToStory(documentId: number) {
-    if (storyDocuments.some((d) => d.id === documentId)) return
-    updateStoryOrder([...storyDocuments.map((d) => d.id), documentId])
+  function switchStory(storyId: number) {
+    setLoadedDocument(null)
+    setActiveStoryId(storyId)
   }
 
-  function removeFromStory(documentId: number) {
-    updateStoryOrder(storyDocuments.filter((d) => d.id !== documentId).map((d) => d.id))
+  function refetchStoryDocuments() {
+    return fetch(`/story/documents${storyQuery}`)
+      .then((res) => res.json())
+      .then(setStoryDocuments)
+  }
+
+  async function handleIngested() {
+    const docs = await refetchDocuments()
+    const newest = docs.reduce((a, b) => (b.id > a.id ? b : a))
+    if (newest.story_id !== null && newest.story_id !== activeStoryId) switchStory(newest.story_id)
+    else refetchStoryDocuments().then(refetchTopicsAndThemes)
   }
 
   function moveStoryDocument(documentId: number, direction: -1 | 1) {
@@ -144,7 +190,10 @@ function AppContent() {
   }
 
   function refetchTopicsAndThemes() {
-    Promise.all([fetch('/themes').then((res) => res.json()), fetch('/topics').then((res) => res.json())]).then(
+    Promise.all([
+      fetch(`/themes${storyQuery}`).then((res) => res.json()),
+      fetch(`/topics${storyQuery}`).then((res) => res.json()),
+    ]).then(
       ([themesData, topicsData]) => {
         setThemes(themesData.map(normalizeTheme))
         setTopics(topicsData.map(normalizeExcluded))
@@ -154,12 +203,9 @@ function AppContent() {
 
   function refetchEncodingRules() {
     // Rules are shown scoped to whichever single document is loaded, so
-    // enabling/disabling one is unambiguous. Story mode spans several
-    // documents at once, so there's no single document to scope by there.
-    const url =
-      storyDocuments.length > 0 || !loadedDocument
-        ? '/encoding-rules'
-        : `/encoding-rules?document_id=${loadedDocument.id}`
+    // enabling/disabling one is unambiguous. The whole-story view spans
+    // several documents at once, so there's no single document to scope by.
+    const url = loadedDocument ? `/encoding-rules?document_id=${loadedDocument.id}` : '/encoding-rules'
     fetch(url)
       .then((res) => res.json())
       .then(setEncodingRules)
@@ -168,7 +214,7 @@ function AppContent() {
   useEffect(() => {
     refetchEncodingRules()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadedDocument?.id, storyDocuments.length])
+  }, [loadedDocument?.id])
 
   function refetchAfterSidekickAction() {
     refetchTopicsAndThemes()
@@ -301,7 +347,7 @@ function AppContent() {
         const response = await fetch('/subplots', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: name, summary: '' }),
+          body: JSON.stringify({ title: name, summary: '', story_id: activeStoryId }),
         })
         if (!response.ok) throw new Error()
         const subplot = await response.json()
@@ -491,6 +537,9 @@ function AppContent() {
       setStoryDocuments((prev) => prev.map((d) => (d.id === id ? { ...d, filename: updated.filename } : d)))
       setLoadedDocument((prev) => (prev?.id === id ? { ...prev, filename: updated.filename } : prev))
       setRenamingDocId(null)
+      await refetchDocuments()
+      if (updated.story_id !== activeStoryId) switchStory(updated.story_id)
+      else refetchStoryDocuments().then(refetchTopicsAndThemes)
     } catch {
       showError('Could not rename this document. Please try again.')
     }
@@ -518,10 +567,14 @@ function AppContent() {
     setDocumentsExpanded((prev) => !prev)
   }
 
-  // Once at least one document is linked into the story, the whole app
-  // switches from viewing a single loaded document to viewing the full,
-  // story-ordered union of every linked document's topics.
-  const inStoryMode = storyDocuments.length > 0
+  // The active story is shown as a whole - the story-ordered union of all its
+  // editions' topics - unless one document has been loaded to view on its own.
+  const inStoryMode = !loadedDocument && storyDocuments.length > 0
+  const activeStory = stories.find((s) => s.id === activeStoryId) ?? null
+  const editionNames: Record<number, string> = Object.fromEntries(
+    storyDocuments.flatMap((d) => (d.story_position === null ? [] : [[d.story_position, d.filename]]))
+  )
+  const visibleDocuments = documents.filter((d) => activeStoryId === null || d.story_id === activeStoryId)
   const storyFilenames = new Set(storyDocuments.map((d) => d.filename))
 
   const loadedTopics = loadedDocument
@@ -583,7 +636,37 @@ function AppContent() {
 
   return (
     <main className="app-shell container-fluid">
-      <h1 className="my-4">{inStoryMode ? `The Story (${storyDocuments.length} documents)` : loadedDocument ? loadedDocument.filename : 'Genre Writer'}</h1>
+      <h1 className="my-4">
+        {inStoryMode
+          ? `${storyTitle(activeStory)} (${storyDocuments.length} documents)`
+          : loadedDocument
+            ? loadedDocument.filename
+            : 'Genre Writer'}
+      </h1>
+      {stories.length > 0 && (
+        <div className="story-switcher d-flex align-items-center gap-2 mb-3">
+          <label htmlFor="story-select" className="mb-0">
+            Story
+          </label>
+          <select
+            id="story-select"
+            className="form-select form-select-sm w-auto"
+            value={activeStoryId ?? ''}
+            onChange={(e) => switchStory(Number(e.target.value))}
+          >
+            {stories.map((story) => (
+              <option key={story.id} value={story.id}>
+                {storyTitle(story)} ({story.document_count})
+              </option>
+            ))}
+          </select>
+          {loadedDocument && (
+            <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setLoadedDocument(null)}>
+              View whole story
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="row g-4">
         <div className="col-12 col-lg-2 order-2 order-lg-1 d-flex flex-column gap-4 documents-panel">
@@ -600,13 +683,12 @@ function AppContent() {
             </span>
           </div>
           <div className="card-body">
-          <IngestForm onIngested={refetchDocuments} />
+          <IngestForm onIngested={handleIngested} />
           {documents.length === 0 ? (
             <p>No documents ingested yet.</p>
           ) : (
             <ul className={`documents-list${documentsExpanded ? '' : ' collapsed'}`}>
-              {documents.map((doc) => {
-                const inStory = storyDocuments.some((d) => d.id === doc.id)
+              {visibleDocuments.map((doc) => {
                 const isRenaming = renamingDocId === doc.id
                 return (
                   <li key={doc.id} className={loadedDocument?.id === doc.id ? 'loaded' : undefined}>
@@ -650,12 +732,6 @@ function AppContent() {
                       />
                       <IconButton icon="reanalyze" label="Reanalyze" onClick={() => reanalyzeDocument(doc.id)} />
                       <IconButton icon="classify" label="Classify Encoding" onClick={() => classifyDocument(doc.id)} />
-                      <IconButton
-                        icon="link"
-                        label={inStory ? 'Remove from story order' : 'Add to story order'}
-                        active={inStory}
-                        onClick={() => (inStory ? removeFromStory(doc.id) : addToStory(doc.id))}
-                      />
                       <IconButton icon="delete" label="Delete" onClick={() => deleteDocument(doc.id, doc.filename)} />
                     </div>
                     {analyzing[doc.id] && <span className="tag"> {analyzing[doc.id]}</span>}
@@ -684,7 +760,6 @@ function AppContent() {
                         label={`Move ${doc.filename} later in the story`}
                         onClick={() => moveStoryDocument(doc.id, 1)}
                       />
-                      <IconButton icon="remove" label={`Remove ${doc.filename} from the story`} onClick={() => removeFromStory(doc.id)} />
                     </div>
                   </li>
                 ))}
@@ -725,6 +800,8 @@ function AppContent() {
               </div>
               <SubplotBars
                 documentId={loadedDocument?.id ?? null}
+                storyId={activeStoryId}
+                editionNames={editionNames}
                 storyMode={inStoryMode}
                 topicOrderIndex={topicOrderIndex}
                 refreshToken={subplotRefreshToken}
@@ -823,6 +900,7 @@ function AppContent() {
             <h2 className="h5">Sidekick</h2>
             <Sidekick
               topics={effectiveTopics}
+              storyId={activeStoryId}
               currentTopicId={currentTopicId}
               currentThemeId={currentThemeId}
               onActionsPerformed={refetchAfterSidekickAction}

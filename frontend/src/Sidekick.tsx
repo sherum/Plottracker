@@ -24,10 +24,12 @@ interface Props {
   onFinishAdd?: () => Promise<{ count: number; title: string }>
   deleteTargetCount?: number
   onFinishDelete?: () => Promise<{ count: number }>
+  storyId?: number | null
 }
 
 function Sidekick({
   topics,
+  storyId,
   currentTopicId,
   currentThemeId,
   onActionsPerformed,
@@ -109,6 +111,7 @@ function Sidekick({
           current_theme_id: currentThemeId ?? null,
           add_target_subplot_id: addTargetSubplotId ?? null,
           add_target_is_new: addTargetIsNew ?? false,
+          story_id: storyId ?? null,
         }),
       })
       if (!response.ok) throw new Error()

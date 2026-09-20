@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { buildActBuckets } from './actBuckets'
 import HbarVisual from './HbarVisual'
 import IconButton from './IconButton'
+import { useToast } from './ToastContext'
 import type { Topic } from './TopicCardGrid'
 import './SubplotBars.css'
 
@@ -10,6 +11,10 @@ interface Subplot {
   theme_id: number
   title: string
   topic_count: number
+  resolved: boolean
+  reopened_after_resolution: boolean
+  first_position: number | null
+  last_position: number | null
 }
 
 interface SubplotWithTopics extends Subplot {
@@ -20,7 +25,9 @@ interface SubplotWithTopics extends Subplot {
 
 interface Props {
   documentId: number | null
+  storyId: number | null
   storyMode: boolean
+  editionNames: Record<number, string>
   topicOrderIndex: Map<number, number>
   refreshToken: number
   currentTopicId: number | null
@@ -38,7 +45,9 @@ const MIN_SPAN_PERCENT = 8
 
 function SubplotBars({
   documentId,
+  storyId,
   storyMode,
+  editionNames,
   topicOrderIndex,
   refreshToken,
   currentTopicId,
@@ -50,6 +59,7 @@ function SubplotBars({
   onDropTopic,
 }: Props) {
   const [subplots, setSubplots] = useState<SubplotWithTopics[]>([])
+  const { showError } = useToast()
 
   useEffect(() => {
     if (!storyMode && documentId === null) {
@@ -58,7 +68,7 @@ function SubplotBars({
     }
     let cancelled = false
 
-    const listUrl = storyMode ? '/subplots' : `/subplots?document_id=${documentId}`
+    const listUrl = storyMode ? `/subplots?story_id=${storyId}` : `/subplots?document_id=${documentId}`
     const total = topicOrderIndex.size
 
     fetch(listUrl)
@@ -103,7 +113,7 @@ function SubplotBars({
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [documentId, storyMode, refreshToken])
+  }, [documentId, storyId, storyMode, refreshToken])
 
   if (subplots.length === 0) return null
 
@@ -112,6 +122,28 @@ function SubplotBars({
     const bucket = buckets.find((b) => b.key === actKey) ?? (extraBucket.key === actKey ? extraBucket : null)
     const firstTopic = bucket?.topics[0]
     if (firstTopic) onNavigateTopic(firstTopic.id)
+  }
+
+  async function toggleResolved(subplot: SubplotWithTopics) {
+    try {
+      const response = await fetch(`/subplots/${subplot.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resolved: !subplot.resolved }),
+      })
+      if (!response.ok) throw new Error()
+      const updated: Subplot = await response.json()
+      setSubplots((prev) => prev.map((s) => (s.id === subplot.id ? { ...s, ...updated } : s)))
+    } catch {
+      showError('Could not update this subplot. Please try again.')
+    }
+  }
+
+  function editionNote(subplot: Subplot): string {
+    const first = subplot.first_position === null ? undefined : editionNames[subplot.first_position]
+    const last = subplot.last_position === null ? undefined : editionNames[subplot.last_position]
+    if (!first || !last) return ''
+    return first === last ? `Appears in ${first}` : `Introduced in ${first}; last appears in ${last}`
   }
 
   function dropOnTheme(themeId: number) {
@@ -124,11 +156,30 @@ function SubplotBars({
         const { buckets, extraBucket } = buildActBuckets(subplot.topics)
         const isEmpty = subplot.topic_count === 0
         return (
-          <div className={`subplot-bar-row${isEmpty ? ' subplot-bar-row-empty' : ''}`} key={subplot.id}>
+          <div
+            className={`subplot-bar-row${isEmpty ? ' subplot-bar-row-empty' : ''}${subplot.resolved ? ' subplot-bar-row-resolved' : ''}`}
+            key={subplot.id}
+          >
             <div className="subplot-bar-header">
-              <span className="subplot-bar-label" title={subplot.title}>
+              <span
+                className="subplot-bar-label"
+                title={editionNote(subplot) ? `${subplot.title} - ${editionNote(subplot)}` : subplot.title}
+              >
                 {subplot.title}
               </span>
+              {subplot.reopened_after_resolution && (
+                <span
+                  className="subplot-bar-badge subplot-bar-badge-warning"
+                  title="Marked resolved, but it has topics in a later edition. Reopen it, or move those topics."
+                >
+                  reopened
+                </span>
+              )}
+              {subplot.resolved && !subplot.reopened_after_resolution && (
+                <span className="subplot-bar-badge" title="Marked resolved">
+                  resolved
+                </span>
+              )}
               {isEmpty && (
                 <span
                   className="subplot-bar-empty-badge"
@@ -137,6 +188,12 @@ function SubplotBars({
                   empty
                 </span>
               )}
+              <IconButton
+                icon="resolve"
+                label={subplot.resolved ? `Mark ${subplot.title} unresolved` : `Mark ${subplot.title} resolved`}
+                active={subplot.resolved}
+                onClick={() => toggleResolved(subplot)}
+              />
               <IconButton
                 icon="add"
                 label={`Add topics to ${subplot.title}`}
