@@ -73,6 +73,8 @@ CREATE INDEX IF NOT EXISTS idx_topics_document_sequence
 CREATE TABLE IF NOT EXISTS subplots (
     id INTEGER PRIMARY KEY,
     theme_id INTEGER NOT NULL REFERENCES themes(id),
+    resolved INTEGER NOT NULL DEFAULT 0,
+    resolved_at_position INTEGER,
     created_at TEXT NOT NULL
 );
 

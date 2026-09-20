@@ -365,37 +365,68 @@ def insert_subplot(
     return cursor.lastrowid
 
 
+_EDITION_POSITION_SQL = """
+    (
+        SELECT {aggregate}(documents.story_position) FROM topics
+        JOIN documents ON documents.id = topics.document_id
+        WHERE topics.theme_id = subplots.theme_id AND topics.excluded = 0
+    )
+"""
+
+_SUBPLOT_SELECT = f"""
+    SELECT subplots.id, subplots.theme_id, subplots.created_at,
+           themes.title AS title, themes.summary AS summary,
+           subplots.resolved, subplots.resolved_at_position,
+           (
+               SELECT COUNT(*) FROM topics
+               WHERE topics.theme_id = subplots.theme_id AND topics.excluded = 0
+           ) AS topic_count,
+           {_EDITION_POSITION_SQL.format(aggregate="MIN")} AS first_position,
+           {_EDITION_POSITION_SQL.format(aggregate="MAX")} AS last_position
+    FROM subplots
+    LEFT JOIN themes ON themes.id = subplots.theme_id
+"""
+
+
+def _subplot_dict(row: sqlite3.Row) -> dict:
+    subplot = dict(row)
+    subplot["resolved"] = bool(subplot["resolved"])
+    # Resolved, yet topics have since appeared in a later edition than the one it ended in.
+    subplot["reopened_after_resolution"] = bool(
+        subplot["resolved"]
+        and subplot["resolved_at_position"] is not None
+        and subplot["last_position"] is not None
+        and subplot["last_position"] > subplot["resolved_at_position"]
+    )
+    return subplot
+
+
 def get_subplot(conn: sqlite3.Connection, subplot_id: int) -> dict:
-    row = conn.execute(
-        """
-        SELECT subplots.id, subplots.theme_id, subplots.created_at,
-               themes.title AS title, themes.summary AS summary,
-               (
-                   SELECT COUNT(*) FROM topics
-                   WHERE topics.theme_id = subplots.theme_id AND topics.excluded = 0
-               ) AS topic_count
-        FROM subplots
-        LEFT JOIN themes ON themes.id = subplots.theme_id
-        WHERE subplots.id = ?
+    row = conn.execute(f"{_SUBPLOT_SELECT} WHERE subplots.id = ?", (subplot_id,)).fetchone()
+    return _subplot_dict(row)
+
+
+def set_subplot_resolved(conn: sqlite3.Connection, subplot_id: int, resolved: bool) -> dict:
+    """Mark a subplot resolved (remembering the last edition it appears in) or open again."""
+    conn.execute(
+        f"""
+        UPDATE subplots
+        SET resolved = ?,
+            resolved_at_position = CASE WHEN ? THEN {_EDITION_POSITION_SQL.format(aggregate="MAX")} END
+        WHERE id = ?
         """,
-        (subplot_id,),
-    ).fetchone()
-    return dict(row)
+        (int(resolved), int(resolved), subplot_id),
+    )
+    conn.commit()
+    return get_subplot(conn, subplot_id)
 
 
 def list_subplots(
     conn: sqlite3.Connection, document_id: int | None = None, story_id: int | None = None
 ) -> list[dict]:
     rows = conn.execute(
-        """
-        SELECT subplots.id, subplots.theme_id, subplots.created_at,
-               themes.title AS title, themes.summary AS summary,
-               (
-                   SELECT COUNT(*) FROM topics
-                   WHERE topics.theme_id = subplots.theme_id AND topics.excluded = 0
-               ) AS topic_count
-        FROM subplots
-        LEFT JOIN themes ON themes.id = subplots.theme_id
+        f"""
+        {_SUBPLOT_SELECT}
         WHERE (
             ? IS NULL
             OR EXISTS (
@@ -408,7 +439,7 @@ def list_subplots(
         """,
         (document_id, document_id, story_id, story_id),
     ).fetchall()
-    return [dict(row) for row in rows]
+    return [_subplot_dict(row) for row in rows]
 
 
 def add_topic_to_subplot(conn: sqlite3.Connection, subplot_id: int, topic_id: int) -> None:

@@ -42,6 +42,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
     _migrate_segment_styles_check(conn)
     _migrate_theme_subplot_model(conn)
     _migrate_drop_subplot_title_summary(conn)
+    _migrate_subplot_resolved(conn)
     _migrate_stories(conn)
 
     conn.commit()
@@ -230,6 +231,14 @@ def _migrate_stories(conn: sqlite3.Connection) -> None:
         "SELECT DISTINCT story_id FROM documents WHERE role = 'draft_script' AND story_position IS NULL"
     ).fetchall():
         order_story(conn, row["story_id"])
+
+
+def _migrate_subplot_resolved(conn: sqlite3.Connection) -> None:
+    subplot_columns = {row[1] for row in conn.execute("PRAGMA table_info(subplots)")}
+    if "resolved" not in subplot_columns:
+        conn.execute("ALTER TABLE subplots ADD COLUMN resolved INTEGER NOT NULL DEFAULT 0")
+    if "resolved_at_position" not in subplot_columns:
+        conn.execute("ALTER TABLE subplots ADD COLUMN resolved_at_position INTEGER")
 
 
 def _fold_unowned_main_theme(conn: sqlite3.Connection, story_id: int) -> None:

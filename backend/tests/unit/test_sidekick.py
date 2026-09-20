@@ -240,7 +240,7 @@ def test_build_context_includes_subplots_and_current_ids():
 
     context = llm._build_context([], [], [], subplots, current_topic_id=7, current_theme_id=2)
 
-    assert "Subplot (id=5, theme_id=2): The Rivalry - topics: [11, 12]" in context
+    assert "Subplot (id=5, theme_id=2, open): The Rivalry - topics: [11, 12]" in context
     assert "Current topic: id=7" in context
     assert "Current theme: id=2" in context
 

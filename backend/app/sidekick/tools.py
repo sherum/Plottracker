@@ -79,6 +79,22 @@ TOOL_SCHEMAS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "set_subplot_resolved",
+            "description": (
+                "Mark a subplot resolved (its storyline is finished) or open again (still unfinished). "
+                "Use it when the author says a subplot is resolved, wrapped up, finished, or that it is not "
+                "resolved yet."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {"subplot_id": {"type": "integer"}, "resolved": {"type": "boolean"}},
+                "required": ["subplot_id", "resolved"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "filter_topics",
             "description": (
                 "Report which topics (from the context above) match a filter the author described, e.g. "
@@ -251,6 +267,10 @@ def _delete_subplot(conn: sqlite3.Connection, args: dict) -> Any:
     return {"deleted": args["subplot_id"]}
 
 
+def _set_subplot_resolved(conn: sqlite3.Connection, args: dict) -> Any:
+    return repository.set_subplot_resolved(conn, args["subplot_id"], args["resolved"])
+
+
 def _filter_topics(conn: sqlite3.Connection, args: dict) -> Any:
     return repository.get_topics_by_ids(conn, args["topic_ids"])
 
@@ -316,6 +336,7 @@ TOOL_FUNCTIONS: dict[str, Callable[[sqlite3.Connection, dict], Any]] = {
     "add_topic_to_subplot": _add_topic_to_subplot,
     "remove_topic_from_subplot": _remove_topic_from_subplot,
     "delete_subplot": _delete_subplot,
+    "set_subplot_resolved": _set_subplot_resolved,
     "filter_topics": _filter_topics,
     "create_subplot": _create_subplot,
     "assign_topic_to_theme": _assign_topic_to_theme,

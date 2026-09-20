@@ -15,6 +15,10 @@ class SubplotCreate(BaseModel):
     story_id: int | None = None
 
 
+class SubplotResolve(BaseModel):
+    resolved: bool
+
+
 class TopicRef(BaseModel):
     topic_id: int
 
@@ -37,6 +41,13 @@ def create_subplot(request: SubplotCreate, conn: sqlite3.Connection = Depends(ge
 @router.get("/subplots/{subplot_id}")
 def get_subplot(subplot_id: int, conn: sqlite3.Connection = Depends(get_db)) -> dict:
     return repository.get_subplot(conn, subplot_id)
+
+
+@router.patch("/subplots/{subplot_id}")
+def resolve_subplot(
+    subplot_id: int, request: SubplotResolve, conn: sqlite3.Connection = Depends(get_db)
+) -> dict:
+    return repository.set_subplot_resolved(conn, subplot_id, request.resolved)
 
 
 @router.delete("/subplots/{subplot_id}")

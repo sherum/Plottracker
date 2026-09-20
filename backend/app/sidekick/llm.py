@@ -92,7 +92,8 @@ def _build_context(
         for t in topics
     ]
     lines += [
-        f"Subplot (id={s['id']}, theme_id={s['theme_id']}): {s['title']} - topics: {s.get('topic_ids', [])}"
+        f"Subplot (id={s['id']}, theme_id={s['theme_id']}, {'resolved' if s.get('resolved') else 'open'}): "
+        f"{s['title']} - topics: {s.get('topic_ids', [])}"
         for s in subplots
     ]
     lines += [
