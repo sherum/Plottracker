@@ -13,15 +13,18 @@ def get_or_create_story(conn: sqlite3.Connection, name: str) -> int:
 
 
 def ensure_main_theme(conn: sqlite3.Connection, story_id: int) -> None:
-    if conn.execute("SELECT 1 FROM themes WHERE is_main = 1 AND story_id = ?", (story_id,)).fetchone():
-        return
+    # One statement checks and inserts, so concurrent requests cannot both add a Main.
     conn.execute(
-        "INSERT INTO themes (title, summary, is_main, excluded, story_id, created_at) VALUES (?, ?, 1, 0, ?, ?)",
+        """
+        INSERT INTO themes (title, summary, is_main, excluded, story_id, created_at)
+        SELECT ?, ?, 1, 0, ?, ? WHERE NOT EXISTS (SELECT 1 FROM themes WHERE is_main = 1 AND story_id = ?)
+        """,
         (
             "Main",
             "The main plot: everything not part of a more specific subplot.",
             story_id,
             datetime.now(timezone.utc).isoformat(),
+            story_id,
         ),
     )
 

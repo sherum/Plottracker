@@ -160,3 +160,51 @@ def test_renaming_moves_a_document_and_reorders_both_stories(db_conn):
 
     assert _story_positions(db_conn, "a") == {"a_2.docx": 1}
     assert _story_positions(db_conn, "b") == {"b_1.docx": 1}
+
+
+def test_several_placeholder_mains_from_concurrent_requests_are_cleaned_up(db_conn):
+    # Concurrent first requests each inserted a Main theme with no story.
+    from app.db.stories import assign_story
+
+    for _ in range(2):
+        db_conn.execute("INSERT INTO themes (title, summary, is_main, created_at) VALUES ('Main', '', 1, 'now')")
+    assign_story(db_conn, _add_document(db_conn, "saga_1.docx"))
+
+    _migrate_stories(db_conn)
+
+    assert db_conn.execute("SELECT COUNT(*) FROM themes WHERE is_main = 1").fetchone()[0] == 1
+    assert db_conn.execute("SELECT COUNT(*) FROM themes WHERE is_main = 1 AND story_id IS NULL").fetchone()[0] == 0
+
+
+def test_ensure_main_theme_never_creates_a_second_main(db_conn):
+    from app.db.stories import ensure_main_theme, get_or_create_story
+
+    story_id = get_or_create_story(db_conn, "saga")
+    ensure_main_theme(db_conn, story_id)
+    ensure_main_theme(db_conn, story_id)
+
+    assert db_conn.execute("SELECT COUNT(*) FROM themes WHERE is_main = 1 AND story_id = ?", (story_id,)).fetchone()[0] == 1
+
+
+def test_a_failed_migration_does_not_leave_the_database_locked(tmp_path, monkeypatch):
+    import sqlite3
+
+    from app.db import connection
+
+    path = tmp_path / "locked.db"
+    connection.get_connection(path).close()
+    def write_then_fail(conn):
+        conn.execute("INSERT INTO stories (name, created_at) VALUES ('half-done', 'now')")
+        raise sqlite3.OperationalError("boom")
+
+    monkeypatch.setattr(connection, "_migrate_stories", write_then_fail)
+
+    # The exception (and so its traceback, and the connection in it) stays alive here, as it
+    # does while a server logs it - a leaked connection would still hold its write lock.
+    with pytest.raises(sqlite3.OperationalError) as failure:
+        connection.get_connection(path)
+
+    other = sqlite3.connect(path, timeout=0.2)
+    other.execute("CREATE TABLE probe (x)")
+    other.close()
+    assert failure.value is not None

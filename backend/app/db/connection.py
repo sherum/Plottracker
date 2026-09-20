@@ -17,8 +17,12 @@ def get_connection(db_path: Path | str | None = None) -> sqlite3.Connection:
     conn = sqlite3.connect(path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    conn.executescript(SCHEMA_PATH.read_text())
-    _migrate(conn)
+    try:
+        conn.executescript(SCHEMA_PATH.read_text())
+        _migrate(conn)
+    except BaseException:
+        conn.close()
+        raise
     return conn
 
 
@@ -67,19 +71,20 @@ def _migrate_theme_subplot_model(conn: sqlite3.Connection) -> None:
     # Ensure the Main theme exists - always, whether this is a brand-new
     # database (schema.sql already has the tightened constraints, nothing
     # else to migrate) or an old one being upgraded below.
-    main_row = conn.execute("SELECT id FROM themes WHERE is_main = 1").fetchone()
-    if main_row is None:
-        cursor = conn.execute(
-            "INSERT INTO themes (title, summary, is_main, excluded, created_at) VALUES (?, ?, 1, 0, ?)",
-            (
-                "Main",
-                "The main plot: everything not part of a more specific subplot.",
-                datetime.now(timezone.utc).isoformat(),
-            ),
-        )
-        main_theme_id = cursor.lastrowid
-    else:
-        main_theme_id = main_row["id"]
+    # Checking and inserting in one statement keeps concurrent first requests
+    # from each adding their own.
+    conn.execute(
+        """
+        INSERT INTO themes (title, summary, is_main, excluded, created_at)
+        SELECT ?, ?, 1, 0, ? WHERE NOT EXISTS (SELECT 1 FROM themes WHERE is_main = 1)
+        """,
+        (
+            "Main",
+            "The main plot: everything not part of a more specific subplot.",
+            datetime.now(timezone.utc).isoformat(),
+        ),
+    )
+    main_theme_id = conn.execute("SELECT id FROM themes WHERE is_main = 1 ORDER BY id").fetchone()["id"]
 
     topic_info = {row[1]: row for row in conn.execute("PRAGMA table_info(topics)").fetchall()}
     if topic_info["theme_id"][3] == 1:
@@ -243,13 +248,16 @@ def _migrate_subplot_resolved(conn: sqlite3.Connection) -> None:
 
 def _fold_unowned_main_theme(conn: sqlite3.Connection, story_id: int) -> None:
     # A fresh database starts with a Main theme that belongs to no story. If the
-    # story has since been given its own Main, retire the placeholder.
-    unowned = conn.execute("SELECT id FROM themes WHERE is_main = 1 AND story_id IS NULL").fetchone()
+    # story has since been given its own Main, retire the placeholder(s); if not,
+    # the first one becomes the story's Main.
+    unowned = [row["id"] for row in conn.execute("SELECT id FROM themes WHERE is_main = 1 AND story_id IS NULL ORDER BY id")]
     owned = conn.execute("SELECT id FROM themes WHERE is_main = 1 AND story_id = ?", (story_id,)).fetchone()
-    if unowned is None or owned is None:
+    keep = owned["id"] if owned else (unowned.pop(0) if unowned else None)
+    if keep is None:
         return
-    conn.execute("UPDATE topics SET theme_id = ? WHERE theme_id = ?", (owned["id"], unowned["id"]))
-    conn.execute("DELETE FROM themes WHERE id = ?", (unowned["id"],))
+    for extra in unowned:
+        conn.execute("UPDATE topics SET theme_id = ? WHERE theme_id = ?", (keep, extra))
+        conn.execute("DELETE FROM themes WHERE id = ?", (extra,))
 
 
 def get_db() -> Iterator[sqlite3.Connection]:
