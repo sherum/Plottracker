@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Iterator
 
 from app.config import settings
+from app.db.stories import get_or_create_story, order_story
 from app.db.story_name import parse_story_name
 
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
@@ -196,11 +197,8 @@ def _migrate_stories(conn: sqlite3.Connection) -> None:
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_themes_story_main ON themes(story_id) WHERE is_main = 1"
     )
 
-    now = datetime.now(timezone.utc).isoformat()
     for row in conn.execute("SELECT id, filename FROM documents WHERE story_id IS NULL").fetchall():
-        name, _ = parse_story_name(row["filename"])
-        conn.execute("INSERT OR IGNORE INTO stories (name, created_at) VALUES (?, ?)", (name, now))
-        story_id = conn.execute("SELECT id FROM stories WHERE name = ?", (name,)).fetchone()["id"]
+        story_id = get_or_create_story(conn, parse_story_name(row["filename"])[0])
         conn.execute("UPDATE documents SET story_id = ? WHERE id = ?", (story_id, row["id"]))
 
     conn.execute(
@@ -222,6 +220,12 @@ def _migrate_stories(conn: sqlite3.Connection) -> None:
     ).fetchone() or conn.execute("SELECT story_id FROM documents ORDER BY id LIMIT 1").fetchone()
     if primary is not None:
         conn.execute("UPDATE themes SET story_id = ? WHERE story_id IS NULL", (primary["story_id"],))
+
+    # Numbering comes last: the story already in use is identified by its existing positions.
+    for row in conn.execute(
+        "SELECT DISTINCT story_id FROM documents WHERE role = 'draft_script' AND story_position IS NULL"
+    ).fetchall():
+        order_story(conn, row["story_id"])
 
 
 def get_db() -> Iterator[sqlite3.Connection]:

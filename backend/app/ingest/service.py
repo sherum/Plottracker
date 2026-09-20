@@ -3,7 +3,7 @@ import sqlite3
 from pathlib import Path
 
 from app.config import REPO_ROOT
-from app.db import repository
+from app.db import repository, stories
 from app.ingest.dispatcher import get_extractor
 
 ROLE_DIRS = {"draft_script": "draft_scripts", "story_note": "story_notes"}
@@ -77,7 +77,9 @@ def rename_document(conn: sqlite3.Connection, document_id: int, new_filename: st
 
     old_path.rename(new_path)
 
-    return repository.update_document_path(conn, document_id, filename=safe_name, source_path=str(new_path))
+    repository.update_document_path(conn, document_id, filename=safe_name, source_path=str(new_path))
+    stories.assign_story(conn, document_id)
+    return repository.get_document(conn, document_id)
 
 
 def _ingest_file(conn: sqlite3.Connection, file_path: Path, extractor, role: str) -> None:
@@ -93,6 +95,7 @@ def _ingest_file(conn: sqlite3.Connection, file_path: Path, extractor, role: str
         content_hash=content_hash,
         page_count=extracted.page_count,
     )
+    stories.assign_story(conn, document_id)
 
     for segment in extracted.segments:
         segment_id = repository.insert_segment(

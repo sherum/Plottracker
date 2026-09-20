@@ -86,3 +86,66 @@ def test_a_story_cannot_have_two_main_themes_or_repeat_a_position(db_conn):
         db_conn.execute("UPDATE documents SET story_position = 1 WHERE id = ?", (duplicate,))
     with pytest.raises(sqlite3.IntegrityError):
         _insert_main(db_conn, story_id)
+
+
+def _story_positions(conn, story_name):
+    return {
+        row["filename"]: row["story_position"]
+        for row in conn.execute(
+            "SELECT filename, story_position FROM documents "
+            "JOIN stories ON stories.id = documents.story_id WHERE stories.name = ?",
+            (story_name,),
+        )
+    }
+
+
+def test_assign_story_orders_a_story_by_filename_number(db_conn):
+    from app.db.stories import assign_story
+
+    third = _add_document(db_conn, "space_mage_3.docx")
+    unnumbered = _add_document(db_conn, "space_mage.docx")
+    second = _add_document(db_conn, "space_mage_2.docx")
+    for document_id in (third, unnumbered, second):
+        assign_story(db_conn, document_id)
+
+    assert _story_positions(db_conn, "space_mage") == {
+        "space_mage.docx": 1,
+        "space_mage_2.docx": 2,
+        "space_mage_3.docx": 3,
+    }
+
+
+def test_different_stories_are_numbered_separately(db_conn):
+    from app.db.stories import assign_story
+
+    for filename in ("space_mage_1.docx", "explosive_descent_1.docx", "explosive_descent_2.docx"):
+        assign_story(db_conn, _add_document(db_conn, filename))
+
+    assert _story_positions(db_conn, "space_mage") == {"space_mage_1.docx": 1}
+    assert _story_positions(db_conn, "explosive_descent") == {"explosive_descent_1.docx": 1, "explosive_descent_2.docx": 2}
+
+
+def test_story_notes_join_a_story_but_are_not_numbered(db_conn):
+    from app.db.stories import assign_story
+
+    note = _add_document(db_conn, "space_mage_notes_1.docx")
+    db_conn.execute("UPDATE documents SET role = 'story_note' WHERE id = ?", (note,))
+    assign_story(db_conn, note)
+
+    assert _story_of(db_conn, note) == "space_mage_notes"
+    assert _story_positions(db_conn, "space_mage_notes") == {"space_mage_notes_1.docx": None}
+
+
+def test_renaming_moves_a_document_and_reorders_both_stories(db_conn):
+    from app.db.stories import assign_story
+
+    first = _add_document(db_conn, "a_1.docx")
+    second = _add_document(db_conn, "a_2.docx")
+    for document_id in (first, second):
+        assign_story(db_conn, document_id)
+
+    db_conn.execute("UPDATE documents SET filename = 'b_1.docx' WHERE id = ?", (first,))
+    assign_story(db_conn, first)
+
+    assert _story_positions(db_conn, "a") == {"a_2.docx": 1}
+    assert _story_positions(db_conn, "b") == {"b_1.docx": 1}
