@@ -5,11 +5,16 @@ from app.db.story_name import parse_story_name
 
 
 def get_or_create_story(conn: sqlite3.Connection, name: str) -> int:
+    owner = conn.execute("SELECT story_id FROM story_names WHERE name = ?", (name,)).fetchone()
+    if owner:
+        return owner["story_id"]
     conn.execute(
         "INSERT OR IGNORE INTO stories (name, created_at) VALUES (?, ?)",
         (name, datetime.now(timezone.utc).isoformat()),
     )
-    return conn.execute("SELECT id FROM stories WHERE name = ?", (name,)).fetchone()["id"]
+    story_id = conn.execute("SELECT id FROM stories WHERE name = ?", (name,)).fetchone()["id"]
+    conn.execute("INSERT OR IGNORE INTO story_names (name, story_id, rank) VALUES (?, ?, 0)", (name, story_id))
+    return story_id
 
 
 def ensure_main_theme(conn: sqlite3.Connection, story_id: int) -> None:
@@ -47,15 +52,20 @@ def assign_story(conn: sqlite3.Connection, document_id: int) -> None:
 
 
 def order_story(conn: sqlite3.Connection, story_id: int | None, leading_ids: list[int] = ()) -> None:
-    """Number a story's manuscripts: leading_ids first, then by filename number, then upload order."""
+    """Number a story's manuscripts: leading_ids first, then by name rank, filename number, upload order."""
     rows = conn.execute(
         "SELECT id, filename FROM documents WHERE story_id IS ? AND role = 'draft_script'", (story_id,)
     ).fetchall()
+    ranks = {
+        row["name"]: row["rank"]
+        for row in conn.execute("SELECT name, rank FROM story_names WHERE story_id IS ?", (story_id,))
+    }
 
     def sort_key(row):
         if row["id"] in leading_ids:
-            return (0, leading_ids.index(row["id"]), 0)
-        return (1, parse_story_name(row["filename"])[1], row["id"])
+            return (0, leading_ids.index(row["id"]), 0, 0)
+        name, number = parse_story_name(row["filename"])
+        return (1, ranks.get(name, 0), number, row["id"])
 
     # Clear first so the unique (story, position) index never sees a clash mid-update.
     conn.execute("UPDATE documents SET story_position = NULL WHERE story_id IS ?", (story_id,))

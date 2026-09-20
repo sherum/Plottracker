@@ -4,6 +4,14 @@ CREATE TABLE IF NOT EXISTS stories (
     created_at TEXT NOT NULL
 );
 
+-- The filename names a story answers to. Linked stories keep every name; rank
+-- sequences the names within the story.
+CREATE TABLE IF NOT EXISTS story_names (
+    name TEXT PRIMARY KEY,
+    story_id INTEGER NOT NULL REFERENCES stories(id),
+    rank INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS documents (
     id INTEGER PRIMARY KEY,
     role TEXT NOT NULL CHECK (role IN ('draft_script', 'story_note')),

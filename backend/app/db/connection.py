@@ -207,6 +207,8 @@ def _migrate_stories(conn: sqlite3.Connection) -> None:
         story_id = get_or_create_story(conn, parse_story_name(row["filename"])[0])
         conn.execute("UPDATE documents SET story_id = ? WHERE id = ?", (story_id, row["id"]))
 
+    conn.execute("INSERT OR IGNORE INTO story_names (name, story_id, rank) SELECT name, id, 0 FROM stories")
+
     conn.execute(
         """
         UPDATE themes SET story_id = (
