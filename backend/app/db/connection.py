@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Iterator
 
 from app.config import settings
+from app.db.story_name import parse_story_name
 
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 
@@ -24,10 +25,6 @@ def _migrate(conn: sqlite3.Connection) -> None:
     document_columns = {row[1] for row in conn.execute("PRAGMA table_info(documents)")}
     if "story_position" not in document_columns:
         conn.execute("ALTER TABLE documents ADD COLUMN story_position INTEGER")
-    conn.execute(
-        "CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_story_position "
-        "ON documents(story_position) WHERE story_position IS NOT NULL"
-    )
 
     topic_columns = {row[1] for row in conn.execute("PRAGMA table_info(topics)")}
     if "act" not in topic_columns:
@@ -40,11 +37,11 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE themes ADD COLUMN excluded INTEGER NOT NULL DEFAULT 0")
     if "is_main" not in theme_columns:
         conn.execute("ALTER TABLE themes ADD COLUMN is_main INTEGER NOT NULL DEFAULT 0")
-    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_themes_is_main ON themes(is_main) WHERE is_main = 1")
 
     _migrate_segment_styles_check(conn)
     _migrate_theme_subplot_model(conn)
     _migrate_drop_subplot_title_summary(conn)
+    _migrate_stories(conn)
 
     conn.commit()
 
@@ -180,6 +177,51 @@ def _migrate_drop_subplot_title_summary(conn: sqlite3.Connection) -> None:
         "INSERT INTO subplots (id, theme_id, created_at) SELECT id, theme_id, created_at FROM subplots_old"
     )
     conn.execute("DROP TABLE subplots_old")
+
+
+def _migrate_stories(conn: sqlite3.Connection) -> None:
+    for table in ("documents", "themes"):
+        columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+        if "story_id" not in columns:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN story_id INTEGER REFERENCES stories(id)")
+
+    # Story order and the Main theme are now per story rather than global.
+    conn.execute("DROP INDEX IF EXISTS idx_documents_story_position")
+    conn.execute("DROP INDEX IF EXISTS idx_themes_is_main")
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_story_order "
+        "ON documents(story_id, story_position) WHERE story_position IS NOT NULL"
+    )
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_themes_story_main ON themes(story_id) WHERE is_main = 1"
+    )
+
+    now = datetime.now(timezone.utc).isoformat()
+    for row in conn.execute("SELECT id, filename FROM documents WHERE story_id IS NULL").fetchall():
+        name, _ = parse_story_name(row["filename"])
+        conn.execute("INSERT OR IGNORE INTO stories (name, created_at) VALUES (?, ?)", (name, now))
+        story_id = conn.execute("SELECT id FROM stories WHERE name = ?", (name,)).fetchone()["id"]
+        conn.execute("UPDATE documents SET story_id = ? WHERE id = ?", (story_id, row["id"]))
+
+    conn.execute(
+        """
+        UPDATE themes SET story_id = (
+            SELECT documents.story_id FROM topics
+            JOIN documents ON documents.id = topics.document_id
+            WHERE topics.theme_id = themes.id
+            ORDER BY documents.id LIMIT 1
+        )
+        WHERE story_id IS NULL AND is_main = 0
+        """
+    )
+
+    # The pre-existing Main theme, and any subplot not yet holding topics,
+    # were built inside the one story already in use.
+    primary = conn.execute(
+        "SELECT story_id FROM documents WHERE story_position IS NOT NULL ORDER BY story_position LIMIT 1"
+    ).fetchone() or conn.execute("SELECT story_id FROM documents ORDER BY id LIMIT 1").fetchone()
+    if primary is not None:
+        conn.execute("UPDATE themes SET story_id = ? WHERE story_id IS NULL", (primary["story_id"],))
 
 
 def get_db() -> Iterator[sqlite3.Connection]:

@@ -1,3 +1,9 @@
+CREATE TABLE IF NOT EXISTS stories (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS documents (
     id INTEGER PRIMARY KEY,
     role TEXT NOT NULL CHECK (role IN ('draft_script', 'story_note')),
@@ -7,7 +13,8 @@ CREATE TABLE IF NOT EXISTS documents (
     content_hash TEXT NOT NULL,
     ingested_at TEXT NOT NULL,
     page_count INTEGER,
-    story_position INTEGER
+    story_position INTEGER,
+    story_id INTEGER REFERENCES stories(id)
 );
 
 CREATE TABLE IF NOT EXISTS segments (
@@ -42,6 +49,7 @@ CREATE TABLE IF NOT EXISTS themes (
     summary TEXT NOT NULL,
     is_main INTEGER NOT NULL DEFAULT 0,
     excluded INTEGER NOT NULL DEFAULT 0,
+    story_id INTEGER REFERENCES stories(id),
     created_at TEXT NOT NULL
 );
 
