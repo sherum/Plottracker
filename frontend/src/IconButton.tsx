@@ -22,14 +22,16 @@ interface Props {
   label: string
   onClick: () => void
   active?: boolean
+  disabled?: boolean
 }
 
-function IconButton({ icon, label, onClick, active = false }: Props) {
+function IconButton({ icon, label, onClick, active = false, disabled = false }: Props) {
   return (
     <button
       type="button"
       className={`btn btn-sm btn-outline-secondary${active ? ' active' : ''}`}
       onClick={onClick}
+      disabled={disabled}
       aria-label={label}
       aria-pressed={active}
       title={label}

@@ -856,25 +856,40 @@ function AppContent() {
           {storyDocuments.length > 0 && (
             <div className="story-order">
               <h3>Story Order</h3>
+              <p className="story-order-hint">
+                The order these documents are read in. Files numbered like <em>name_1</em>, <em>name_2</em> sort
+                automatically, and linked stories follow their link order.
+                {storyDocuments.length > 1 &&
+                  ' Use the arrows to move a document; adding or renaming a file in this story sets the order back to automatic.'}
+              </p>
               <ol className="story-order-list">
                 {storyDocuments.map((doc, index) => (
                   <li key={doc.id}>
                     <span className="tag">{index + 1}</span> <span className="doc-filename">{doc.filename}</span>
-                    <div className="doc-actions">
-                      <IconButton
-                        icon="up"
-                        label={`Move ${doc.filename} earlier in the story`}
-                        onClick={() => moveStoryDocument(doc.id, -1)}
-                      />
-                      <IconButton
-                        icon="down"
-                        label={`Move ${doc.filename} later in the story`}
-                        onClick={() => moveStoryDocument(doc.id, 1)}
-                      />
-                    </div>
+                    {storyDocuments.length > 1 && (
+                      <div className="doc-actions">
+                        <IconButton
+                          icon="up"
+                          label={`Move ${doc.filename} earlier in the story`}
+                          disabled={index === 0}
+                          onClick={() => moveStoryDocument(doc.id, -1)}
+                        />
+                        <IconButton
+                          icon="down"
+                          label={`Move ${doc.filename} later in the story`}
+                          disabled={index === storyDocuments.length - 1}
+                          onClick={() => moveStoryDocument(doc.id, 1)}
+                        />
+                      </div>
+                    )}
                   </li>
                 ))}
               </ol>
+              {storyDocuments.length > 1 && (
+                <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => updateStoryOrder([])}>
+                  Reset to automatic order
+                </button>
+              )}
             </div>
           )}
           </div>
