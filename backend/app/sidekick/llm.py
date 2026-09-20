@@ -9,6 +9,11 @@ from app.sidekick.tools import TOOL_SCHEMAS, execute_tool
 MODEL = settings.sidekick_model
 MAX_TOOL_ROUNDS = 4
 
+
+def _complete(messages: list[dict]):
+    options = {"reasoning_effort": settings.sidekick_reasoning_effort} if settings.sidekick_reasoning_effort else {}
+    return litellm.completion(model=MODEL, messages=messages, tools=TOOL_SCHEMAS, **options)
+
 SYSTEM_PROMPT = """You are a sidekick helping an author understand and manage their own story.
 
 Answer questions using only the topics, themes, subplots, and encoding rules
@@ -145,7 +150,7 @@ def answer_question(
     filtered_topic_ids: list[int] | None = None
 
     for _ in range(MAX_TOOL_ROUNDS):
-        response = litellm.completion(model=MODEL, messages=messages, tools=TOOL_SCHEMAS)
+        response = _complete(messages)
         message = response.choices[0].message
         tool_calls = getattr(message, "tool_calls", None)
         if not tool_calls:
@@ -182,6 +187,12 @@ def answer_question(
                     "content": json.dumps(result, default=str),
                 }
             )
+
+        # A filter only selects topics for the UI; a second model call just to describe it costs seconds.
+        if filtered_topic_ids is not None and all(call.function.name == "filter_topics" for call in tool_calls):
+            count = len(filtered_topic_ids)
+            answer = message.content or f"Found {count} matching topic{'' if count == 1 else 's'}."
+            return answer, actions_taken, created_subplot_id, filtered_topic_ids
 
     return (
         "I made some changes but ran out of turns to summarize them.",

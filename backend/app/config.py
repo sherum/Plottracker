@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     db_path: Path = REPO_ROOT / "data" / "scify.db"
     analysis_model: str = DEFAULT_MODEL
     sidekick_model: str = DEFAULT_MODEL
+    # Reasoning models spend most of a request thinking; a low effort answers sooner.
+    # Leave empty for a model that does not accept the setting.
+    sidekick_reasoning_effort: str = "low"
 
 
 settings = Settings()

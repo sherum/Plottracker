@@ -151,7 +151,7 @@ def test_answer_question_executes_tool_call_then_returns_final_answer(db_conn, m
         _FakeResponse(_FakeMessage(content="Done, I excluded that topic.", tool_calls=None)),
     ]
 
-    def fake_completion(model, messages, tools):
+    def fake_completion(model, messages, tools, **kwargs):
         return responses.pop(0)
 
     monkeypatch.setattr(llm.litellm, "completion", fake_completion)
@@ -169,7 +169,7 @@ def test_answer_question_executes_tool_call_then_returns_final_answer(db_conn, m
 
 def test_answer_question_no_tool_call_returns_answer_directly(db_conn, monkeypatch):
     monkeypatch.setattr(
-        llm.litellm, "completion", lambda model, messages, tools: _FakeResponse(_FakeMessage(content="Just an answer."))
+        llm.litellm, "completion", lambda model, messages, tools, **kwargs: _FakeResponse(_FakeMessage(content="Just an answer."))
     )
 
     answer, actions, created_subplot_id, filtered_topic_ids = llm.answer_question(
@@ -198,7 +198,7 @@ def test_answer_question_captures_created_subplot_id_from_tool_call(db_conn, mon
         _FakeResponse(_FakeMessage(content="Created it. Now select topics.", tool_calls=None)),
     ]
 
-    monkeypatch.setattr(llm.litellm, "completion", lambda model, messages, tools: responses.pop(0))
+    monkeypatch.setattr(llm.litellm, "completion", lambda model, messages, tools, **kwargs: responses.pop(0))
 
     answer, actions, created_subplot_id, filtered_topic_ids = llm.answer_question(
         db_conn, "start a new subplot called New Subplot", [], [], [], []
@@ -221,10 +221,9 @@ def test_answer_question_captures_filtered_topic_ids_from_tool_call(db_conn, mon
                 ]
             )
         ),
-        _FakeResponse(_FakeMessage(content="Here they are.", tool_calls=None)),
     ]
 
-    monkeypatch.setattr(llm.litellm, "completion", lambda model, messages, tools: responses.pop(0))
+    monkeypatch.setattr(llm.litellm, "completion", lambda model, messages, tools, **kwargs: responses.pop(0))
 
     answer, actions, created_subplot_id, filtered_topic_ids = llm.answer_question(
         db_conn, "show unassigned topics", [], [], [], []
@@ -261,3 +260,61 @@ def test_build_context_omits_current_lines_when_not_given():
 
     assert "Current topic" not in context
     assert "Current theme" not in context
+
+
+def test_a_filter_answers_after_one_model_call(db_conn, monkeypatch):
+    _, topic_ids = _make_document_with_topics(db_conn)
+    calls = []
+
+    def fake_completion(model, messages, tools, **kwargs):
+        calls.append(kwargs)
+        return _FakeResponse(
+            _FakeMessage(tool_calls=[_FakeToolCall("call_1", "filter_topics", f'{{"topic_ids": {topic_ids}}}')])
+        )
+
+    monkeypatch.setattr(llm.litellm, "completion", fake_completion)
+
+    answer, actions, _, filtered_topic_ids = llm.answer_question(db_conn, "unassigned topics", [], [], [], [])
+
+    assert len(calls) == 1
+    assert actions == ["filter_topics"]
+    assert sorted(filtered_topic_ids) == sorted(topic_ids)
+    assert answer == f"Found {len(topic_ids)} matching topics."
+
+
+def test_a_filter_alongside_another_action_still_gets_a_summary(db_conn, monkeypatch):
+    _, topic_ids = _make_document_with_topics(db_conn)
+    responses = [
+        _FakeResponse(
+            _FakeMessage(
+                tool_calls=[
+                    _FakeToolCall("call_1", "filter_topics", f'{{"topic_ids": {topic_ids}}}'),
+                    _FakeToolCall("call_2", "set_topic_excluded", f'{{"topic_id": {topic_ids[0]}, "excluded": true}}'),
+                ]
+            )
+        ),
+        _FakeResponse(_FakeMessage(content="Filtered and excluded one.", tool_calls=None)),
+    ]
+    monkeypatch.setattr(llm.litellm, "completion", lambda model, messages, tools, **kwargs: responses.pop(0))
+
+    answer, actions, _, _ = llm.answer_question(db_conn, "filter and exclude", [], [], [], [])
+
+    assert answer == "Filtered and excluded one."
+    assert actions == ["filter_topics", "set_topic_excluded"]
+
+
+def test_reasoning_effort_is_sent_only_when_configured(db_conn, monkeypatch):
+    sent = []
+
+    def fake_completion(model, messages, tools, **kwargs):
+        sent.append(kwargs)
+        return _FakeResponse(_FakeMessage(content="ok"))
+
+    monkeypatch.setattr(llm.litellm, "completion", fake_completion)
+
+    monkeypatch.setattr(llm.settings, "sidekick_reasoning_effort", "low")
+    llm.answer_question(db_conn, "hello", [], [], [], [])
+    monkeypatch.setattr(llm.settings, "sidekick_reasoning_effort", "")
+    llm.answer_question(db_conn, "hello", [], [], [], [])
+
+    assert sent == [{"reasoning_effort": "low"}, {}]
