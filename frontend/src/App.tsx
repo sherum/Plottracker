@@ -170,6 +170,13 @@ function AppContent() {
   }
 
   function switchStory(storyId: number) {
+    // Half-finished flows hold topics and subplots of the story being left.
+    setAddTarget(null)
+    setAddTargetTitle(null)
+    setFilteredSelection(null)
+    setSubplotSelection(null)
+    setDeleteTargetIds(new Set())
+    setSearchTopicIds(null)
     setLoadedDocument(null)
     setActiveStoryId(storyId)
   }
@@ -550,6 +557,7 @@ function AppContent() {
         [id]: `Done: ${result.topics_created} topics, ${result.themes_created} themes created`,
       }))
       refetchTopicsAndThemes()
+      setSubplotRefreshToken((n) => n + 1)
     } catch {
       setAnalyzing((prev) => ({ ...prev, [id]: '' }))
       showError('Could not analyze this document. Please try again.')

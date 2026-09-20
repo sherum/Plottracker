@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useToast } from './ToastContext'
 import type { Topic } from './TopicCardGrid'
 import './Sidekick.css'
@@ -48,6 +48,13 @@ function Sidekick({
   const [answer, setAnswer] = useState<string | null>(null)
   const [asking, setAsking] = useState(false)
   const { showError } = useToast()
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const addingTopics = addTargetIsNew === true || (addTargetSubplotId ?? null) !== null
+
+  // Adding topics starts by asking here, so take the cursor.
+  useEffect(() => {
+    if (addingTopics) inputRef.current?.focus()
+  }, [addingTopics])
 
   async function ask() {
     const trimmed = question.trim()
@@ -132,7 +139,9 @@ function Sidekick({
     ? `Selecting topics for “${selection.subplotTitle}” — ${selection.selectedTopicIds.size} selected. Toggle topics in the plot viewer, then type “done” below.`
     : filteredSelectionActive
       ? 'Select topics from the filtered list, then type “move them” below.'
-      : deleteTargetCount > 0
+      : addingTopics
+        ? 'Say which topics to add, e.g. “unassigned topics” or “topics starting with Q”.'
+        : deleteTargetCount > 0
         ? `${deleteTargetCount} subplot${deleteTargetCount === 1 ? '' : 's'} marked for deletion. Type “delete them” below, or click − again to unmark.`
         : topics.length === 0
           ? 'Load a document, then ask the sidekick to look up, change, or organize anything in it.'
@@ -142,17 +151,26 @@ function Sidekick({
     ? 'Type “done” when finished…'
     : filteredSelectionActive
       ? 'Type “move them” when ready…'
-      : deleteTargetCount > 0
+      : addingTopics
+        ? 'Which topics? e.g. unassigned topics…'
+        : deleteTargetCount > 0
         ? 'Type “delete them” to confirm…'
         : 'Ask me anything…'
 
   return (
     <div className="sidekick">
       <div className="sidekick-answer-area">
-        {answer ? <p className="sidekick-answer">{answer}</p> : <p className="hbar-hint">{hint}</p>}
+        {asking ? (
+          <p className="hbar-hint">Working on it - this can take 15 to 20 seconds on a long story.</p>
+        ) : answer ? (
+          <p className="sidekick-answer">{answer}</p>
+        ) : (
+          <p className="hbar-hint">{hint}</p>
+        )}
       </div>
       <div className="sidekick-input">
         <textarea
+          ref={inputRef}
           className="form-control form-control-sm"
           value={question}
           rows={6}
