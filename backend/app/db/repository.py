@@ -686,4 +686,12 @@ def list_stories(conn: sqlite3.Connection) -> list[dict]:
         ORDER BY stories.id
         """
     ).fetchall()
-    return [dict(row) for row in rows]
+    stories = [dict(row) for row in rows]
+    for story in stories:
+        story["names"] = [
+            row["name"]
+            for row in conn.execute(
+                "SELECT name FROM story_names WHERE story_id = ? ORDER BY rank, name", (story["id"],)
+            )
+        ]
+    return stories
