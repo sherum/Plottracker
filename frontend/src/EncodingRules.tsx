@@ -32,11 +32,14 @@ function EncodingRules({ rules, onToggleRule }: Props) {
               title={
                 onToggleRule
                   ? `${enabled ? 'Disable' : 'Enable'} "${rule.label}" for this document`
-                  : rule.description || rule.label
+                  : 'Load a single document to enable or disable rules'
               }
               aria-pressed={onToggleRule ? enabled : undefined}
             >
-              {rule.description || rule.label}
+              {onToggleRule && (
+                <i className={`bi ${enabled ? 'bi-check-circle-fill' : 'bi-slash-circle'}`} aria-hidden="true" />
+              )}
+              <span>{rule.description || rule.label}</span>
             </button>
           )
         })}

@@ -14,10 +14,22 @@
   background: none;
   color: inherit;
   font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.encoding-rule-pill:disabled {
+  cursor: not-allowed;
 }
 
 .encoding-rule-pill:not(:disabled) {
   cursor: pointer;
+}
+
+.encoding-rule-pill .bi {
+  flex: none;
 }
 
 .encoding-rule-pill:not(:disabled):hover {
@@ -27,5 +39,9 @@
 
 .encoding-rule-disabled {
   opacity: 0.45;
+  text-decoration: none;
+}
+
+.encoding-rule-disabled span {
   text-decoration: line-through;
 }
