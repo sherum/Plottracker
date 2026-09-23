@@ -7,6 +7,16 @@ answers questions about your story and edits the structure for you.
 
 You bring your own LLM API key. Your manuscripts stay on your machine.
 
+## Screenshots
+
+![Documents: upload files, refresh after ingest, and link a series into one main plot](docs/images/documents.png)
+
+![Theme view: one main plot, themes as subplots made of topics](docs/images/theme-view.png)
+
+![Topic view: topic position in the story, previous/next navigation, and splitting a topic](docs/images/topic-view.png)
+
+![Encoding rules and Sidekick](docs/images/sidekick.png)
+
 ## Prerequisites
 
 Either:
