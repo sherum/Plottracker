@@ -1,6 +1,6 @@
-# Genre Writer
+# Plot Tracker
 
-Turn a chaotic manuscript draft into a clear story structure. Genre Writer ingests
+Turn a chaotic manuscript draft into a clear story structure. Plot Tracker ingests
 your drafts (.docx, .pdf, .pages, text) and notes, uses an LLM to extract topics and
 themes, and shows them as notecards and a three-act plot view. An AI sidekick
 answers questions about your story and edits the structure for you.
